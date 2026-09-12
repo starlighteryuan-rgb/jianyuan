@@ -1,0 +1,476 @@
+// Personal Awareness — Phase 1 Foundation schema
+//
+// Authority: ENGINEERING_CONTRACT.md (PRODUCT LOGIC FROZEN) is the highest
+// product-logic constraint. docs/architecture.md is the authoritative
+// engineering architecture. This schema implements Foundation only.
+//
+// Structural commitments deliberately encoded below (ENGINEERING_CONTRACT §42
+// requires stating how a schema preserves the contract):
+//
+//   1. sourceFingerprint != evidenceUnitId — separate columns, separate
+//      meanings, separate uniqueness. Ingestion dedup is NOT evidence
+//      independence.                       (§4, INV-16, arch §4 Patch 2)
+//   2. Record -> 0..N epistemic roles via a child table, never one enum
+//      column.                             (arch §4 Patch 1)
+//   3. Record -> exactly ONE EvidenceUnit, enforced by a required FK.
+//                                          (§4, INV-16)
+//   4. Lineage is a separate table carrying NO evidence verdict. Lineage
+//      answers "how do these relate"; EvidenceUnit answers "do they count
+//      independently". Two different concepts.   (§6, arch §4)
+//   5. Discovery persists stable IDENTITY ONLY — no attentionPriority, no
+//      presentationLevel columns exist.     (arch §4 Patch 6, §17, INV-09)
+//   6. ReflectionEpisode has NO meaningCommitment column.
+//                                          (arch §4 Patch 4, INV-18)
+//   7. UserReflectionRecord owns the whole meaning lifecycle.
+//                                          (§24, §25, INV-12)
+//   8. Directive keeps analysis / storage / passive presentation / proactive
+//      presentation as four INDEPENDENT booleans.   (§26, INV-17)
+//   9. StateAssignment is target-scoped with NO case-global state, and its
+//      target enum admits exactly RELATION_CLAIM | HYPOTHESIS | DISCOVERY.
+//      REFLECTION_EPISODE is absent by design.  (§16, arch §4 Patch B)
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+// Prisma 7 moved the connection URL out of the schema. It now lives in
+// prisma.config.ts (see `datasource.url` there), which reads DATABASE_URL.
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── Enums (transcribed from ENGINEERING_CONTRACT; do not collapse) ────────
+
+/// ENGINEERING_CONTRACT §4. One source may hold MULTIPLE roles.
+enum EpistemicRole {
+  OBSERVED_EVENT
+  OBSERVED_STATE
+  USER_EXPRESSION
+  USER_REPORTED_PATTERN
+  USER_REPORTED_INTERVAL
+  PLATFORM_METADATA
+  EXTERNAL_REFERENCE
+  AI_HYPOTHESIS
+  DIRECTIVE
+  PRODUCT_EVENT
+}
+
+/// ENGINEERING_CONTRACT §5. The system MUST NOT upgrade one semantic into
+/// another (INV-07, INV-08).
+enum TimeSemantic {
+  EVENT_TIME
+  OBSERVATION_TIME
+  CAPTURE_TIME
+  USER_REPORTED_TIME
+  USER_REPORTED_INTERVAL
+}
+
+/// ENGINEERING_CONTRACT §4.1.
+enum ProvenanceOrigin {
+  DIRECTLY_OBSERVED
+  IMPORTED
+  GENERATED
+  USER_REPORTED
+}
+
+enum ProvenanceActor {
+  USER
+  SYSTEM
+  AI
+  PLATFORM
+}
+
+/// ENGINEERING_CONTRACT §6 (extensible set). REFORMATS is the extension named
+/// by arch §4 Patch 2.
+enum LineageRelation {
+  DERIVED_FROM
+  RESPONDS_TO
+  REFERENCES
+  REVISES
+  SUPERSEDES
+  SUMMARIZES
+  REFORMATS
+}
+
+/// arch §4 Patch B — MVP target scope frozen to three types.
+/// REFLECTION_EPISODE is intentionally NOT a member: an episode records
+/// elicitation provenance and is not a target of user_position, suspension,
+/// or archival.
+enum StateTargetType {
+  RELATION_CLAIM
+  HYPOTHESIS
+  DISCOVERY
+}
+
+/// ENGINEERING_CONTRACT §16.
+enum UserPosition {
+  NONE
+  AGREES
+  DISAGREES
+  UNCERTAIN
+}
+
+enum WorkflowState {
+  ACTIVE
+  SUSPENDED
+}
+
+enum PresentationState {
+  ACTIVE
+  ARCHIVED
+}
+
+/// ENGINEERING_CONTRACT §22. Orthogonal to stimulusType.
+enum ElicitationMode {
+  SPONTANEOUS
+  PROMPTED
+  UNKNOWN
+}
+
+enum StimulusType {
+  NONE
+  OPEN_QUESTION
+  EVIDENCE_RELATION
+  HYPOTHESIS
+  EXTERNAL_REFERENCE
+  UNKNOWN
+}
+
+/// ENGINEERING_CONTRACT §24. Owned ONLY by UserReflectionRecord.
+enum MeaningCommitment {
+  TENTATIVE
+  CONFIRMED
+}
+
+/// ENGINEERING_CONTRACT §25.
+enum MeaningEffect {
+  CURRENT
+  SUPERSEDED
+}
+
+enum DiscoveryKind {
+  RELATION_DISCOVERY
+  HYPOTHESIS_DISCOVERY
+}
+
+enum DiscoverySubjectType {
+  RELATION_CLAIM
+  HYPOTHESIS
+}
+
+/// arch §13 — `appliesToFutureSimilar` scope is EXPLICIT-ONLY for MVP.
+enum DirectiveScopeKind {
+  TOPIC_TAG
+  SOURCE
+  RELATION_AXIS
+  USER_SELECTED
+}
+
+// ─── Evidence independence ────────────────────────────────────────────────
+
+/// Evidence-independence identity (ENGINEERING_CONTRACT §4, §6.1, INV-03,
+/// INV-16; arch §4 Patch 2).
+///
+/// "One original information source remains one Evidence Unit."
+///
+/// Promoted to a first-class table so that a Record's required FK structurally
+/// guarantees exactly-one-unit-per-Record, and so that counting independent
+/// support is a cheap DISTINCT over this key rather than a transitive lineage
+/// traversal.
+model EvidenceUnit {
+  id String @id
+
+  /// Set only when this unit was minted for a DERIVED record that an explicit
+  /// determination judged to carry genuinely new independent factual content.
+  /// Stored for auditability; never parsed to re-make the decision.
+  /// The precise criteria remain a deferred open question (arch §13).
+  mintedFromParentReason String?
+
+  createdAt DateTime @default(now())
+
+  records Record[]
+
+  @@map("evidence_unit")
+}
+
+// ─── Record ───────────────────────────────────────────────────────────────
+
+/// ENGINEERING_CONTRACT §4, §4.1, §4.2.
+model Record {
+  id String @id
+
+  /// INGESTION DEDUP ONLY. Same raw source re-ingested -> same Record.
+  /// This is NOT an evidence-independence claim. Unique because re-ingesting
+  /// one source must not create a second Record.
+  sourceFingerprint String @unique
+
+  /// EVIDENCE INDEPENDENCE. Required (never null) => exactly one unit per
+  /// Record. NOT unique => many Records may legitimately share one unit,
+  /// which is precisely how summaries/reformats avoid double counting.
+  evidenceUnitId String
+  evidenceUnit   EvidenceUnit @relation(fields: [evidenceUnitId], references: [id])
+
+  // Provenance (§4.1) — where from, who produced it, how, traceable to what.
+  provenanceOrigin ProvenanceOrigin
+  provenanceActor  ProvenanceActor
+  sourceRef        String
+  capturedAt       DateTime
+
+  // Time semantics (§5). The tag travels WITH the value so the kind of time
+  // known can never be silently upgraded (INV-07, INV-08).
+  timeSemantic TimeSemantic
+  /// Set for point semantics; null for USER_REPORTED_INTERVAL.
+  timeAt       DateTime?
+  /// Set only for USER_REPORTED_INTERVAL; either bound may be unknown.
+  intervalFrom DateTime?
+  intervalTo   DateTime?
+  /// Preserved user wording of a reported interval, e.g. "这半年".
+  intervalReportedAs String?
+
+  /// Raw expression preservation (§4.2). Modal language (可能 / 好像 / 我觉得 /
+  /// 不知道 / 也许) MUST NOT be stripped. "我可能是因为……" must never be
+  /// normalized into "用户是因为……".
+  rawExpressionVerbatim String?
+  rawExpressionLanguage String?
+
+  createdAt DateTime @default(now())
+
+  /// 0..N roles (arch §4 Patch 1). Adding roles NEVER changes evidenceUnitId.
+  epistemicRoles RecordEpistemicRole[]
+
+  lineageAsChild  LineageEdge[] @relation("lineage_child")
+  lineageAsParent LineageEdge[] @relation("lineage_parent")
+
+  userReflectionRecords UserReflectionRecord[]
+
+  @@index([evidenceUnitId])
+  @@map("record")
+}
+
+/// arch §4 Patch 1 — replaces a single-value `epistemic_role` column.
+///
+/// Many rows per Record allowed. The composite PK makes a role set idempotent:
+/// re-classifying a source cannot multiply anything, which is the structural
+/// half of INV-16.
+model RecordEpistemicRole {
+  recordId String
+  record   Record        @relation(fields: [recordId], references: [id], onDelete: Cascade)
+  role     EpistemicRole
+
+  assignedAt DateTime @default(now())
+
+  @@id([recordId, role])
+  @@index([role])
+  @@map("record_epistemic_role")
+}
+
+// ─── Lineage ──────────────────────────────────────────────────────────────
+
+/// ENGINEERING_CONTRACT §6, §6.1.
+///
+/// Explains HOW records relate. Carries NO evidence verdict, no weight, and no
+/// independence flag — those belong to EvidenceUnit. Keeping the two concepts
+/// in separate tables is an explicit architectural requirement (arch §4).
+///
+/// Default evidence behaviour for DERIVED_FROM / SUMMARIZES / REFORMATS is to
+/// INHERIT the parent's evidenceUnitId. That rule is enforced in the domain
+/// layer (src/domain/record/evidence-unit.ts), not by a column here, because
+/// it is a decision procedure rather than a stored fact.
+model LineageEdge {
+  id String @id
+
+  childId String
+  child   Record @relation("lineage_child", fields: [childId], references: [id], onDelete: Cascade)
+
+  parentId String
+  parent   Record @relation("lineage_parent", fields: [parentId], references: [id], onDelete: Cascade)
+
+  relationToParent LineageRelation
+
+  createdAt DateTime @default(now())
+
+  @@unique([childId, parentId, relationToParent])
+  @@index([parentId])
+  @@map("lineage_edge")
+}
+
+// ─── Directive ────────────────────────────────────────────────────────────
+
+/// ENGINEERING_CONTRACT §26, INV-17; arch §4 Patch 5.
+///
+/// Four INDEPENDENT permission booleans. Not a level, not a ranked enum, not
+/// derivable from one another. Collapsing any pair would violate INV-17 and
+/// §42.
+///
+///   "以后类似的也别主动提醒我" -> allowProactivePresentation = false
+///                                 while allowAnalysis = true
+///                                 and allowPassivePresentation = true
+///   "只记录，不分析"           -> allowStorage = true, allowAnalysis = false
+model Directive {
+  id String @id
+
+  allowAnalysis              Boolean
+  allowStorage               Boolean
+  allowPassivePresentation   Boolean
+  allowProactivePresentation Boolean
+
+  appliesToFutureSimilar Boolean
+
+  /// EXPLICIT-ONLY scope (arch §13). Required in the domain layer whenever
+  /// appliesToFutureSimilar is true; AI-driven broadening of "similar" is
+  /// prohibited for MVP.
+  scopeKind  DirectiveScopeKind?
+  scopeValue String?
+
+  /// Directives must be revocable (§26).
+  revokedAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@map("directive")
+}
+
+// ─── Target-scoped state ──────────────────────────────────────────────────
+
+/// ENGINEERING_CONTRACT §16, §16.1-16.3; arch §4 Patch B.
+///
+/// There is NO case-global state; state attaches to a specific target.
+///
+/// userPosition is stored HERE and evidence scores are stored on
+/// RelationClaim (a later phase). Nothing in this model can reach an evidence
+/// field, which is the structural guarantee behind INV-04 and arch §11
+/// Patch 9: a user's disagreement can never mutate a descriptive score.
+///
+/// This combination is explicitly VALID (§16.1):
+///   evidence_support_level = strong / userPosition = DISAGREES /
+///   workflowState = SUSPENDED
+///
+/// workflowState and presentationState are ORTHOGONAL — suspension and
+/// archival are different decisions, and no separate "Hold" state exists
+/// (§16.2, §16.3).
+model StateAssignment {
+  id String @id
+
+  targetType StateTargetType
+  targetRef  String
+
+  userPosition      UserPosition      @default(NONE)
+  workflowState     WorkflowState     @default(ACTIVE)
+  presentationState PresentationState @default(ACTIVE)
+
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+
+  /// One state row per target.
+  @@unique([targetType, targetRef])
+  @@map("state_assignment")
+}
+
+// ─── Discovery ────────────────────────────────────────────────────────────
+
+/// arch §4 Patch 6 + Patch B.
+///
+/// STABLE IDENTITY ONLY. Note what is absent and must stay absent:
+///   - attentionPriority, and the five attention signals (§17)
+///   - presentationLevel (§18)
+///   - presentationState  -> lives on StateAssignment keyed to this id
+///
+/// Attention Priority and Presentation Level are COMPUTED ON READ. Persisting
+/// them would freeze a judgment the contract requires recomputing, and would
+/// invite ranking attention by evidence strength (INV-09, §36).
+model Discovery {
+  id String @id
+
+  subjectType DiscoverySubjectType
+  subjectRef  String
+
+  discoveryKind DiscoveryKind
+
+  /// Deterministic recomputation key: recomputing over the same subject
+  /// resolves to the SAME row, so archive/restore survives recomputation.
+  stableKey String @unique
+
+  createdAt DateTime @default(now())
+
+  @@index([subjectType, subjectRef])
+  @@map("discovery")
+}
+
+// ─── Reflection ───────────────────────────────────────────────────────────
+
+/// ENGINEERING_CONTRACT §22, §23; arch §4 Patch 4.
+///
+/// Describes ONLY how a reflection was elicited.
+///
+/// There is NO meaningCommitment column here, by design. Meaning belongs to
+/// UserReflectionRecord exclusively, so that no field on an episode can be
+/// mistaken for a user's meaning commitment (INV-18).
+///
+/// elicitationMode and stimulusType are orthogonal (§22). Unknown provenance
+/// is recorded as UNKNOWN rather than fabricated.
+model ReflectionEpisode {
+  id String @id
+
+  elicitationMode ElicitationMode
+  stimulusType    StimulusType
+
+  /// §23 — AI-initiated follow-ups AFTER the initial stimulus. The initial
+  /// stimulus does not count; user-initiated continuation does not count.
+  /// > 1 without active user continuation flags Prompt Contamination
+  /// susceptibility, which must never auto-strengthen evidence (INV-03, §37).
+  systemFollowupCount Int @default(0)
+
+  stimulusRef String?
+  targetRef   String?
+
+  occurredAt DateTime
+
+  createdAt DateTime @default(now())
+
+  userReflectionRecords UserReflectionRecord[]
+
+  @@map("reflection_episode")
+}
+
+/// ENGINEERING_CONTRACT §24, §25, INV-12, INV-13, INV-18; arch §4 Patch 3+4.
+///
+/// SOLE owner of the meaning lifecycle. A distinct entity rather than a
+/// flattened Record, while sharing its Record's provenance, raw expression,
+/// time semantics, and evidenceUnitId through `recordId`.
+///
+/// Meaning revision uses supersededByRef / supersededAt. It must NEVER be
+/// expressed by abusing workflowState = SUSPENDED or
+/// presentationState = ARCHIVED, which address a different concern entirely
+/// (§25). The earlier row is retained, not deleted: it remains historically
+/// true that the user held that interpretation then (INV-12).
+model UserReflectionRecord {
+  id String @id
+
+  recordId String
+  record   Record @relation(fields: [recordId], references: [id], onDelete: Cascade)
+
+  /// §24 — spontaneity and certainty are ORTHOGONAL. A spontaneous statement
+  /// may still be TENTATIVE (INV-13). Never derived from elicitationMode.
+  meaningCommitment MeaningCommitment
+
+  // §25 — user meaning is time-indexed.
+  validAtSemantic TimeSemantic
+  validAtTime     DateTime?
+
+  currentEffect MeaningEffect @default(CURRENT)
+
+  supersededById String?               @unique
+  supersededBy   UserReflectionRecord? @relation("meaning_supersession", fields: [supersededById], references: [id])
+  supersedes     UserReflectionRecord? @relation("meaning_supersession")
+  supersededAt   DateTime?
+
+  episodeId String?
+  episode   ReflectionEpisode? @relation(fields: [episodeId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@index([recordId])
+  @@index([currentEffect])
+  @@map("user_reflection_record")
+}
