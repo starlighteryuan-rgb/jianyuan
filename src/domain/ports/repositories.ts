@@ -19,11 +19,14 @@ import type { StateAssignment } from '../state/state-assignment';
 import type { Discovery } from '../discovery/discovery';
 import type { ReflectionEpisode } from '../reflection/reflection-episode';
 import type { UserReflectionRecord } from '../reflection/user-reflection-record';
+import type { StoredRelationClaim } from '../relation/relation-claim';
+import type { EvidenceSupportLevel } from '../relation/evidence-dimensions';
 import type {
   DirectiveId,
   DiscoveryId,
   EvidenceUnitId,
   RecordId,
+  RelationClaimId,
   SourceFingerprint,
   StateAssignmentId,
 } from '../shared/ids';
@@ -121,6 +124,26 @@ export interface DiscoveryRepository {
    * read and never persisted (Patch 6, INV-09).
    */
   ensure(discovery: Discovery): Promise<Discovery>;
+}
+
+export interface RelationClaimRepository {
+  findById(id: RelationClaimId): Promise<StoredRelationClaim | null>;
+
+  /** Claims referencing a given Record. */
+  findByRecordRef(recordId: RecordId): Promise<readonly StoredRelationClaim[]>;
+
+  /**
+   * Claims at a given Evidence Support level.
+   *
+   * A claim whose assessment is absent has a null `supportLevel` and is
+   * therefore returned by no level query — an unscored claim must never be
+   * mistaken for a weakly supported one (docs/architecture.md §11 Patch 9).
+   */
+  listBySupportLevel(
+    level: EvidenceSupportLevel,
+  ): Promise<readonly StoredRelationClaim[]>;
+
+  save(claim: StoredRelationClaim): Promise<void>;
 }
 
 export interface ReflectionEpisodeRepository {

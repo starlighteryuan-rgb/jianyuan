@@ -6,3 +6,4 @@ export { MemoryStateAssignmentRepository } from './memory-state-assignment-repos
 export { MemoryDiscoveryRepository } from './memory-discovery-repository';
 export { MemoryReflectionEpisodeRepository } from './memory-reflection-episode-repository';
 export { MemoryUserReflectionRecordRepository } from './memory-user-reflection-record-repository';
+export { MemoryRelationClaimRepository } from './memory-relation-claim-repository';
