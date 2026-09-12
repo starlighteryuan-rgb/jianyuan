@@ -114,9 +114,9 @@ export const decidePresentation = (
 
   // ── Restrictions on PROACTIVE presentation only ─────────────────────────
   if (inputs.archived) {
-    // §16.3 — archive suppresses proactive surfacing but keeps the item
-    // retrievable. The evidence is untouched.
-    ceiling = lower(ceiling, 'l2');
+    // §16.3 / §18 — archive suppresses Level 2 and Level 3 presentation while
+    // keeping the item retrievable. The evidence is untouched.
+    ceiling = lower(ceiling, 'l1');
     reasons.push(
       'Archived, so it is not proactively surfaced; it remains retrievable ' +
         'and its evidence is unchanged (§16.3).',
@@ -124,9 +124,10 @@ export const decidePresentation = (
   }
 
   if (inputs.suspended) {
-    // §16.2 — the user paused this line. Suspension halts forward progression
-    // without erasing anything (§16.1 keeps strong+disagrees+suspended valid).
-    ceiling = lower(ceiling, 'l2');
+    // §16.2 / §18 — the user paused this line. Suspension halts forward
+    // progression and retains backend evidence without Level 2/3 presentation
+    // (§16.1 keeps strong+disagrees+suspended valid).
+    ceiling = lower(ceiling, 'l1');
     reasons.push(
       'Suspended at the user’s request, so it is not proactively ' +
         'surfaced; the evidence remains (§16.2).',
