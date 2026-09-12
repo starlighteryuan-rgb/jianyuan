@@ -141,8 +141,8 @@ describe('§16.3 — archive', () => {
   it('suppresses proactive surfacing but keeps retrievability', () => {
     const decision = decidePresentation(permissive({ archived: true }));
 
-    expect(decision.maxLevel).toBe('l2');
-    expect(decision.passiveEligible).toBe(true);
+    expect(decision.maxLevel).toBe('l1');
+    expect(decision.passiveEligible).toBe(false);
     expect(decision.proactiveEligible).toBe(false);
   });
 
@@ -157,7 +157,8 @@ describe('§16.2 — suspend', () => {
   it('halts proactive surfacing', () => {
     const decision = decidePresentation(permissive({ suspended: true }));
 
-    expect(decision.maxLevel).toBe('l2');
+    expect(decision.maxLevel).toBe('l1');
+    expect(decision.passiveEligible).toBe(false);
     expect(decision.proactiveEligible).toBe(false);
   });
 

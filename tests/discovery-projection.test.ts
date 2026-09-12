@@ -396,11 +396,15 @@ describe('stream ordering', () => {
     expect(ordered[0]?.presentation.passiveEligible).toBe(true);
   });
 
-  it('keeps archived items in the stream', () => {
-    // §16.3: archive suppresses proactive surfacing, not retrievability.
+  it('excludes archived items from the passive stream', () => {
+    // §16.3 / §18: archive preserves identity and evidence but suppresses
+    // passive and proactive presentation.
     const archived = project({ archived: true });
 
-    expect(orderForStream([archived])).toHaveLength(1);
+    expect(archived.presentation.maxLevel).toBe('l1');
+    expect(archived.presentation.passiveEligible).toBe(false);
+    expect(archived.presentation.proactiveEligible).toBe(false);
+    expect(orderForStream([archived])).toEqual([]);
   });
 
   it('does not mutate the input array', () => {

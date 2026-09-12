@@ -14,6 +14,7 @@ import {
   directiveId,
   hypothesisId,
   relationClaimId,
+  discoveryId,
   stateAssignmentId,
 } from '@/domain/shared/ids';
 import { createMemoryServices } from '@/server/container';
@@ -153,15 +154,13 @@ describe('DiscoveryService Awareness Stream boundary', () => {
       state({ workflowState: 'suspended' }),
     );
 
-    const [item] = await services.discovery.listStream({
+    const stream = await services.discovery.listStream({
       now: T1,
       relationLimit: 50,
     });
 
-    expect(item?.projection.presentation.proactiveEligible).toBe(false);
-    expect(item?.projection.presentation.reasons.join(' ')).toContain(
-      'Suspended',
-    );
+    expect(stream).toEqual([]);
+    expect(await services.repositories.claims.findById(relationClaimId('claim-1'))).not.toBeNull();
   });
 
   it('reads archive state by the persisted Discovery id', async () => {
@@ -186,14 +185,13 @@ describe('DiscoveryService Awareness Stream boundary', () => {
       }),
     );
 
-    const [item] = await services.discovery.listStream({
+    const stream = await services.discovery.listStream({
       now: T1,
       relationLimit: 50,
     });
 
-    expect(item?.projection.presentation.proactiveEligible).toBe(false);
-    expect(item?.projection.presentation.reasons.join(' ')).toContain(
-      'Archived',
-    );
+    expect(stream).toEqual([]);
+    expect(existing).not.toBeNull();
+    expect(await services.repositories.discoveries.findById(existing!.id)).not.toBeNull();
   });
 });
