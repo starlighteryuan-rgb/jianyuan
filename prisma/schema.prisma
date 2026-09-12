@@ -167,6 +167,37 @@ enum DirectiveScopeKind {
   USER_SELECTED
 }
 
+/// ENGINEERING_CONTRACT §9. A CLOSED set of four levels with fixed thresholds,
+/// so an enum is correct here.
+///
+/// Contrast with `RelationClaim.relationType`, which is deliberately a String:
+/// §7.1 declares the relation taxonomy NON-EXHAUSTIVE, and an enum there would
+/// silently close it.
+enum EvidenceSupportLevel {
+  WEAK
+  OBSERVED
+  SUPPORTED
+  STRONG
+}
+
+/// ENGINEERING_CONTRACT §9 — the six frozen evidence dimensions.
+enum EvidenceDimension {
+  STRUCTURAL_STRENGTH
+  INDEPENDENT_SUPPORT
+  TEMPORAL_ADEQUACY
+  SPECIFICITY_BASELINE_CONTRAST
+  COUNTEREVIDENCE_BALANCE
+  EVIDENCE_FIDELITY
+}
+
+/// arch §11 Patch 9 — an unusable dimension judgment is retried or left
+/// explicitly unscored, NEVER user-edited and never silently defaulted.
+enum DimensionScoreStatus {
+  SCORED
+  UNAVAILABLE
+  NEEDS_RETRY
+}
+
 // ─── Evidence independence ────────────────────────────────────────────────
 
 /// Evidence-independence identity (ENGINEERING_CONTRACT §4, §6.1, INV-03,
@@ -395,6 +426,105 @@ model Discovery {
 
   @@index([subjectType, subjectRef])
   @@map("discovery")
+}
+
+// ─── Relation ─────────────────────────────────────────────────────────────
+
+/// ENGINEERING_CONTRACT §7, §7.1, §7.2; arch §4 Patch 8.
+///
+/// Relation is DESCRIPTIVE: what evidence-supported structure exists between
+/// records. It does NOT explain why — that is Hypothesis (§13). Accordingly
+/// there is no cause, mechanism, motive, or certainty column here.
+///
+/// `relationType` is a **String, not an enum**. §7.1 declares the taxonomy
+/// non-exhaustive: novel claims may be admitted if they pass the gates. An enum
+/// would silently close it.
+///
+/// "No Sufficient Relation" is NEVER stored in `relationType`. §7.2 makes it an
+/// evaluation OUTCOME, not a relation type and not a permanent classification.
+///
+/// Patch 8 coupling: `supportLevel` and `numericScore` are nullable TOGETHER
+/// with the dimension rows. A claim either has a complete assessment (all six
+/// dimensions SCORED, each with a reason) or no level at all. Never partial
+/// (arch §11 Patch 9). Enforced in the domain by `hasAuditableEvidence` and
+/// re-checked by the adapter before write, since SQL cannot express
+/// "level implies six scored children" declaratively.
+model RelationClaim {
+  id String @id
+
+  /// Gate 3 — the Comparison Axis, answering 具体比较什么. Structured rather
+  /// than a free label, because shared themes are insufficient (§8 Gate 3).
+  axisQuestion  String
+  axisDimension String
+
+  /// Open taxonomy (§7.1).
+  relationType String
+
+  /// The model's descriptive account of the observed structure.
+  evidenceSummary String
+
+  /// Does the claim assert ordering/transition in time? Checked for LEGALITY by
+  /// Gate 4 (§8, §5.1, INV-07).
+  assertsTemporalOrdering Boolean @default(false)
+
+  /// Deterministic outputs (§9, §31). Null unless all six dimensions scored.
+  numericScore Int?
+  supportLevel EvidenceSupportLevel?
+
+  createdAt DateTime @default(now())
+
+  recordRefs        RelationClaimRecord[]
+  dimensionJudgments RelationClaimDimension[]
+
+  @@index([supportLevel])
+  @@index([relationType])
+  @@map("relation_claim")
+}
+
+/// Records a claim is about (§7 `record_refs`).
+///
+/// A join table because one claim may reference 0..N records. Order carries no
+/// meaning. Note this stores only the reference: whether those records count as
+/// INDEPENDENT evidence is keyed on `Record.evidenceUnitId`, a separate concern
+/// (Gate 5, §6.1, INV-16).
+model RelationClaimRecord {
+  claimId String
+  claim   RelationClaim @relation(fields: [claimId], references: [id], onDelete: Cascade)
+
+  recordId String
+
+  @@id([claimId, recordId])
+  @@index([recordId])
+  @@map("relation_claim_record")
+}
+
+/// Per-dimension judgment (§9, §10; arch §4 Patch 8).
+///
+/// `score` and `reason` live in the SAME row, so a stored score always carries
+/// the reason that justifies it — Patch 8's auditability requirement made
+/// structural. `reason` is non-null even for an unscored dimension, because the
+/// contract wants the refusal explained too.
+///
+/// `score` is nullable ONLY because status may be UNAVAILABLE or NEEDS_RETRY.
+/// A SCORED row always has one. The division of labour holds: the 0–3 judgment
+/// and its reason come from the model; weighting, summation, and thresholding
+/// are deterministic code (§9, §31).
+model RelationClaimDimension {
+  claimId String
+  claim   RelationClaim @relation(fields: [claimId], references: [id], onDelete: Cascade)
+
+  dimension EvidenceDimension
+
+  status DimensionScoreStatus
+
+  /// 0–3 semantic scale (§9). Present iff status = SCORED.
+  score Int?
+
+  /// From the model. Required: an unexplained score is inadmissible (Patch 8).
+  reason String
+
+  @@id([claimId, dimension])
+  @@map("relation_claim_dimension")
 }
 
 // ─── Reflection ───────────────────────────────────────────────────────────

@@ -37,10 +37,25 @@ import type { PersonalRecord } from '../../domain/record/record';
 import type { Directive } from '../../domain/directive/directive';
 import type { LineageEdge } from '../../domain/lineage/lineage-edge';
 import {
+  EVIDENCE_DIMENSIONS,
+  isDimensionScore,
+  type DimensionJudgment,
+  type DimensionJudgments,
+  type EvidenceDimension,
+  type EvidenceSupportLevel,
+  type ScoreStatus,
+} from '../../domain/relation/evidence-dimensions';
+import {
+  buildStoredClaim,
+  type RelationClaimCandidate,
+  type StoredRelationClaim,
+} from '../../domain/relation/relation-claim';
+import {
   directiveId,
   evidenceUnitId,
   lineageEdgeId,
   recordId,
+  relationClaimId,
   sourceFingerprint,
 } from '../../domain/shared/ids';
 import type { TimeAssertion } from '../../domain/shared/time-semantics';
@@ -351,3 +366,233 @@ export const toLineageEdgeRow = (e: LineageEdge): LineageEdgeRow => ({
   relationToParent: lineageRelationToDb(e.relationToParent),
   createdAt: e.createdAt,
 });
+
+/* ── RelationClaim ────────────────────────────────────────────────────── */
+
+const SUPPORT_LEVEL_TO_DB = {
+  weak: 'WEAK',
+  observed: 'OBSERVED',
+  supported: 'SUPPORTED',
+  strong: 'STRONG',
+} as const satisfies Record<EvidenceSupportLevel, $Enums.EvidenceSupportLevel>;
+
+const DIMENSION_TO_DB = {
+  structural_strength: 'STRUCTURAL_STRENGTH',
+  independent_support: 'INDEPENDENT_SUPPORT',
+  temporal_adequacy: 'TEMPORAL_ADEQUACY',
+  specificity_baseline_contrast: 'SPECIFICITY_BASELINE_CONTRAST',
+  counterevidence_balance: 'COUNTEREVIDENCE_BALANCE',
+  evidence_fidelity: 'EVIDENCE_FIDELITY',
+} as const satisfies Record<EvidenceDimension, $Enums.EvidenceDimension>;
+
+const SCORE_STATUS_TO_DB = {
+  scored: 'SCORED',
+  unavailable: 'UNAVAILABLE',
+  needs_retry: 'NEEDS_RETRY',
+} as const satisfies Record<ScoreStatus, $Enums.DimensionScoreStatus>;
+
+const SUPPORT_LEVEL_FROM_DB = invert(SUPPORT_LEVEL_TO_DB);
+const DIMENSION_FROM_DB = invert(DIMENSION_TO_DB);
+const SCORE_STATUS_FROM_DB = invert(SCORE_STATUS_TO_DB);
+
+export const supportLevelToDb = (
+  l: EvidenceSupportLevel,
+): $Enums.EvidenceSupportLevel => SUPPORT_LEVEL_TO_DB[l];
+export const supportLevelFromDb = (
+  l: $Enums.EvidenceSupportLevel,
+): EvidenceSupportLevel => SUPPORT_LEVEL_FROM_DB[l];
+export const dimensionToDb = (
+  d: EvidenceDimension,
+): $Enums.EvidenceDimension => DIMENSION_TO_DB[d];
+export const dimensionFromDb = (
+  d: $Enums.EvidenceDimension,
+): EvidenceDimension => DIMENSION_FROM_DB[d];
+
+export interface RelationClaimRow {
+  readonly id: string;
+  readonly axisQuestion: string;
+  readonly axisDimension: string;
+  readonly relationType: string;
+  readonly evidenceSummary: string;
+  readonly assertsTemporalOrdering: boolean;
+  readonly numericScore: number | null;
+  readonly supportLevel: $Enums.EvidenceSupportLevel | null;
+  readonly createdAt: Date;
+}
+
+export interface RelationClaimDimensionRow {
+  readonly dimension: $Enums.EvidenceDimension;
+  readonly status: $Enums.DimensionScoreStatus;
+  readonly score: number | null;
+  readonly reason: string;
+}
+
+export type RelationClaimMappingError = {
+  readonly kind: 'inconsistent_relation_claim';
+  readonly detail: string;
+};
+
+/**
+ * Reassemble a claim from its flat rows.
+ *
+ * This is where the Patch 8 coupling is defended at the persistence boundary.
+ * SQL cannot declaratively express "a support level implies six SCORED
+ * dimension rows, each with a reason", so the invariant is re-checked here and
+ * a violating row set is REFUSED rather than repaired.
+ *
+ * Refusing matters: silently reconstructing a partial assessment would
+ * manufacture an unaudited support level, which is exactly what Patch 8 exists
+ * to prevent.
+ */
+export const toDomainRelationClaim = (
+  row: RelationClaimRow,
+  dimensionRows: readonly RelationClaimDimensionRow[],
+): Result<StoredRelationClaim, RelationClaimMappingError> => {
+  const candidate: RelationClaimCandidate = {
+    recordRefs: [],
+    comparisonAxis: {
+      question: row.axisQuestion,
+      dimension: row.axisDimension,
+    },
+    relationType: row.relationType,
+    evidenceSummary: row.evidenceSummary,
+    assertsTemporalOrdering: row.assertsTemporalOrdering,
+  };
+
+  const hasLevel = row.supportLevel !== null;
+  const hasScore = row.numericScore !== null;
+
+  if (hasLevel !== hasScore) {
+    return err({
+      kind: 'inconsistent_relation_claim',
+      detail:
+        `Claim ${row.id} has supportLevel=${String(row.supportLevel)} but ` +
+        `numericScore=${String(row.numericScore)}; a level and its numeric ` +
+        'score are produced together by deterministic code (§9).',
+    });
+  }
+
+  // No assessment: legitimate for a claim recorded before scoring, or one left
+  // explicitly unscored (arch §11 Patch 9).
+  if (!hasLevel) {
+    return ok(
+      buildStoredClaim({
+        id: relationClaimId(row.id),
+        candidate,
+        assessment: null,
+        createdAt: row.createdAt,
+      }),
+    );
+  }
+
+  // A level is present, so every dimension must be present AND scored.
+  const judgmentEntries: [EvidenceDimension, DimensionJudgment][] = [];
+
+  for (const dimension of EVIDENCE_DIMENSIONS) {
+    const dbDimension = DIMENSION_TO_DB[dimension];
+    const found = dimensionRows.find((d) => d.dimension === dbDimension);
+
+    if (found === undefined) {
+      return err({
+        kind: 'inconsistent_relation_claim',
+        detail:
+          `Claim ${row.id} carries a support level but has no judgment row ` +
+          `for ${dimension}; a level may not exist without all six dimension ` +
+          'scores and reasons (Patch 8).',
+      });
+    }
+
+    const status = SCORE_STATUS_FROM_DB[found.status];
+
+    if (status !== 'scored') {
+      return err({
+        kind: 'inconsistent_relation_claim',
+        detail:
+          `Claim ${row.id} carries a support level but ${dimension} is ` +
+          `${status}; an incomplete assessment must have no level at all ` +
+          '(arch §11 Patch 9).',
+      });
+    }
+
+    if (found.score === null || !isDimensionScore(found.score)) {
+      return err({
+        kind: 'inconsistent_relation_claim',
+        detail:
+          `Claim ${row.id} dimension ${dimension} is SCORED but its score ` +
+          `${String(found.score)} is not on the 0–3 scale (§9).`,
+      });
+    }
+
+    if (found.reason.trim().length === 0) {
+      return err({
+        kind: 'inconsistent_relation_claim',
+        detail:
+          `Claim ${row.id} dimension ${dimension} has a score with no reason; ` +
+          'every stored score must trace to a stored reason (Patch 8).',
+      });
+    }
+
+    judgmentEntries.push([
+      dimension,
+      { status: 'scored', score: found.score, reason: found.reason },
+    ]);
+  }
+
+  const judgments = Object.fromEntries(judgmentEntries) as DimensionJudgments;
+
+  return ok(
+    buildStoredClaim({
+      id: relationClaimId(row.id),
+      candidate,
+      assessment: {
+        judgments,
+        numericScore: row.numericScore ?? 0,
+        supportLevel: SUPPORT_LEVEL_FROM_DB[row.supportLevel ?? 'WEAK'],
+      },
+      createdAt: row.createdAt,
+    }),
+  );
+};
+
+export const toRelationClaimRow = (
+  claim: StoredRelationClaim,
+): RelationClaimRow => ({
+  id: claim.id,
+  axisQuestion: claim.comparisonAxis.question,
+  axisDimension: claim.comparisonAxis.dimension,
+  relationType: claim.relationType,
+  evidenceSummary: claim.evidenceSummary,
+  assertsTemporalOrdering: claim.assertsTemporalOrdering,
+  numericScore: claim.assessment?.numericScore ?? null,
+  supportLevel:
+    claim.assessment === null
+      ? null
+      : SUPPORT_LEVEL_TO_DB[claim.assessment.supportLevel],
+  createdAt: claim.createdAt,
+});
+
+/** Dimension rows for a claim. Empty when there is no assessment. */
+export const toRelationClaimDimensionRows = (
+  claim: StoredRelationClaim,
+): readonly RelationClaimDimensionRow[] => {
+  const assessment = claim.assessment;
+  if (assessment === null) return [];
+
+  return EVIDENCE_DIMENSIONS.map((dimension) => {
+    const judgment = assessment.judgments[dimension];
+
+    return judgment.status === 'scored'
+      ? {
+          dimension: DIMENSION_TO_DB[dimension],
+          status: SCORE_STATUS_TO_DB.scored,
+          score: judgment.score,
+          reason: judgment.reason,
+        }
+      : {
+          dimension: DIMENSION_TO_DB[dimension],
+          status: SCORE_STATUS_TO_DB[judgment.status],
+          score: null,
+          reason: judgment.reason,
+        };
+  });
+};
