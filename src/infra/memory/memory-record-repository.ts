@@ -52,6 +52,16 @@ export class MemoryRecordRepository implements RecordRepository {
     return evidenceUnitIds.size;
   }
 
+  async listRecent(limit: number): Promise<readonly PersonalRecord[]> {
+    // `createdAt` descending — the platform's own clock. Never `time`, whose
+    // semantic varies per record (§5, INV-07/INV-08).
+    if (limit <= 0) return [];
+
+    return [...this.records.values()]
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+      .slice(0, limit);
+  }
+
   async save(record: PersonalRecord): Promise<void> {
     this.records.set(record.id, record);
   }

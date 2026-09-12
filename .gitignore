@@ -6,3 +6,5 @@ dist/
 coverage/
 generated/prisma/
 
+tsconfig.tsbuildinfo
+next-env.d.ts

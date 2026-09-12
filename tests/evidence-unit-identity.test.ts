@@ -93,14 +93,56 @@ describe('arch §4 Patch 2 — derived records inherit by default', () => {
     },
   );
 
-  it('declares exactly derived_from, summarizes, reformats as inheriting', () => {
+  it('declares the derivation family plus references as inheriting', () => {
     expect([...EVIDENCE_INHERITING_RELATIONS]).toEqual([
       'derived_from',
       'summarizes',
       'reformats',
+      'references',
     ]);
     expect(inheritsEvidenceUnitByDefault('derived_from')).toBe(true);
+    // `references` inherits for the opposite-facing reason to the derivation
+    // family: pointing at something is not being a new independent source about
+    // the user (§27, §38). Inheriting IS the "adds no independent support"
+    // statement.
+    expect(inheritsEvidenceUnitByDefault('references')).toBe(true);
     expect(inheritsEvidenceUnitByDefault('responds_to')).toBe(false);
+  });
+
+  it('inherits for `references` and grants no new independent support', () => {
+    const resolved = unwrap(
+      resolveEvidenceUnit({
+        kind: 'derived',
+        parent: { parentEvidenceUnitId: EU1, relationToParent: 'references' },
+      }),
+    );
+
+    expect(resolved.evidenceUnitId).toBe(EU1);
+    expect(resolved.inheritedFromParent).toBe(true);
+    // The whole point: parent and child are ONE unit, so no independent support
+    // was manufactured (INV-03, §27).
+    expect(countIndependentEvidenceUnits([EU1, resolved.evidenceUnitId])).toBe(1);
+  });
+
+  it('collapses repeated reactions to one reference into a single unit', () => {
+    // The user reads one article and reacts three separate times. Reaction count
+    // is 3; independent evidence count stays 1 (INV-03).
+    const reactions = [1, 2, 3].map(() =>
+      unwrap(
+        resolveEvidenceUnit({
+          kind: 'derived',
+          parent: { parentEvidenceUnitId: EU1, relationToParent: 'references' },
+        }),
+      ),
+    );
+
+    expect(reactions).toHaveLength(3);
+    expect(
+      countIndependentEvidenceUnits([
+        EU1,
+        ...reactions.map((r) => r.evidenceUnitId),
+      ]),
+    ).toBe(1);
   });
 
   it('reproduces the R1 -> R2 -> R3 chain as a single unit', () => {
@@ -143,7 +185,7 @@ describe('arch §4 Patch 2 — derived records inherit by default', () => {
 });
 
 describe('INV-03 / arch §6 Patch 7 — no automatic independence', () => {
-  it.each(['responds_to', 'references', 'revises', 'supersedes'] as const)(
+  it.each(['responds_to', 'revises', 'supersedes'] as const)(
     'refuses to guess independence for %s',
     (relation) => {
       const resolved = resolveEvidenceUnit({
@@ -151,14 +193,42 @@ describe('INV-03 / arch §6 Patch 7 — no automatic independence', () => {
         parent: { parentEvidenceUnitId: EU1, relationToParent: relation },
       });
 
-      // Fails closed: a reply to AI prompting, a reaction to an external
-      // reference, or a meaning revision never silently mints evidence.
+      // Fails closed: a reply to AI prompting (§23/§37) or a meaning revision
+      // (§25) never silently mints evidence.
+      //
+      // `references` is deliberately NOT in this list. It reaches the same
+      // evidentiary outcome by inheriting — no new independent support — without
+      // also blocking the Record and with it the user's own meaning (§27,
+      // INV-18). Refusal is reserved for relations where the contract wants a
+      // human decision on the record's very admissibility.
       expect(isErr(resolved)).toBe(true);
       if (isErr(resolved)) {
         expect(resolved.error.kind).toBe('independence_determination_required');
       }
     },
   );
+
+  it('neither refusal nor inheritance ever yields new independent support', () => {
+    // The two mechanisms differ in what they cost, not in what they grant.
+    const inherited = unwrap(
+      resolveEvidenceUnit({
+        kind: 'derived',
+        parent: { parentEvidenceUnitId: EU1, relationToParent: 'references' },
+      }),
+    );
+
+    expect(inherited.inheritedFromParent).toBe(true);
+    expect(countIndependentEvidenceUnits([EU1, inherited.evidenceUnitId])).toBe(1);
+
+    expect(
+      isErr(
+        resolveEvidenceUnit({
+          kind: 'derived',
+          parent: { parentEvidenceUnitId: EU1, relationToParent: 'responds_to' },
+        }),
+      ),
+    ).toBe(true);
+  });
 
   it('does not let a prompting round-trip inflate evidence count', () => {
     // AI asks -> user answers -> AI rephrases -> user answers again (§37).

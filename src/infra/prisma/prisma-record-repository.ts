@@ -75,6 +75,36 @@ export class PrismaRecordRepository implements RecordRepository {
     return row === null ? null : this.hydrate(row);
   }
 
+  /**
+   * Newest-first page of Records for read surfaces.
+   *
+   * `orderBy: createdAt` — the platform's own write clock. Deliberately NOT the
+   * `time*` columns: those carry a per-record `TimeSemantic` (§5), so ordering by
+   * them would compare an `event_time` against a `capture_time` and fabricate a
+   * chronology (INV-07, INV-08). Ordering by arrival asserts nothing about the
+   * user's world.
+   *
+   * `id` is the tiebreaker so the page is deterministic when two rows share a
+   * timestamp — without it, a repeated read could return the same records in a
+   * different order and a paged surface would flicker or drop rows.
+   *
+   * Note `hydrate` still THROWS on an internally inconsistent row rather than
+   * skipping it. That is the existing contract of this adapter and it is right
+   * here too: silently omitting a malformed record would make a stream quietly
+   * incomplete, which §42 forbids more than it forbids a loud failure.
+   */
+  async listRecent(limit: number): Promise<readonly PersonalRecord[]> {
+    if (limit <= 0) return [];
+
+    const rows = await this.prisma.record.findMany({
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      take: limit,
+      include: { epistemicRoles: { select: { role: true } } },
+    });
+
+    return rows.map((row) => this.hydrate(row));
+  }
+
   async findByEvidenceUnit(
     unitId: EvidenceUnitId,
   ): Promise<readonly PersonalRecord[]> {

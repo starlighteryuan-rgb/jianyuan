@@ -38,6 +38,17 @@ export class MemoryRelationClaimRepository implements RelationClaimRepository {
     return matches;
   }
 
+  async listAll(limit: number): Promise<readonly StoredRelationClaim[]> {
+    // Returns claims whose `supportLevel` is null too — that is the whole reason
+    // this method exists alongside `listBySupportLevel` (arch §11 Patch 9).
+    // Ordered by `createdAt`, never by support level (§36, INV-09).
+    if (limit <= 0) return [];
+
+    return [...this.claims.values()]
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+      .slice(0, limit);
+  }
+
   async save(claim: StoredRelationClaim): Promise<void> {
     this.claims.set(claim.id, claim);
   }

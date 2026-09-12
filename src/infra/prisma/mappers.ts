@@ -73,7 +73,12 @@ import type {
 import type {
   DiscoveryKind,
   DiscoverySubjectType,
+  PresentationState,
+  StateTargetType,
+  UserPosition,
+  WorkflowState,
 } from '../../domain/shared/enums';
+import type { StateAssignment } from '../../domain/state/state-assignment';
 import {
   directiveId,
   discoveryId,
@@ -85,6 +90,7 @@ import {
   reflectionEpisodeId,
   relationClaimId,
   sourceFingerprint,
+  stateAssignmentId,
   userReflectionRecordId,
 } from '../../domain/shared/ids';
 import type { TimeAssertion } from '../../domain/shared/time-semantics';
@@ -1026,3 +1032,89 @@ export const toRelationClaimDimensionRows = (
         };
   });
 };
+
+/* ── StateAssignment (§16, §16.1–16.3; arch §4 Patch B) ───────────────── */
+
+const STATE_TARGET_TYPE_TO_DB = {
+  relation_claim: 'RELATION_CLAIM',
+  hypothesis: 'HYPOTHESIS',
+  discovery: 'DISCOVERY',
+} as const satisfies Record<StateTargetType, $Enums.StateTargetType>;
+
+const USER_POSITION_TO_DB = {
+  none: 'NONE',
+  agrees: 'AGREES',
+  disagrees: 'DISAGREES',
+  uncertain: 'UNCERTAIN',
+} as const satisfies Record<UserPosition, $Enums.UserPosition>;
+
+const WORKFLOW_STATE_TO_DB = {
+  active: 'ACTIVE',
+  suspended: 'SUSPENDED',
+} as const satisfies Record<WorkflowState, $Enums.WorkflowState>;
+
+const PRESENTATION_STATE_TO_DB = {
+  active: 'ACTIVE',
+  archived: 'ARCHIVED',
+} as const satisfies Record<PresentationState, $Enums.PresentationState>;
+
+const STATE_TARGET_TYPE_FROM_DB = invert(STATE_TARGET_TYPE_TO_DB);
+const USER_POSITION_FROM_DB = invert(USER_POSITION_TO_DB);
+const WORKFLOW_STATE_FROM_DB = invert(WORKFLOW_STATE_TO_DB);
+const PRESENTATION_STATE_FROM_DB = invert(PRESENTATION_STATE_TO_DB);
+
+/**
+ * Exported so the adapter can address the `(targetType, targetRef)` unique
+ * constraint without re-deriving the casing itself.
+ */
+export const toDbStateTargetType = (
+  targetType: StateTargetType,
+): $Enums.StateTargetType => STATE_TARGET_TYPE_TO_DB[targetType];
+
+/**
+ * Note there is no `createdAt`: the domain `StateAssignment` does not carry one,
+ * and the column is DB-defaulted. Nothing epistemic reads it.
+ */
+export interface StateAssignmentRow {
+  readonly id: string;
+  readonly targetType: $Enums.StateTargetType;
+  readonly targetRef: string;
+  readonly userPosition: $Enums.UserPosition;
+  readonly workflowState: $Enums.WorkflowState;
+  readonly presentationState: $Enums.PresentationState;
+  readonly updatedAt: Date;
+}
+
+/**
+ * Row -> domain.
+ *
+ * Total. The three state fields are mapped INDEPENDENTLY, and that independence
+ * is the point: §16.1 requires `supportLevel = strong` / `userPosition =
+ * disagrees` / `workflowState = suspended` remain simultaneously
+ * representable, and §16.2/§16.3 keep suspension and archival orthogonal. No
+ * field here is derived from another, and none can reach an evidence column
+ * (INV-04).
+ */
+export const toDomainStateAssignment = (
+  row: StateAssignmentRow,
+): StateAssignment => ({
+  id: stateAssignmentId(row.id),
+  targetType: STATE_TARGET_TYPE_FROM_DB[row.targetType],
+  targetRef: row.targetRef,
+  userPosition: USER_POSITION_FROM_DB[row.userPosition],
+  workflowState: WORKFLOW_STATE_FROM_DB[row.workflowState],
+  presentationState: PRESENTATION_STATE_FROM_DB[row.presentationState],
+  updatedAt: row.updatedAt,
+});
+
+export const toStateAssignmentRow = (
+  s: StateAssignment,
+): StateAssignmentRow => ({
+  id: s.id,
+  targetType: STATE_TARGET_TYPE_TO_DB[s.targetType],
+  targetRef: s.targetRef,
+  userPosition: USER_POSITION_TO_DB[s.userPosition],
+  workflowState: WORKFLOW_STATE_TO_DB[s.workflowState],
+  presentationState: PRESENTATION_STATE_TO_DB[s.presentationState],
+  updatedAt: s.updatedAt,
+});

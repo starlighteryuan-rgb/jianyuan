@@ -1,0 +1,256 @@
+:root {
+  --bg: #12100e;
+  --panel: #1b1815;
+  --panel-edge: #2c2723;
+  --ink: #ece7e0;
+  --ink-dim: #a49c92;
+  --ink-faint: #6f675e;
+  --accent: #c9a227;
+  --warn: #b5643c;
+  --radius: 8px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font:
+    15px/1.6 ui-sans-serif,
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    sans-serif;
+}
+
+a {
+  color: inherit;
+}
+
+.shell {
+  max-width: 62rem;
+  margin: 0 auto;
+  padding: 0 1.5rem 5rem;
+}
+
+/* ── Nav ──────────────────────────────────────────────────────────────── */
+
+.nav {
+  display: flex;
+  gap: 0.25rem;
+  align-items: baseline;
+  border-bottom: 1px solid var(--panel-edge);
+  margin-bottom: 2rem;
+  padding: 1.25rem 0 0;
+  flex-wrap: wrap;
+}
+
+.nav-brand {
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  margin-right: 1.25rem;
+}
+
+.nav-link {
+  padding: 0.5rem 0.85rem;
+  border-radius: var(--radius) var(--radius) 0 0;
+  text-decoration: none;
+  color: var(--ink-dim);
+  font-size: 0.9rem;
+}
+
+.nav-link:hover {
+  color: var(--ink);
+  background: var(--panel);
+}
+
+/* ── Type ─────────────────────────────────────────────────────────────── */
+
+h1 {
+  font-size: 1.35rem;
+  font-weight: 600;
+  margin: 0 0 0.4rem;
+}
+
+h2 {
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 2rem 0 0.75rem;
+}
+
+.lede {
+  color: var(--ink-dim);
+  margin: 0 0 2rem;
+  max-width: 46rem;
+  font-size: 0.93rem;
+}
+
+.muted {
+  color: var(--ink-dim);
+}
+
+.faint {
+  color: var(--ink-faint);
+  font-size: 0.85rem;
+}
+
+/* ── Cards ────────────────────────────────────────────────────────────── */
+
+.card {
+  background: var(--panel);
+  border: 1px solid var(--panel-edge);
+  border-radius: var(--radius);
+  padding: 1.1rem 1.25rem;
+  margin-bottom: 0.9rem;
+}
+
+.card-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: baseline;
+  flex-wrap: wrap;
+}
+
+.card-body {
+  margin: 0.6rem 0 0;
+}
+
+.card-foot {
+  margin-top: 0.85rem;
+  padding-top: 0.7rem;
+  border-top: 1px solid var(--panel-edge);
+  display: flex;
+  gap: 1rem;
+  align-items: baseline;
+  flex-wrap: wrap;
+  font-size: 0.85rem;
+}
+
+/* ── Tags ─────────────────────────────────────────────────────────────── */
+
+.tag {
+  display: inline-block;
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  border: 1px solid var(--panel-edge);
+  color: var(--ink-dim);
+  white-space: nowrap;
+}
+
+/*
+ * An unscored claim is marked, never dimmed into looking weak.
+ * docs/architecture.md §11 Patch 9.
+ */
+.tag-unscored {
+  border-color: var(--warn);
+  color: var(--warn);
+}
+
+.tag-level {
+  border-color: var(--ink-faint);
+  color: var(--ink);
+}
+
+/* ── Empty / unavailable ──────────────────────────────────────────────── */
+
+.notice {
+  border: 1px dashed var(--panel-edge);
+  border-radius: var(--radius);
+  padding: 1.5rem;
+  color: var(--ink-dim);
+}
+
+.notice strong {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.notice code {
+  background: var(--bg);
+  padding: 0.1rem 0.35rem;
+  border-radius: 3px;
+  font-size: 0.85em;
+}
+
+/* ── Forms ────────────────────────────────────────────────────────────── */
+
+fieldset {
+  border: 1px solid var(--panel-edge);
+  border-radius: var(--radius);
+  padding: 1rem 1.25rem 1.25rem;
+  margin: 0 0 1.25rem;
+}
+
+legend {
+  padding: 0 0.4rem;
+  font-size: 0.85rem;
+  color: var(--ink-dim);
+}
+
+label {
+  display: block;
+  margin: 0.55rem 0;
+  font-size: 0.9rem;
+}
+
+label input[type='checkbox'],
+label input[type='radio'] {
+  margin-right: 0.5rem;
+}
+
+textarea,
+select {
+  width: 100%;
+  background: var(--bg);
+  color: var(--ink);
+  border: 1px solid var(--panel-edge);
+  border-radius: var(--radius);
+  padding: 0.6rem 0.7rem;
+  font: inherit;
+  font-size: 0.9rem;
+}
+
+textarea {
+  min-height: 7rem;
+  resize: vertical;
+}
+
+button {
+  background: var(--panel);
+  color: var(--ink);
+  border: 1px solid var(--panel-edge);
+  border-radius: var(--radius);
+  padding: 0.5rem 0.9rem;
+  font: inherit;
+  font-size: 0.88rem;
+  cursor: pointer;
+}
+
+button:hover {
+  border-color: var(--ink-faint);
+}
+
+button.primary {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.button-row {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-top: 0.5rem;
+}
+
+.hint {
+  color: var(--ink-faint);
+  font-size: 0.82rem;
+  margin: 0.35rem 0 0;
+}
