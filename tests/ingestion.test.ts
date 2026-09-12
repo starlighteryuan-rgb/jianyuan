@@ -30,6 +30,7 @@ import { MemoryDirectiveRepository } from '@/infra/memory/memory-directive-repos
 import { MemoryEpistemicRoleRepository } from '@/infra/memory/memory-epistemic-role-repository';
 import { MemoryLineageRepository } from '@/infra/memory/memory-lineage-repository';
 import { MemoryRecordRepository } from '@/infra/memory/memory-record-repository';
+import { MemoryIngestionCommitRepository } from '@/infra/memory/memory-ingestion-commit-repository';
 
 const CAPTURED = new Date('2026-09-01T00:00:00Z');
 
@@ -72,6 +73,7 @@ beforeEach(() => {
     roles,
     lineage,
     directives,
+    commit: new MemoryIngestionCommitRepository(records, roles, lineage),
     hash: sha256,
     ids: new SequentialIds(),
   });
@@ -300,6 +302,28 @@ describe('arch §4 Patch 2 — derived captures inherit by default', () => {
     expect(edges).toHaveLength(1);
     expect(edges[0]?.parentId).toBe(parent.recordId);
     expect(edges[0]?.relationToParent).toBe('summarizes');
+  });
+
+  it('repairs a missing Lineage edge on a deduplicated retry', async () => {
+    const parent = unwrap(await service.ingest(capture()));
+    const derivedRequest = capture({
+      sourceRef: 'system:summary:repair',
+      verbatim: 'summary requiring a lineage repair',
+      derivation: {
+        parentRecordId: parent.recordId,
+        relationToParent: 'summarizes',
+      },
+    });
+
+    const first = unwrap(await service.ingest(derivedRequest));
+    lineage.clear(); // Simulate a historical partial write before B3.
+
+    const retried = unwrap(await service.ingest(derivedRequest));
+
+    expect(retried.deduplicated).toBe(true);
+    expect(retried.recordId).toBe(first.recordId);
+    expect(await lineage.directParents(first.recordId)).toHaveLength(1);
+    expect(await records.countDistinctEvidenceUnits([first.recordId])).toBe(1);
   });
 
   it('writes no lineage edge for a root capture', async () => {

@@ -69,4 +69,13 @@ export class MemoryRecordRepository implements RecordRepository {
   clear(): void {
     this.records.clear();
   }
+
+  snapshot(): Map<RecordId, PersonalRecord> {
+    return new Map(this.records);
+  }
+
+  restore(snapshot: Map<RecordId, PersonalRecord>): void {
+    this.records.clear();
+    for (const [id, record] of snapshot) this.records.set(id, record);
+  }
 }

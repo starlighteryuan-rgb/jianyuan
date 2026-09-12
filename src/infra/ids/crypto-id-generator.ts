@@ -32,6 +32,7 @@
 import { randomUUID } from 'node:crypto';
 
 import type { DiscoveryIdGenerator } from '../../application/discovery-service';
+import type { DirectiveIdGenerator } from '../../application/directive-service';
 import type { ExternalReferenceIdGenerator } from '../../application/external-reference-service';
 import type { HypothesisIdGenerator } from '../../application/hypothesis-service';
 import type { IdGenerator } from '../../application/ingestion-service';
@@ -41,7 +42,7 @@ import type { RelationIdGenerator } from '../../application/relation-service';
 /**
  * Satisfies every generator port at once.
  *
- * Declaring all six is deliberate: `implements` makes the compiler check the set
+ * Declaring every generator is deliberate: `implements` makes the compiler check the set
  * stays complete, so adding a method to any port surfaces here as an error rather
  * than at the container's wiring site.
  */
@@ -51,6 +52,7 @@ export class CryptoIdGenerator
     RelationIdGenerator,
     HypothesisIdGenerator,
     DiscoveryIdGenerator,
+    DirectiveIdGenerator,
     ReflectionIdGenerator,
     ExternalReferenceIdGenerator
 {
@@ -76,6 +78,10 @@ export class CryptoIdGenerator
 
   nextDiscoveryId(): string {
     return `disc_${randomUUID()}`;
+  }
+
+  nextDirectiveId(): string {
+    return `dir_${randomUUID()}`;
   }
 
   nextStateAssignmentId(): string {

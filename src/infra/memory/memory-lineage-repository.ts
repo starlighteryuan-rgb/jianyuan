@@ -24,4 +24,13 @@ export class MemoryLineageRepository implements LineageRepository {
   clear(): void {
     this.edges.clear();
   }
+
+  snapshot(): Map<LineageEdgeId, LineageEdge> {
+    return new Map(this.edges);
+  }
+
+  restore(snapshot: Map<LineageEdgeId, LineageEdge>): void {
+    this.edges.clear();
+    for (const [id, edge] of snapshot) this.edges.set(id, edge);
+  }
 }

@@ -21,6 +21,11 @@ import { describe, expect, it } from 'vitest';
 import type { PrismaClient } from '../generated/prisma/client';
 
 import { DiscoveryService } from '@/application/discovery-service';
+import {
+  DirectiveService,
+  type DirectiveIdGenerator,
+} from '@/application/directive-service';
+import { MemoryIngestionCommitRepository } from '@/infra/memory/memory-ingestion-commit-repository';
 import { ExternalReferenceService } from '@/application/external-reference-service';
 import { HypothesisService } from '@/application/hypothesis-service';
 import { IngestionService } from '@/application/ingestion-service';
@@ -51,6 +56,8 @@ describe('container — constructs the whole service graph', () => {
     // Asserted by CLASS, not merely truthiness: a wiring mistake that swapped
     // two services would still be "defined".
     expect(services.ingestion).toBeInstanceOf(IngestionService);
+    expect(services.repositories.ingestionCommit).toBeInstanceOf(MemoryIngestionCommitRepository);
+    expect(services.directives).toBeInstanceOf(DirectiveService);
     expect(services.relations).toBeInstanceOf(RelationService);
     expect(services.hypotheses).toBeInstanceOf(HypothesisService);
     expect(services.discovery).toBeInstanceOf(DiscoveryService);
@@ -78,7 +85,9 @@ describe('container — constructs the whole service graph', () => {
       'preferences',
     ];
 
-    expect(Object.keys(repositories).sort()).toEqual([...expected].sort());
+    expect(Object.keys(repositories).sort()).toEqual(
+      [...expected, 'ingestionCommit'].sort(),
+    );
 
     for (const key of expected) {
       expect(repositories[key], `repository ${key}`).toBeDefined();
@@ -124,10 +133,11 @@ describe('container — constructs the whole service graph', () => {
     const client = {} as PrismaClient;
 
     const repositories = prismaRepositories(client);
-    expect(Object.keys(repositories)).toHaveLength(12);
+    expect(Object.keys(repositories)).toHaveLength(13);
 
     const services = createServices(repositories);
     expect(services.ingestion).toBeInstanceOf(IngestionService);
+    expect(services.directives).toBeInstanceOf(DirectiveService);
     expect(services.relations).toBeInstanceOf(RelationService);
     expect(services.hypotheses).toBeInstanceOf(HypothesisService);
     expect(services.discovery).toBeInstanceOf(DiscoveryService);
@@ -163,6 +173,7 @@ describe('CryptoIdGenerator — uniqueness and port coverage', () => {
     ['nextRelationClaimId', 'rc_'],
     ['nextHypothesisId', 'hyp_'],
     ['nextDiscoveryId', 'disc_'],
+    ['nextDirectiveId', 'dir_'],
     ['nextStateAssignmentId', 'state_'],
     ['nextReflectionEpisodeId', 'ep_'],
     ['nextUserReflectionRecordId', 'urr_'],
@@ -176,6 +187,7 @@ describe('CryptoIdGenerator — uniqueness and port coverage', () => {
     const asRelation: RelationIdGenerator = generator;
     const asHypothesis: HypothesisIdGenerator = generator;
     const asDiscovery: DiscoveryIdGenerator = generator;
+    const asDirective: DirectiveIdGenerator = generator;
     const asReflection: ReflectionIdGenerator = generator;
     const asExternal: ExternalReferenceIdGenerator = generator;
 
@@ -184,6 +196,7 @@ describe('CryptoIdGenerator — uniqueness and port coverage', () => {
       asRelation,
       asHypothesis,
       asDiscovery,
+      asDirective,
       asReflection,
       asExternal,
     ]) {

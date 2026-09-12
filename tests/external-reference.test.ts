@@ -62,6 +62,7 @@ import { sha256 } from '@/infra/hash';
 import { MemoryDirectiveRepository } from '@/infra/memory/memory-directive-repository';
 import { MemoryEpistemicRoleRepository } from '@/infra/memory/memory-epistemic-role-repository';
 import { MemoryLineageRepository } from '@/infra/memory/memory-lineage-repository';
+import { MemoryIngestionCommitRepository } from '@/infra/memory/memory-ingestion-commit-repository';
 import { MemoryRecordRepository } from '@/infra/memory/memory-record-repository';
 import { MemoryReflectionEpisodeRepository } from '@/infra/memory/memory-reflection-episode-repository';
 import { MemoryUserReflectionRecordRepository } from '@/infra/memory/memory-user-reflection-record-repository';
@@ -126,6 +127,7 @@ beforeEach(() => {
     roles,
     lineage,
     directives,
+    commit: new MemoryIngestionCommitRepository(records, roles, lineage),
     hash: sha256,
     ids,
   });
