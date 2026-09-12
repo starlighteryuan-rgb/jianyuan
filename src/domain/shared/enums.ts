@@ -159,6 +159,117 @@ export const DISCOVERY_SUBJECT_TYPES = [
 
 export type DiscoverySubjectType = (typeof DISCOVERY_SUBJECT_TYPES)[number];
 
+/* ── Reflection response (§21, §16) ──────────────────────────────────── */
+
+/**
+ * How the user responded to something the system presented.
+ *
+ * FROZEN FOR MVP by user decision: `accepted | questioned | rejected |
+ * uncertain`. `confirmed` is explicitly NOT an MVP state, so
+ * `MeaningCommitment` stays `tentative` throughout (see
+ * `MEANING_COMMITMENTS`).
+ *
+ * This is a REFLECTION-LAYER vocabulary and is deliberately NOT the same thing
+ * as `user_position`. §16 freezes `user_position` to
+ * `none | agrees | disagrees | uncertain`, and widening that enum would be a
+ * contract change. So the two coexist: a response is what the user did in a
+ * reflection episode, and `toUserPosition` projects it — lossily, explicitly,
+ * in one place — onto the frozen state vocabulary.
+ *
+ * Why the distinction is worth keeping: `questioned` and `uncertain` both
+ * project to `uncertain`, but they are different acts. Questioning engages;
+ * being unsure withholds. Collapsing them at the point of capture would
+ * discard that, and §21 requires "I don't know yet" remain a first-class
+ * option rather than a fallback.
+ */
+export const REFLECTION_RESPONSES = [
+  'accepted',
+  'questioned',
+  'rejected',
+  'uncertain',
+] as const;
+
+export type ReflectionResponse = (typeof REFLECTION_RESPONSES)[number];
+
+/* ── Reflection preferences (§33) ────────────────────────────────────── */
+
+/**
+ * §33 — interaction style only.
+ *
+ *   > Onboarding preferences describe interaction style.
+ *   > They are NOT personality traits.
+ *   > Do not infer stable identity from these preferences.
+ *
+ * FROZEN FOR MVP by user decision: minimum interaction preferences, with no
+ * expansion into a personality model. §33 lists five possible preferences; MVP
+ * implements the three that change concrete system behaviour and omits
+ * `early_surface_tolerance` and `archive_reopen_policy`, which would need
+ * proactive-surfacing machinery that L3-off makes unreachable anyway.
+ *
+ * Every value below is a behavioural dial. None describes the person.
+ */
+export const HYPOTHESIS_VISIBILITIES = ['hidden', 'on_request', 'shown'] as const;
+export type HypothesisVisibility = (typeof HYPOTHESIS_VISIBILITIES)[number];
+
+/**
+ * How much the system may follow up.
+ *
+ * `minimal` means no automatic follow-up at all. `standard` permits the single
+ * follow-up §23 allows. There is deliberately no value permitting more: the
+ * one-follow-up cap is a contract limit, not a preference (§23), and the user's
+ * freeze confirms no chat loop.
+ */
+export const INTERVENTION_LEVELS = ['minimal', 'standard'] as const;
+export type InterventionLevel = (typeof INTERVENTION_LEVELS)[number];
+
+export const EXPLANATION_DENSITIES = ['brief', 'full'] as const;
+export type ExplanationDensity = (typeof EXPLANATION_DENSITIES)[number];
+
+/* ── Attention and presentation (§17, §18, §19, §20) ─────────────────── */
+
+/**
+ * Attention Priority (ENGINEERING_CONTRACT §17; docs/architecture.md §13).
+ *
+ * Resolved as a three-value scale for MVP, NOT a percentage: a numeric score
+ * would invite ranking and comparison the contract does not support.
+ *
+ * `evidence_support_level` is STRUCTURALLY EXCLUDED as an input (INV-09, §36):
+ * strong evidence support does not imply high attention priority, and attention
+ * is not a measure of epistemic strength.
+ */
+export const ATTENTION_PRIORITIES = ['low', 'medium', 'high'] as const;
+
+export type AttentionPriority = (typeof ATTENTION_PRIORITIES)[number];
+
+/**
+ * Presentation Level (ENGINEERING_CONTRACT §18).
+ *
+ *   l1 — stored only; not surfaced.
+ *   l2 — available when the user looks (passive).
+ *   l3 — proactively brought to the user (active).
+ *
+ * L3 is DISABLED BY DEFAULT for MVP (§18, §40.5). Ordered least-to-most
+ * intrusive so a ceiling can be expressed as an index comparison.
+ */
+export const PRESENTATION_LEVELS = ['l1', 'l2', 'l3'] as const;
+
+export type PresentationLevel = (typeof PRESENTATION_LEVELS)[number];
+
+/**
+ * Current Relevance (ENGINEERING_CONTRACT §18, §19).
+ *
+ * Four-valued, and `unknown` is deliberately DISTINCT from `low`: §18 treats
+ * them differently. Unknown relevance prohibits proactive presentation but does
+ * not prohibit passive availability — the system may not push something whose
+ * relevance it cannot establish, but neither may it hide it from a user who
+ * actively looks.
+ *
+ * A subject with no CurrentFocusContext is `unknown`, never `low`.
+ */
+export const RELEVANCE_STATES = ['unknown', 'low', 'medium', 'high'] as const;
+
+export type RelevanceState = (typeof RELEVANCE_STATES)[number];
+
 /* ── Directive scope (docs/architecture.md §4 Patch 5, §13) ──────────── */
 
 /**

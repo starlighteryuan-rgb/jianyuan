@@ -35,6 +35,7 @@ import type {
   ComparisonAxis,
   RelationClaimCandidate,
 } from '../relation/relation-claim';
+import type { HypothesisCandidate } from '../hypothesis/hypothesis';
 import type { EpistemicRole } from '../shared/enums';
 import type { RecordId } from '../shared/ids';
 
@@ -164,6 +165,37 @@ export interface EvidenceJudgmentResult {
 
 /* ── The port ─────────────────────────────────────────────────────────── */
 
+/* ── Hypothesis generation (§13, §14) ─────────────────────────────────── */
+
+/**
+ * A Relation Claim offered to the model as possible anchor material.
+ *
+ * Carries `supportLevel` because H1's path A depends on it, but carries NO
+ * numeric score: the model has no reason to see the arithmetic, and exposing it
+ * would invite reasoning about strength where the contract wants a categorical
+ * judgment.
+ */
+export interface HypothesisAnchorView {
+  readonly claimId: string;
+  readonly relationType: string;
+  readonly axisQuestion: string;
+  readonly evidenceSummary: string;
+  readonly supportLevel: string | null;
+}
+
+export interface HypothesisGenerationRequest {
+  readonly claims: readonly HypothesisAnchorView[];
+}
+
+export interface HypothesisGenerationResult {
+  /**
+   * 0..N candidate explanations. §13 asks for 少量 competing explanations, and
+   * the domain caps the admitted count; the model is not asked to rank them,
+   * because ranking would imply a confidence the contract forbids.
+   */
+  readonly candidates: readonly HypothesisCandidate[];
+}
+
 export interface SemanticJudgmentPort {
   /** §34 Candidate Generation — open by design. */
   generateCandidates(
@@ -188,4 +220,31 @@ export interface SemanticJudgmentPort {
   judgeEvidenceDimensions(
     request: EvidenceJudgmentRequest,
   ): Promise<EvidenceJudgmentResult>;
+
+  /* ── Hypothesis stage (§13, §14) ────────────────────────────────────── */
+
+  /**
+   * §13 — propose a small number of competing explanations.
+   *
+   * The candidate carries the model's own `supportBasis` classification, which
+   * deterministic code then compares against the single admissible value. The
+   * model is NOT asked to rank or score its candidates: ranking would imply a
+   * confidence the contract does not permit a Hypothesis to carry.
+   */
+  generateHypotheses(
+    request: HypothesisGenerationRequest,
+  ): Promise<HypothesisGenerationResult>;
+
+  /**
+   * §14 H6 — abstraction ceiling for an explanation.
+   *
+   * Returns the same structured shape as the Relation-stage Gate 6 judgment,
+   * because §14 H6's prohibition list is near-identical to §8 Gate 6's and a
+   * second parallel mechanism would be a divergence risk rather than extra
+   * safety. `prohibitedClaimDetected` is decisive.
+   */
+  judgeHypothesisAbstractionCeiling(request: {
+    readonly explanation: string;
+    readonly mechanism: string;
+  }): Promise<AbstractionCeilingJudgment>;
 }

@@ -527,6 +527,141 @@ model RelationClaimDimension {
   @@map("relation_claim_dimension")
 }
 
+// ─── Hypothesis ───────────────────────────────────────────────────────────
+
+/// ENGINEERING_CONTRACT §14 H2 — the model's own classification of WHAT KIND of
+/// support it found.
+///
+/// A CLOSED set, so an enum is correct. Only DIRECTIONAL_OBSERVATION admits;
+/// the other three are the contract's named insufficient bases:
+///   > Compatibility is not Support.
+///   > Absence of contradiction is not evidence of support.
+///
+/// Stored as a structured enum rather than prose precisely so deterministic
+/// code can enforce H2 without scanning text (arch §7, Patch 10).
+enum SupportBasis {
+  DIRECTIONAL_OBSERVATION
+  COMPATIBILITY_ONLY
+  ABSENCE_OF_CONTRADICTION
+  INSUFFICIENT
+}
+
+/// ENGINEERING_CONTRACT §14 H1 — which anchor path admitted the hypothesis.
+enum AnchorPath {
+  SUPPORTED_RELATION
+  INDEPENDENT_PATTERNS
+}
+
+/// ENGINEERING_CONTRACT §13, §14, §15.
+///
+/// A Hypothesis is a POSSIBLE explanation. §13: "Formal storage of a Hypothesis
+/// does NOT make it true."
+///
+/// Note what this model deliberately LACKS: no probability, no confidence, no
+/// likelihood, no certainty, no truth flag, and no ranking against its
+/// alternatives. Storing any of those would let formal storage imply truth.
+///
+/// §15 adds that user agreement ("对。" / "好像是。") does not raise evidence
+/// support, so there is likewise no column an agreement could increment. User
+/// position lives on StateAssignment, never here.
+///
+/// `alternatives`, `wouldStrengthen`, and `wouldWeaken` are String[] rather than
+/// child tables: they are unordered free-text lists with no identity of their
+/// own, and H4/H5 require only that they be non-empty. The domain enforces
+/// non-emptiness at admission; `remainsCompetable` re-checks before a write.
+model Hypothesis {
+  id String @id
+
+  /// The proposed explanation.
+  explanation String
+
+  /// Claims or patterns this rests on (§14 H1).
+  anchorRefs String[]
+  anchorPath AnchorPath
+
+  /// §14 H2. Persisted so a stored hypothesis remains auditable: the basis on
+  /// which it was admitted is inspectable after the fact (§42).
+  supportBasis SupportBasis
+
+  /// Records that actively point toward the explanation (§14 H2). Each was
+  /// independently re-checked against epistemic eligibility and lineage
+  /// integrity at admission (INV-01, INV-06, INV-02, INV-03).
+  supportingRecordRefs String[]
+
+  /// §14 H3 — mechanism or conditional structure beyond restating the Relation.
+  mechanism String
+
+  /// §14 H3 — at least one prediction distinguishing this from its rivals.
+  discriminatingPredictions String[]
+
+  /// §14 H4 — competing explanations that remain possible.
+  alternatives String[]
+
+  /// §14 H5 — what would move the hypothesis in each direction. Both required
+  /// non-empty: a hypothesis with no falsifier is unfalsifiable.
+  wouldStrengthen String[]
+  wouldWeaken     String[]
+
+  createdAt DateTime @default(now())
+
+  @@index([anchorPath])
+  @@map("hypothesis")
+}
+
+// ─── Attention / Focus ────────────────────────────────────────────────────
+
+/// ENGINEERING_CONTRACT §19 — where a focus came from.
+///
+/// USER_STATED outranks RECORD_DERIVED when both exist for a subject (§19:
+/// overrideable; INV-18: the user owns their own meaning).
+enum FocusSourceKind {
+  USER_STATED
+  RECORD_DERIVED
+}
+
+/// ENGINEERING_CONTRACT §19 — CurrentFocusContext.
+///
+/// Required to be lightweight and: traceable, removable, overrideable,
+/// temporary, non-personality-based.
+///
+/// Note what is NOT stored: no lifecycle column, no relevance column, no fading
+/// timestamp. §19 requires "elastic fading rather than fabricating a precise
+/// expiry", so lifecycle and relevance are DERIVED on read from
+/// `lastMentionedAt`. Persisting a lifecycle value would fabricate exactly the
+/// precise expiry the contract forbids, and would need a background job to
+/// maintain — which §40 excludes from MVP.
+///
+/// `expiresAt` is populated ONLY from a user-stated duration (§19: "honor it").
+/// Null means the user stated none, and the system does not invent one.
+///
+/// Non-personality-based is structural: there is no trait, disposition, or
+/// standing-characteristic column here, only what is currently in focus.
+model CurrentFocusContext {
+  id String @id
+
+  /// What is in focus — a claim, a hypothesis, or a topic key.
+  subjectRef String
+
+  /// §19 traceability: every focus is attributable to a source.
+  sourceKind FocusSourceKind
+  sourceRef  String
+
+  /// Basis for elastic fading (§19).
+  lastMentionedAt DateTime
+
+  /// Honored user-stated duration, or null. Never fabricated.
+  expiresAt DateTime?
+
+  /// Ends the context without deleting it (§19: removable).
+  endedAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([subjectRef])
+  @@index([endedAt])
+  @@map("current_focus_context")
+}
+
 // ─── Reflection ───────────────────────────────────────────────────────────
 
 /// ENGINEERING_CONTRACT §22, §23; arch §4 Patch 4.
@@ -539,6 +674,59 @@ model RelationClaimDimension {
 ///
 /// elicitationMode and stimulusType are orthogonal (§22). Unknown provenance
 /// is recorded as UNKNOWN rather than fabricated.
+/// ENGINEERING_CONTRACT §33 — whether explanations are offered.
+enum HypothesisVisibility {
+  HIDDEN
+  ON_REQUEST
+  SHOWN
+}
+
+/// ENGINEERING_CONTRACT §23, §33 — how much the system may follow up.
+///
+/// Deliberately TWO values. MINIMAL suppresses the automatic follow-up; STANDARD
+/// permits the single follow-up §23 allows. There is no third value, so a
+/// preference can never buy a chat loop: the cap is a contract limit, and a
+/// preference may only lower it.
+enum InterventionLevel {
+  MINIMAL
+  STANDARD
+}
+
+/// ENGINEERING_CONTRACT §33 — how much explanatory text to render.
+enum ExplanationDensity {
+  BRIEF
+  FULL
+}
+
+/// ENGINEERING_CONTRACT §33 — ReflectionPreference.
+///
+///   > Onboarding preferences describe interaction style.
+///   > They are NOT personality traits.
+///   > Preferences may change over time.
+///   > Do not infer stable identity from these preferences.
+///
+/// Every column names a SYSTEM BEHAVIOUR, never a property of the person. There
+/// is deliberately no trait column, no `since` column, and no stability or
+/// consistency measure: §33 says preferences may change, so the current value is
+/// the whole of it and is overwritten in place. Nothing here may be read as
+/// evidence about the user.
+///
+/// MVP implements the three §33 preferences that change concrete behaviour.
+/// `early_surface_tolerance` and `archive_reopen_policy` are omitted because both
+/// govern proactive surfacing, which L3-off makes unreachable (§18, §40.5) — a
+/// dial with no effect would be a false promise.
+model ReflectionPreference {
+  id String @id
+
+  hypothesisVisibility HypothesisVisibility
+  interventionLevel    InterventionLevel
+  explanationDensity   ExplanationDensity
+
+  updatedAt DateTime
+
+  @@map("reflection_preference")
+}
+
 model ReflectionEpisode {
   id String @id
 
@@ -585,8 +773,17 @@ model UserReflectionRecord {
   meaningCommitment MeaningCommitment
 
   // §25 — user meaning is time-indexed.
-  validAtSemantic TimeSemantic
-  validAtTime     DateTime?
+  //
+  // Mirrors the Record time columns exactly, because `validAtTime` is a full
+  // TimeAssertion: a meaning may be valid over a reported interval ("这半年"),
+  // not only at a point. Without the interval columns the bounds and the user's
+  // own wording would be silently dropped on persist, and §12 forbids
+  // reconstructing them by fabricating precision.
+  validAtSemantic          TimeSemantic
+  validAtTime              DateTime?
+  validAtIntervalFrom      DateTime?
+  validAtIntervalTo        DateTime?
+  validAtIntervalReportedAs String?
 
   currentEffect MeaningEffect @default(CURRENT)
 

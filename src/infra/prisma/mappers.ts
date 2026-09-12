@@ -27,12 +27,22 @@ import type { $Enums } from '../../../generated/prisma/client';
 
 import type {
   DirectiveScopeKind,
+  ElicitationMode,
   EpistemicRole,
+  ExplanationDensity,
+  HypothesisVisibility,
+  InterventionLevel,
   LineageRelation,
+  MeaningCommitment,
+  MeaningEffect,
   ProvenanceActor,
   ProvenanceOrigin,
+  StimulusType,
   TimeSemantic,
 } from '../../domain/shared/enums';
+import type { ReflectionEpisode } from '../../domain/reflection/reflection-episode';
+import type { UserReflectionRecord } from '../../domain/reflection/user-reflection-record';
+import type { ReflectionPreference } from '../../domain/reflection/reflection-preference';
 import type { PersonalRecord } from '../../domain/record/record';
 import type { Directive } from '../../domain/directive/directive';
 import type { LineageEdge } from '../../domain/lineage/lineage-edge';
@@ -50,13 +60,32 @@ import {
   type RelationClaimCandidate,
   type StoredRelationClaim,
 } from '../../domain/relation/relation-claim';
+import type {
+  AnchorPath,
+  StoredHypothesis,
+  SupportBasis,
+} from '../../domain/hypothesis/hypothesis';
+import type { Discovery } from '../../domain/discovery/discovery';
+import type {
+  CurrentFocusContext,
+  FocusSourceKind,
+} from '../../domain/discovery/focus-context';
+import type {
+  DiscoveryKind,
+  DiscoverySubjectType,
+} from '../../domain/shared/enums';
 import {
   directiveId,
+  discoveryId,
   evidenceUnitId,
+  focusContextId,
+  hypothesisId,
   lineageEdgeId,
   recordId,
+  reflectionEpisodeId,
   relationClaimId,
   sourceFingerprint,
+  userReflectionRecordId,
 } from '../../domain/shared/ids';
 import type { TimeAssertion } from '../../domain/shared/time-semantics';
 import { isReportedInterval } from '../../domain/shared/time-semantics';
@@ -572,6 +601,407 @@ export const toRelationClaimRow = (
 });
 
 /** Dimension rows for a claim. Empty when there is no assessment. */
+/* ── Reflection (§21, §22, §24, §25, §33) ────────────────────────────── */
+
+const ELICITATION_MODE_TO_DB = {
+  spontaneous: 'SPONTANEOUS',
+  prompted: 'PROMPTED',
+  unknown: 'UNKNOWN',
+} as const satisfies Record<ElicitationMode, $Enums.ElicitationMode>;
+
+const STIMULUS_TYPE_TO_DB = {
+  none: 'NONE',
+  open_question: 'OPEN_QUESTION',
+  evidence_relation: 'EVIDENCE_RELATION',
+  hypothesis: 'HYPOTHESIS',
+  // Retained because §22 freezes the enum. MVP never produces it: no external
+  // content reaches the reflection layer and no plugin ships.
+  external_reference: 'EXTERNAL_REFERENCE',
+  unknown: 'UNKNOWN',
+} as const satisfies Record<StimulusType, $Enums.StimulusType>;
+
+const MEANING_COMMITMENT_TO_DB = {
+  tentative: 'TENTATIVE',
+  // Retained in the enum but never written in MVP: `confirmed` is frozen out,
+  // so every stored meaning is tentative (§24).
+  confirmed: 'CONFIRMED',
+} as const satisfies Record<MeaningCommitment, $Enums.MeaningCommitment>;
+
+const MEANING_EFFECT_TO_DB = {
+  current: 'CURRENT',
+  superseded: 'SUPERSEDED',
+} as const satisfies Record<MeaningEffect, $Enums.MeaningEffect>;
+
+const ELICITATION_MODE_FROM_DB = invert(ELICITATION_MODE_TO_DB);
+const STIMULUS_TYPE_FROM_DB = invert(STIMULUS_TYPE_TO_DB);
+const MEANING_COMMITMENT_FROM_DB = invert(MEANING_COMMITMENT_TO_DB);
+const MEANING_EFFECT_FROM_DB = invert(MEANING_EFFECT_TO_DB);
+
+export interface ReflectionEpisodeRow {
+  readonly id: string;
+  readonly elicitationMode: $Enums.ElicitationMode;
+  readonly stimulusType: $Enums.StimulusType;
+  readonly systemFollowupCount: number;
+  readonly stimulusRef: string | null;
+  readonly targetRef: string | null;
+  readonly occurredAt: Date;
+}
+
+/**
+ * Row -> domain. Total.
+ *
+ * Note what an episode does NOT carry: no meaning commitment, no user position,
+ * no response. §21/Patch 4 confine it to HOW a reflection was elicited, so there
+ * is no field here that could be mistaken for what the user concluded (INV-18).
+ */
+export const toDomainReflectionEpisode = (
+  row: ReflectionEpisodeRow,
+): ReflectionEpisode => ({
+  id: reflectionEpisodeId(row.id),
+  elicitationMode: ELICITATION_MODE_FROM_DB[row.elicitationMode],
+  stimulusType: STIMULUS_TYPE_FROM_DB[row.stimulusType],
+  systemFollowupCount: row.systemFollowupCount,
+  stimulusRef: row.stimulusRef,
+  targetRef: row.targetRef,
+  occurredAt: row.occurredAt,
+});
+
+export const toReflectionEpisodeRow = (
+  e: ReflectionEpisode,
+): ReflectionEpisodeRow => ({
+  id: e.id,
+  elicitationMode: ELICITATION_MODE_TO_DB[e.elicitationMode],
+  stimulusType: STIMULUS_TYPE_TO_DB[e.stimulusType],
+  systemFollowupCount: e.systemFollowupCount,
+  stimulusRef: e.stimulusRef,
+  targetRef: e.targetRef,
+  occurredAt: e.occurredAt,
+});
+
+export interface UserReflectionRecordRow {
+  readonly id: string;
+  readonly recordId: string;
+  readonly meaningCommitment: $Enums.MeaningCommitment;
+  readonly validAtSemantic: $Enums.TimeSemantic;
+  readonly validAtTime: Date | null;
+  readonly validAtIntervalFrom: Date | null;
+  readonly validAtIntervalTo: Date | null;
+  readonly validAtIntervalReportedAs: string | null;
+  readonly currentEffect: $Enums.MeaningEffect;
+  readonly supersededById: string | null;
+  readonly supersededAt: Date | null;
+  readonly episodeId: string | null;
+  readonly createdAt: Date;
+}
+
+/**
+ * Row -> domain. PARTIAL, and deliberately so.
+ *
+ * §25 makes user meaning time-indexed, and `validAtTime` is a full
+ * `TimeAssertion` — a meaning may be valid over a reported interval ("这半年"),
+ * not only at a point. So the same refuse-rather-than-repair rule that governs
+ * Record time applies here: if the stored columns are inconsistent, this returns
+ * an error instead of fabricating bounds or inventing the user's wording (§12).
+ *
+ * Reuses `toDomainTime` rather than reimplementing the check, so the two can
+ * never disagree about what a valid time assertion looks like.
+ */
+export const toDomainUserReflectionRecord = (
+  row: UserReflectionRecordRow,
+): Result<UserReflectionRecord, TimeMappingError> => {
+  const time = toDomainTime({
+    timeSemantic: row.validAtSemantic,
+    timeAt: row.validAtTime,
+    intervalFrom: row.validAtIntervalFrom,
+    intervalTo: row.validAtIntervalTo,
+    intervalReportedAs: row.validAtIntervalReportedAs,
+  });
+
+  if (!time.ok) return time;
+
+  return ok({
+    id: userReflectionRecordId(row.id),
+    recordId: recordId(row.recordId),
+    meaningCommitment: MEANING_COMMITMENT_FROM_DB[row.meaningCommitment],
+    validAtTime: time.value,
+    currentEffect: MEANING_EFFECT_FROM_DB[row.currentEffect],
+    supersededByRef:
+      row.supersededById === null
+        ? null
+        : userReflectionRecordId(row.supersededById),
+    supersededAt: row.supersededAt,
+    episodeRef: row.episodeId,
+    createdAt: row.createdAt,
+  });
+};
+
+export const toUserReflectionRecordRow = (
+  r: UserReflectionRecord,
+): UserReflectionRecordRow => {
+  const cols = toTimeColumns(r.validAtTime);
+
+  return {
+    id: r.id,
+    recordId: r.recordId,
+    meaningCommitment: MEANING_COMMITMENT_TO_DB[r.meaningCommitment],
+    validAtSemantic: cols.timeSemantic,
+    validAtTime: cols.timeAt,
+    validAtIntervalFrom: cols.intervalFrom,
+    validAtIntervalTo: cols.intervalTo,
+    validAtIntervalReportedAs: cols.intervalReportedAs,
+    currentEffect: MEANING_EFFECT_TO_DB[r.currentEffect],
+    supersededById: r.supersededByRef,
+    supersededAt: r.supersededAt,
+    episodeId: r.episodeRef,
+    createdAt: r.createdAt,
+  };
+};
+
+/* ── ReflectionPreference (§33) ──────────────────────────────────────── */
+
+const HYPOTHESIS_VISIBILITY_TO_DB = {
+  hidden: 'HIDDEN',
+  on_request: 'ON_REQUEST',
+  shown: 'SHOWN',
+} as const satisfies Record<HypothesisVisibility, $Enums.HypothesisVisibility>;
+
+const INTERVENTION_LEVEL_TO_DB = {
+  minimal: 'MINIMAL',
+  standard: 'STANDARD',
+} as const satisfies Record<InterventionLevel, $Enums.InterventionLevel>;
+
+const EXPLANATION_DENSITY_TO_DB = {
+  brief: 'BRIEF',
+  full: 'FULL',
+} as const satisfies Record<ExplanationDensity, $Enums.ExplanationDensity>;
+
+const HYPOTHESIS_VISIBILITY_FROM_DB = invert(HYPOTHESIS_VISIBILITY_TO_DB);
+const INTERVENTION_LEVEL_FROM_DB = invert(INTERVENTION_LEVEL_TO_DB);
+const EXPLANATION_DENSITY_FROM_DB = invert(EXPLANATION_DENSITY_TO_DB);
+
+export interface ReflectionPreferenceRow {
+  readonly id: string;
+  readonly hypothesisVisibility: $Enums.HypothesisVisibility;
+  readonly interventionLevel: $Enums.InterventionLevel;
+  readonly explanationDensity: $Enums.ExplanationDensity;
+  readonly updatedAt: Date;
+}
+
+/**
+ * Row -> domain. Total.
+ *
+ * §33: these are interaction-style dials, not traits. There is nothing here to
+ * validate against the person, and nothing that could be read as evidence about
+ * them.
+ */
+export const toDomainReflectionPreference = (
+  row: ReflectionPreferenceRow,
+): ReflectionPreference => ({
+  id: row.id,
+  hypothesisVisibility:
+    HYPOTHESIS_VISIBILITY_FROM_DB[row.hypothesisVisibility],
+  interventionLevel: INTERVENTION_LEVEL_FROM_DB[row.interventionLevel],
+  explanationDensity: EXPLANATION_DENSITY_FROM_DB[row.explanationDensity],
+  updatedAt: row.updatedAt,
+});
+
+export const toReflectionPreferenceRow = (
+  p: ReflectionPreference,
+): ReflectionPreferenceRow => ({
+  id: p.id,
+  hypothesisVisibility: HYPOTHESIS_VISIBILITY_TO_DB[p.hypothesisVisibility],
+  interventionLevel: INTERVENTION_LEVEL_TO_DB[p.interventionLevel],
+  explanationDensity: EXPLANATION_DENSITY_TO_DB[p.explanationDensity],
+  updatedAt: p.updatedAt,
+});
+
+/* ── Discovery (§17; docs/architecture.md §4 Patch 6) ─────────────────── */
+
+const DISCOVERY_KIND_TO_DB = {
+  relation_discovery: 'RELATION_DISCOVERY',
+  hypothesis_discovery: 'HYPOTHESIS_DISCOVERY',
+} as const satisfies Record<DiscoveryKind, $Enums.DiscoveryKind>;
+
+const DISCOVERY_SUBJECT_TYPE_TO_DB = {
+  relation_claim: 'RELATION_CLAIM',
+  hypothesis: 'HYPOTHESIS',
+} as const satisfies Record<DiscoverySubjectType, $Enums.DiscoverySubjectType>;
+
+const DISCOVERY_KIND_FROM_DB = invert(DISCOVERY_KIND_TO_DB);
+const DISCOVERY_SUBJECT_TYPE_FROM_DB = invert(DISCOVERY_SUBJECT_TYPE_TO_DB);
+
+export interface DiscoveryRow {
+  readonly id: string;
+  readonly subjectType: $Enums.DiscoverySubjectType;
+  readonly subjectRef: string;
+  readonly discoveryKind: $Enums.DiscoveryKind;
+  readonly stableKey: string;
+  readonly createdAt: Date;
+}
+
+/**
+ * Row -> domain.
+ *
+ * Total, and deliberately narrow: a Discovery row carries IDENTITY ONLY. There
+ * is no attention priority, presentation level, or score to map, because those
+ * are computed on read and never persisted (Patch 6, INV-09). If a future row
+ * gained such a column, this mapper would have nowhere to put it.
+ */
+export const toDomainDiscovery = (row: DiscoveryRow): Discovery => ({
+  id: discoveryId(row.id),
+  subjectRef: {
+    type: DISCOVERY_SUBJECT_TYPE_FROM_DB[row.subjectType],
+    id: row.subjectRef,
+  },
+  discoveryKind: DISCOVERY_KIND_FROM_DB[row.discoveryKind],
+  stableKey: row.stableKey,
+  createdAt: row.createdAt,
+});
+
+export const toDiscoveryRow = (d: Discovery): DiscoveryRow => ({
+  id: d.id,
+  subjectType: DISCOVERY_SUBJECT_TYPE_TO_DB[d.subjectRef.type],
+  subjectRef: d.subjectRef.id,
+  discoveryKind: DISCOVERY_KIND_TO_DB[d.discoveryKind],
+  stableKey: d.stableKey,
+  createdAt: d.createdAt,
+});
+
+/* ── CurrentFocusContext (§19) ────────────────────────────────────────── */
+
+const FOCUS_SOURCE_KIND_TO_DB = {
+  user_stated: 'USER_STATED',
+  record_derived: 'RECORD_DERIVED',
+} as const satisfies Record<FocusSourceKind, $Enums.FocusSourceKind>;
+
+const FOCUS_SOURCE_KIND_FROM_DB = invert(FOCUS_SOURCE_KIND_TO_DB);
+
+export interface FocusContextRow {
+  readonly id: string;
+  readonly subjectRef: string;
+  readonly sourceKind: $Enums.FocusSourceKind;
+  readonly sourceRef: string;
+  readonly lastMentionedAt: Date;
+  readonly expiresAt: Date | null;
+  readonly endedAt: Date | null;
+  readonly createdAt: Date;
+}
+
+/**
+ * Row -> domain.
+ *
+ * Note there is no lifecycle or relevance field to map: §19 requires elastic
+ * fading rather than a fabricated expiry, so both are derived from
+ * `lastMentionedAt` on read. Persisting them would fabricate the precise expiry
+ * the contract forbids.
+ */
+export const toDomainFocusContext = (
+  row: FocusContextRow,
+): CurrentFocusContext => ({
+  id: focusContextId(row.id),
+  subjectRef: row.subjectRef,
+  source: {
+    kind: FOCUS_SOURCE_KIND_FROM_DB[row.sourceKind],
+    ref: row.sourceRef,
+  },
+  lastMentionedAt: row.lastMentionedAt,
+  expiresAt: row.expiresAt,
+  endedAt: row.endedAt,
+  createdAt: row.createdAt,
+});
+
+export const toFocusContextRow = (c: CurrentFocusContext): FocusContextRow => ({
+  id: c.id,
+  subjectRef: c.subjectRef,
+  sourceKind: FOCUS_SOURCE_KIND_TO_DB[c.source.kind],
+  sourceRef: c.source.ref,
+  lastMentionedAt: c.lastMentionedAt,
+  expiresAt: c.expiresAt,
+  endedAt: c.endedAt,
+  createdAt: c.createdAt,
+});
+
+/* ── Hypothesis ───────────────────────────────────────────────────────── */
+
+const SUPPORT_BASIS_TO_DB = {
+  directional_observation: 'DIRECTIONAL_OBSERVATION',
+  compatibility_only: 'COMPATIBILITY_ONLY',
+  absence_of_contradiction: 'ABSENCE_OF_CONTRADICTION',
+  insufficient: 'INSUFFICIENT',
+} as const satisfies Record<SupportBasis, $Enums.SupportBasis>;
+
+const ANCHOR_PATH_TO_DB = {
+  supported_relation: 'SUPPORTED_RELATION',
+  independent_patterns: 'INDEPENDENT_PATTERNS',
+} as const satisfies Record<AnchorPath, $Enums.AnchorPath>;
+
+const SUPPORT_BASIS_FROM_DB = invert(SUPPORT_BASIS_TO_DB);
+const ANCHOR_PATH_FROM_DB = invert(ANCHOR_PATH_TO_DB);
+
+export const supportBasisToDb = (b: SupportBasis): $Enums.SupportBasis =>
+  SUPPORT_BASIS_TO_DB[b];
+export const supportBasisFromDb = (b: $Enums.SupportBasis): SupportBasis =>
+  SUPPORT_BASIS_FROM_DB[b];
+export const anchorPathToDb = (p: AnchorPath): $Enums.AnchorPath =>
+  ANCHOR_PATH_TO_DB[p];
+export const anchorPathFromDb = (p: $Enums.AnchorPath): AnchorPath =>
+  ANCHOR_PATH_FROM_DB[p];
+
+export interface HypothesisRow {
+  readonly id: string;
+  readonly explanation: string;
+  readonly anchorRefs: readonly string[];
+  readonly anchorPath: $Enums.AnchorPath;
+  readonly supportBasis: $Enums.SupportBasis;
+  readonly supportingRecordRefs: readonly string[];
+  readonly mechanism: string;
+  readonly discriminatingPredictions: readonly string[];
+  readonly alternatives: readonly string[];
+  readonly wouldStrengthen: readonly string[];
+  readonly wouldWeaken: readonly string[];
+  readonly createdAt: Date;
+}
+
+/**
+ * Row -> domain. TOTAL, unlike the RelationClaim mapper.
+ *
+ * There is no coupling here that SQL cannot express: every field maps straight
+ * across, and the H4/H5 non-emptiness requirements are admission-time rules
+ * rather than reconstruction hazards. A stored hypothesis that somehow lost its
+ * alternatives is caught by `remainsCompetable` at the adapter boundary, not by
+ * refusing to map it — the distinction matters because a hypothesis with no
+ * rivals is a defect to surface, not an unreadable row.
+ */
+export const toDomainHypothesis = (row: HypothesisRow): StoredHypothesis => ({
+  id: hypothesisId(row.id),
+  explanation: row.explanation,
+  anchorRefs: row.anchorRefs,
+  anchorPath: ANCHOR_PATH_FROM_DB[row.anchorPath],
+  supportBasis: SUPPORT_BASIS_FROM_DB[row.supportBasis],
+  supportingRecordRefs: row.supportingRecordRefs,
+  mechanism: row.mechanism,
+  discriminatingPredictions: row.discriminatingPredictions,
+  alternatives: row.alternatives,
+  wouldStrengthen: row.wouldStrengthen,
+  wouldWeaken: row.wouldWeaken,
+  createdAt: row.createdAt,
+});
+
+export const toHypothesisRow = (h: StoredHypothesis): HypothesisRow => ({
+  id: h.id,
+  explanation: h.explanation,
+  anchorRefs: h.anchorRefs,
+  anchorPath: ANCHOR_PATH_TO_DB[h.anchorPath],
+  supportBasis: SUPPORT_BASIS_TO_DB[h.supportBasis],
+  supportingRecordRefs: h.supportingRecordRefs,
+  mechanism: h.mechanism,
+  discriminatingPredictions: h.discriminatingPredictions,
+  alternatives: h.alternatives,
+  wouldStrengthen: h.wouldStrengthen,
+  wouldWeaken: h.wouldWeaken,
+  createdAt: h.createdAt,
+});
+
 export const toRelationClaimDimensionRows = (
   claim: StoredRelationClaim,
 ): readonly RelationClaimDimensionRow[] => {

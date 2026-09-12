@@ -42,6 +42,7 @@ export type RelationClaimId = Brand<string, 'RelationClaimId'>;
 export type HypothesisId = Brand<string, 'HypothesisId'>;
 export type ReflectionEpisodeId = Brand<string, 'ReflectionEpisodeId'>;
 export type UserReflectionRecordId = Brand<string, 'UserReflectionRecordId'>;
+export type FocusContextId = Brand<string, 'FocusContextId'>;
 
 const asBrand = <T extends Brand<string, string>>(raw: string): T => raw as T;
 
@@ -66,3 +67,5 @@ export const reflectionEpisodeId = (raw: string): ReflectionEpisodeId =>
   asBrand<ReflectionEpisodeId>(raw);
 export const userReflectionRecordId = (raw: string): UserReflectionRecordId =>
   asBrand<UserReflectionRecordId>(raw);
+export const focusContextId = (raw: string): FocusContextId =>
+  asBrand<FocusContextId>(raw);
