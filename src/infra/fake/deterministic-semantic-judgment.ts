@@ -35,6 +35,7 @@ import type {
   ComparisonAxis,
   RelationClaimCandidate,
 } from '../../domain/relation/relation-claim';
+import type { HypothesisCandidate } from '../../domain/hypothesis/hypothesis';
 
 export interface ScriptedComparability {
   readonly operationallySpecific?: boolean;
@@ -60,6 +61,13 @@ export interface ScriptedUnavailableDimension {
 
 export interface DeterministicScript {
   readonly candidates?: readonly RelationClaimCandidate[];
+  /** Hypothesis candidates returned by `generateHypotheses`. */
+  readonly hypotheses?: readonly HypothesisCandidate[];
+  /**
+   * Gate H6 judgment. Kept separate from `abstraction` so a test can allow a
+   * Relation through while flagging the Hypothesis built on it.
+   */
+  readonly hypothesisAbstraction?: ScriptedAbstraction;
   readonly comparability?: ScriptedComparability;
   readonly abstraction?: ScriptedAbstraction;
   /** Uniform score for every dimension unless overridden below. */
@@ -85,11 +93,15 @@ export class DeterministicSemanticJudgment implements SemanticJudgmentPort {
     judgeComparability: number;
     judgeAbstractionCeiling: number;
     judgeEvidenceDimensions: number;
+    generateHypotheses: number;
+    judgeHypothesisAbstractionCeiling: number;
   } = {
     generateCandidates: 0,
     judgeComparability: 0,
     judgeAbstractionCeiling: 0,
     judgeEvidenceDimensions: 0,
+    generateHypotheses: 0,
+    judgeHypothesisAbstractionCeiling: 0,
   };
 
   async generateCandidates(
@@ -167,5 +179,28 @@ export class DeterministicSemanticJudgment implements SemanticJudgmentPort {
     void request.baselineContext;
 
     return { judgments };
+  }
+
+  /* ── Hypothesis stage ────────────────────────────────────────────────── */
+
+  async generateHypotheses(_request: {
+    readonly claims: readonly unknown[];
+  }): Promise<{ readonly candidates: readonly HypothesisCandidate[] }> {
+    this.calls.generateHypotheses += 1;
+    return { candidates: this.script.hypotheses ?? [] };
+  }
+
+  async judgeHypothesisAbstractionCeiling(_request: {
+    readonly explanation: string;
+    readonly mechanism: string;
+  }): Promise<AbstractionCeilingJudgment> {
+    this.calls.judgeHypothesisAbstractionCeiling += 1;
+    const s = this.script.hypothesisAbstraction ?? {};
+
+    return {
+      prohibitedClaimDetected: s.prohibitedClaimDetected ?? false,
+      category: s.category ?? null,
+      explanation: s.explanation ?? 'scripted hypothesis abstraction judgment',
+    };
   }
 }

@@ -21,10 +21,15 @@ import type { ReflectionEpisode } from '../reflection/reflection-episode';
 import type { UserReflectionRecord } from '../reflection/user-reflection-record';
 import type { StoredRelationClaim } from '../relation/relation-claim';
 import type { EvidenceSupportLevel } from '../relation/evidence-dimensions';
+import type { StoredHypothesis } from '../hypothesis/hypothesis';
+import type { CurrentFocusContext } from '../discovery/focus-context';
+import type { ReflectionPreference } from '../reflection/reflection-preference';
 import type {
   DirectiveId,
   DiscoveryId,
   EvidenceUnitId,
+  FocusContextId,
+  HypothesisId,
   RecordId,
   RelationClaimId,
   SourceFingerprint,
@@ -144,6 +149,69 @@ export interface RelationClaimRepository {
   ): Promise<readonly StoredRelationClaim[]>;
 
   save(claim: StoredRelationClaim): Promise<void>;
+}
+
+export interface HypothesisRepository {
+  findById(id: HypothesisId): Promise<StoredHypothesis | null>;
+
+  /** Hypotheses anchored to a given claim or pattern. */
+  findByAnchorRef(anchorRef: string): Promise<readonly StoredHypothesis[]>;
+
+  /**
+   * All hypotheses, oldest first.
+   *
+   * Deliberately unordered by any notion of strength: §13 forbids a Hypothesis
+   * carrying a probability, so there is nothing to rank by. Competing
+   * explanations are peers.
+   */
+  listAll(): Promise<readonly StoredHypothesis[]>;
+
+  save(hypothesis: StoredHypothesis): Promise<void>;
+}
+
+export interface ReflectionPreferenceRepository {
+  /**
+   * The current preference, or null if the user has set none.
+   *
+   * Null means "unset", NOT "default": the caller applies
+   * `defaultPreference()` explicitly, so a stored choice is never confused with
+   * an absent one (§33).
+   */
+  find(): Promise<ReflectionPreference | null>;
+
+  /**
+   * Overwrite the preference in place.
+   *
+   * §33 says preferences may change over time and forbids inferring stable
+   * identity from them, so there is deliberately no history: the current value
+   * is the whole of it.
+   */
+  save(preference: ReflectionPreference): Promise<void>;
+}
+
+export interface FocusContextRepository {
+  findById(id: FocusContextId): Promise<CurrentFocusContext | null>;
+
+  /**
+   * Contexts that have not ended and whose stated duration (if any) has not
+   * elapsed, newest first.
+   *
+   * Note this does NOT filter by elastic fading: a faded context is still
+   * active as a row, and its reduced relevance is derived on read (§19). Fading
+   * is a computed state, never a stored one, so nothing is written at the point
+   * a context begins to fade.
+   */
+  listActive(now: Date): Promise<readonly CurrentFocusContext[]>;
+
+  save(context: CurrentFocusContext): Promise<void>;
+
+  /**
+   * End a context without deleting it (§19: removable).
+   *
+   * §19 is explicit that expiry reduces current relevance and does NOT delete
+   * historical records, so this touches the context row only.
+   */
+  expire(id: FocusContextId, at: Date): Promise<void>;
 }
 
 export interface ReflectionEpisodeRepository {
