@@ -45,7 +45,34 @@ persisted entity (not only a computed view — see §6 below), and
     **inherit the parent's `evidence_unit_id` by default**, unless an explicit rule
     determines the derived record introduces new independent factual content (in
     which case it gets a new `evidence_unit_id`, with lineage still pointing to the parent).
+  - Rule: records related by `references` **also inherit the parent's
+    `evidence_unit_id` by default**, for a different and opposite-facing reason than
+    the three relations above. Those three inherit because the derived record restates
+    the same information; `references` inherits because a record that merely *points at*
+    something is not thereby a new independent source. The relation records
+    provenance/lineage only — it preserves the link while explicitly indicating
+    **"this is not new independent evidence."** A reference-derived record therefore
+    inherits because it does not represent a new evidence source, which is a distinct
+    thing from creating new evidentiary support. The same explicit-determination
+    override applies: a new `evidence_unit_id` requires an explicit rule, never a
+    default.
+    - This is what allows §27's "if the user relates an external reference back to
+      themselves, create a NEW `UserReflectionRecord`" to be honoured without the
+      reaction manufacturing independent support (§38, INV-06, INV-03). The user's
+      *meaning* is recorded and remains theirs (INV-18); only the *evidentiary claim*
+      is withheld. Inheritance is the automatic **denial** of a new unit, never an
+      automatic grant, so §8's "separate, explicit determination, not automatic"
+      boundary is preserved.
+    - Gate 5 needs no special case: it counts DISTINCT `evidence_unit_id`s, so a
+      reference and every reaction to it collapse to one unit and the gate closes on
+      its own.
+    - `responds_to` / `revises` / `supersedes` deliberately do NOT inherit and instead
+      fail closed — those touch §23/§37 prompt contamination and the §25 meaning
+      lifecycle, where the contract wants a human decision on the record's very
+      admissibility.
   - Example: R1 (original) → EU1; R2 (summarizes R1) → EU1; R3 (reformats R2) → EU1.
+  - Example: X1 (external reference) → EU9; U1 (user's own words, `references` X1) → EU9.
+    Two Records, one Evidence Unit.
   - `evidence_unit_id` is what deterministic no-double-counting checks key on —
     this removes the dependency on full transitive lineage-graph traversal for
     protecting INV-03/INV-16 in the MVP.

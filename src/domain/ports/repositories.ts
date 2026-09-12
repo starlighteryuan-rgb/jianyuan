@@ -61,6 +61,27 @@ export interface RecordRepository {
   countDistinctEvidenceUnits(ids: readonly RecordId[]): Promise<number>;
 
   /**
+   * Most recently stored Records, newest first, capped at `limit`.
+   *
+   * A read-side capability with no epistemic content: it selects and orders, and
+   * decides nothing. Added because the Awareness Stream had no way to enumerate
+   * records at all — every other method here answers a question you can only ask
+   * once you already hold an id.
+   *
+   * ORDERED BY `createdAt`, DELIBERATELY. That is the platform's own clock — when
+   * the row was written — and is the one ordering that never asserts anything
+   * about the user's world. `time` must NOT be used here: it is a `TimeAssertion`
+   * whose semantic varies per record (§5), so sorting by it would silently
+   * compare an `event_time` against a `capture_time` and invent a chronology the
+   * contract refuses to assert (INV-07, INV-08).
+   *
+   * Recency is not importance. This orders arrival only; Attention Priority is
+   * computed on read by the domain and is never persisted or implied here
+   * (§17, INV-09).
+   */
+  listRecent(limit: number): Promise<readonly PersonalRecord[]>;
+
+  /**
    * Persist a Record.
    *
    * `options.evidenceUnitReason` carries the audit trail for the case where an
@@ -147,6 +168,21 @@ export interface RelationClaimRepository {
   listBySupportLevel(
     level: EvidenceSupportLevel,
   ): Promise<readonly StoredRelationClaim[]>;
+
+  /**
+   * ALL claims, newest first, capped at `limit`.
+   *
+   * Exists because `listBySupportLevel` cannot answer "what is there?". Per its
+   * own contract above, a claim with a null `supportLevel` is returned by no
+   * level query, so a union across every level silently DROPS every unscored
+   * claim — and docs/architecture.md §11 Patch 9 requires an unscored claim be
+   * presented as explicitly unscored rather than hidden or read as weak. Any
+   * read path that must show everything has to come through here.
+   *
+   * ORDERED BY `createdAt`, never by support level: §36 and INV-09 forbid
+   * evidence support ordering or filtering what the user sees.
+   */
+  listAll(limit: number): Promise<readonly StoredRelationClaim[]>;
 
   save(claim: StoredRelationClaim): Promise<void>;
 }

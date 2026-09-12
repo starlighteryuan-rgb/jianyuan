@@ -107,6 +107,40 @@ export class PrismaRelationClaimRepository implements RelationClaimRepository {
     return claims;
   }
 
+  /**
+   * Newest-first page of ALL claims, scored and unscored alike.
+   *
+   * The counterpart to `listBySupportLevel` above, and the reason it cannot serve
+   * a read surface on its own: as its comment says, a claim with no assessment has
+   * `supportLevel` NULL and is matched by NO level query. Unioning across every
+   * level would therefore drop exactly the claims arch §11 Patch 9 insists be
+   * shown as explicitly unscored rather than hidden.
+   *
+   * No `where` clause, and no ordering by `supportLevel` — §36 and INV-09 forbid
+   * evidence support ordering or filtering what the user sees. `id` is the
+   * tiebreaker so a repeated read returns a stable page.
+   */
+  async listAll(limit: number): Promise<readonly StoredRelationClaim[]> {
+    if (limit <= 0) return [];
+
+    const rows = await this.prisma.relationClaim.findMany({
+      select: { id: true },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      take: limit,
+    });
+
+    const claims: StoredRelationClaim[] = [];
+    for (const row of rows) {
+      const claim = await this.hydrate(row.id);
+      // Skipping a null follows this adapter's existing convention: `hydrate`
+      // returns null only when the row disappeared between the id query and the
+      // fetch, which is a benign race rather than malformed data.
+      if (claim !== null) claims.push(claim);
+    }
+
+    return claims;
+  }
+
   async save(claim: StoredRelationClaim): Promise<void> {
     if (!hasAuditableEvidence(claim)) {
       throw new Error(
