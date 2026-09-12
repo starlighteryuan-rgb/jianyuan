@@ -52,7 +52,21 @@ export interface RecordRepository {
    */
   countDistinctEvidenceUnits(ids: readonly RecordId[]): Promise<number>;
 
-  save(record: PersonalRecord): Promise<void>;
+  /**
+   * Persist a Record.
+   *
+   * `options.evidenceUnitReason` carries the audit trail for the case where an
+   * explicit determination minted a NEW Evidence Unit for a derived record.
+   * ENGINEERING_CONTRACT §42 requires such a decision to be inspectable, and
+   * docs/architecture.md §13 leaves the criteria deferred — so when the
+   * judgment is made, the stated reason must be stored alongside it rather
+   * than discarded. Optional because the common cases (a root source, or a
+   * derived record that inherits) have no such determination to record.
+   */
+  save(
+    record: PersonalRecord,
+    options?: { readonly evidenceUnitReason?: string },
+  ): Promise<void>;
 }
 
 export interface RecordEpistemicRoleRepository {
