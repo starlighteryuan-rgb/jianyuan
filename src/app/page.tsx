@@ -1,7 +1,8 @@
 /**
  * Awareness Stream (ENGINEERING_CONTRACT §16, §18, §36, §42; arch §11 Patch 9).
  *
- * A Server Component. Reads, renders, decides nothing.
+ * A Server Component. Requests the application projection, renders, decides
+ * nothing. Relation/Hypothesis repositories stay behind DiscoveryService.
  *
  * FOUR CONSTRAINTS THAT LIVE IN THE MARKUP, not just the domain:
  *
@@ -9,8 +10,8 @@
  *      and never as a number, a bar, or a percentage (§36, INV-09). A number
  *      invites arithmetic the contract forbids.
  *
- *   2. NO RANKING BY SUPPORT. The list is ordered by arrival — `listAll` sorts
- *      on `createdAt` — never by support level (§36). Recency is not importance.
+ *   2. NO RANKING BY SUPPORT. The list order comes from DiscoveryService and
+ *      its domain projection, never from support level (§36).
  *
  *   3. AN UNSCORED CLAIM IS MARKED, NOT DIMMED. Patch 9: `unscored`,
  *      `unavailable`, and `needs_retry` are explicit states, distinct from weak.
@@ -72,8 +73,12 @@ export default async function AwarenessStreamPage() {
     );
   }
 
-  const claims = await services.repositories.claims.listAll(STREAM_LIMIT);
-  const hypotheses = await services.repositories.hypotheses.listAll();
+  const stream = await services.discovery.listStream({
+    now: new Date(),
+    relationLimit: STREAM_LIMIT,
+  });
+  const claims = stream.filter((item) => item.kind === 'relation');
+  const hypotheses = stream.filter((item) => item.kind === 'hypothesis');
 
   const isEmpty = claims.length === 0 && hypotheses.length === 0;
 
@@ -81,18 +86,19 @@ export default async function AwarenessStreamPage() {
     <main>
       <h1>Awareness</h1>
       <p className="lede">
-        What has been recorded, and what has been noticed about it. Ordered by
+        What is currently available to return to your attention. Ordered by
         when it arrived — not by how strong it is.
       </p>
 
       {isEmpty ? (
         <div className="notice">
           <p>
-            <strong>Nothing has been noticed yet.</strong>
+            <strong>Nothing is available in the stream.</strong>
           </p>
           <p className="faint">
-            Relations appear here once records exist and analysis has run. An
-            empty stream is shown as empty rather than filled with placeholders.
+            Relations appear once records exist, analysis has run, and current
+            presentation rules allow them. Stored-only items are not exposed
+            here.
           </p>
         </div>
       ) : null}
@@ -100,8 +106,8 @@ export default async function AwarenessStreamPage() {
       {claims.length > 0 ? (
         <>
           <h2>Relations</h2>
-          {claims.map((claim) => (
-            <article className="card" key={claim.id}>
+          {claims.map(({ subject: claim, projection }) => (
+            <article className="card" key={projection.discovery.id}>
               <div className="card-head">
                 <strong>{claim.comparisonAxis.question}</strong>
                 <span
@@ -146,8 +152,8 @@ export default async function AwarenessStreamPage() {
             These are competing explanations, held as peers. None carries a
             probability, and they are not ordered by strength.
           </p>
-          {hypotheses.map((hypothesis) => (
-            <article className="card" key={hypothesis.id}>
+          {hypotheses.map(({ subject: hypothesis, projection }) => (
+            <article className="card" key={projection.discovery.id}>
               <div className="card-head">
                 <span className="faint">{hypothesis.id}</span>
               </div>

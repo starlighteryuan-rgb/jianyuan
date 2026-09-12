@@ -25,4 +25,15 @@ export class MemoryEpistemicRoleRepository
   clear(): void {
     this.roles.clear();
   }
+
+  snapshot(): Map<RecordId, Set<EpistemicRole>> {
+    return new Map(
+      [...this.roles.entries()].map(([id, values]) => [id, new Set(values)]),
+    );
+  }
+
+  restore(snapshot: Map<RecordId, Set<EpistemicRole>>): void {
+    this.roles.clear();
+    for (const [id, values] of snapshot) this.roles.set(id, new Set(values));
+  }
 }

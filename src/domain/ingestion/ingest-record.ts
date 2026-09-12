@@ -46,6 +46,7 @@ import {
   recordId as brandRecordId,
 } from '../shared/ids';
 import type { TimeAssertion } from '../shared/time-semantics';
+import type { LineageEdge } from '../lineage/lineage-edge';
 import { type Result, err, ok } from '../shared/result';
 
 /** Lineage context for a capture that derives from an existing Record. */
@@ -99,6 +100,8 @@ export type IngestionPlan =
       readonly recordId: RecordId;
       readonly evidenceUnitId: EvidenceUnitId;
       readonly rolesToAdd: readonly EpistemicRole[];
+      /** Minimal retry repair when a prior create lost its Lineage write. */
+      readonly lineageEdge: LineageEdgePlan | null;
     }
   | {
       readonly kind: 'create';
@@ -130,6 +133,8 @@ export interface PlanIngestionArgs {
   readonly existing: PersonalRecord | null;
   /** Roles already attached to `existing`; ignored when `existing` is null. */
   readonly existingRoles: readonly EpistemicRole[];
+  /** Existing direct edges, used only for minimal dedup Lineage repair. */
+  readonly existingLineage?: readonly LineageEdge[];
   readonly permissions: EffectivePermissions;
   readonly ids: MintedIds;
 }
@@ -149,7 +154,15 @@ const buildRawExpression = (capture: CaptureInput): RawExpression | null =>
 export const planIngestion = (
   args: PlanIngestionArgs,
 ): Result<IngestionPlan, IngestionRefusal> => {
-  const { capture, fingerprint, existing, existingRoles, permissions, ids } =
+  const {
+    capture,
+    fingerprint,
+    existing,
+    existingRoles,
+    existingLineage = [],
+    permissions,
+    ids,
+  } =
     args;
 
   const requestedRoles = normalizeRoles(capture.epistemicRoles);
@@ -179,6 +192,21 @@ export const planIngestion = (
       // Unchanged, by construction. This is the structural half of INV-16.
       evidenceUnitId: existing.evidenceUnitId,
       rolesToAdd,
+      lineageEdge:
+        capture.derivedFrom !== null &&
+        !existingLineage.some(
+          (edge) =>
+            edge.childId === existing.id &&
+            edge.parentId === capture.derivedFrom?.parentRecordId &&
+            edge.relationToParent === capture.derivedFrom?.relationToParent,
+        )
+          ? {
+              id: brandLineageEdgeId(ids.lineageEdgeId),
+              childId: existing.id,
+              parentId: capture.derivedFrom.parentRecordId,
+              relationToParent: capture.derivedFrom.relationToParent,
+            }
+          : null,
     });
   }
 

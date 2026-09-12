@@ -30,6 +30,7 @@
 import type { PrismaClient } from '../../generated/prisma/client';
 
 import { DiscoveryService } from '../application/discovery-service';
+import { DirectiveService } from '../application/directive-service';
 import { ExternalReferenceService } from '../application/external-reference-service';
 import { HypothesisService } from '../application/hypothesis-service';
 import { IngestionService } from '../application/ingestion-service';
@@ -44,6 +45,7 @@ import type {
   DiscoveryRepository,
   FocusContextRepository,
   HypothesisRepository,
+  IngestionCommitRepository,
   LineageRepository,
   RecordEpistemicRoleRepository,
   RecordRepository,
@@ -62,6 +64,7 @@ import { MemoryEpistemicRoleRepository } from '../infra/memory/memory-epistemic-
 import { MemoryFocusContextRepository } from '../infra/memory/memory-focus-context-repository';
 import { MemoryHypothesisRepository } from '../infra/memory/memory-hypothesis-repository';
 import { MemoryLineageRepository } from '../infra/memory/memory-lineage-repository';
+import { MemoryIngestionCommitRepository } from '../infra/memory/memory-ingestion-commit-repository';
 import { MemoryRecordRepository } from '../infra/memory/memory-record-repository';
 import { MemoryReflectionEpisodeRepository } from '../infra/memory/memory-reflection-episode-repository';
 import { MemoryReflectionPreferenceRepository } from '../infra/memory/memory-reflection-preference-repository';
@@ -74,6 +77,7 @@ import { PrismaEpistemicRoleRepository } from '../infra/prisma/prisma-epistemic-
 import { PrismaFocusContextRepository } from '../infra/prisma/prisma-focus-context-repository';
 import { PrismaHypothesisRepository } from '../infra/prisma/prisma-hypothesis-repository';
 import { PrismaLineageRepository } from '../infra/prisma/prisma-lineage-repository';
+import { PrismaIngestionCommitRepository } from '../infra/prisma/prisma-ingestion-commit-repository';
 import { PrismaRecordRepository } from '../infra/prisma/prisma-record-repository';
 import { PrismaReflectionEpisodeRepository } from '../infra/prisma/prisma-reflection-episode-repository';
 import { PrismaReflectionPreferenceRepository } from '../infra/prisma/prisma-reflection-preference-repository';
@@ -104,10 +108,12 @@ export interface Repositories {
   readonly episodes: ReflectionEpisodeRepository;
   readonly reflectionRecords: UserReflectionRecordRepository;
   readonly preferences: ReflectionPreferenceRepository;
+  readonly ingestionCommit: IngestionCommitRepository;
 }
 
 export interface AppServices {
   readonly ingestion: IngestionService;
+  readonly directives: DirectiveService;
   readonly relations: RelationService;
   readonly hypotheses: HypothesisService;
   readonly discovery: DiscoveryService;
@@ -158,7 +164,13 @@ export const createServices = (
     roles: repositories.roles,
     lineage: repositories.lineage,
     directives: repositories.directives,
+    commit: repositories.ingestionCommit,
     hash,
+    ids,
+  });
+
+  const directives = new DirectiveService({
+    directives: repositories.directives,
     ids,
   });
 
@@ -185,6 +197,9 @@ export const createServices = (
     focusContexts: repositories.focusContexts,
     states: repositories.states,
     directives: repositories.directives,
+    records: repositories.records,
+    claims: repositories.claims,
+    hypotheses: repositories.hypotheses,
     ids,
   });
 
@@ -207,6 +222,7 @@ export const createServices = (
 
   return {
     ingestion,
+    directives,
     relations,
     hypotheses,
     discovery,
@@ -218,10 +234,14 @@ export const createServices = (
 };
 
 /** Prisma-backed repositories over one client. */
-export const prismaRepositories = (prisma: PrismaClient): Repositories => ({
-  records: new PrismaRecordRepository(prisma),
-  roles: new PrismaEpistemicRoleRepository(prisma),
-  lineage: new PrismaLineageRepository(prisma),
+export const prismaRepositories = (prisma: PrismaClient): Repositories => {
+  const records = new PrismaRecordRepository(prisma);
+  const roles = new PrismaEpistemicRoleRepository(prisma);
+  const lineage = new PrismaLineageRepository(prisma);
+  return {
+  records,
+  roles,
+  lineage,
   directives: new PrismaDirectiveRepository(prisma),
   states: new PrismaStateAssignmentRepository(prisma),
   discoveries: new PrismaDiscoveryRepository(prisma),
@@ -231,7 +251,9 @@ export const prismaRepositories = (prisma: PrismaClient): Repositories => ({
   episodes: new PrismaReflectionEpisodeRepository(prisma),
   reflectionRecords: new PrismaUserReflectionRecordRepository(prisma),
   preferences: new PrismaReflectionPreferenceRepository(prisma),
-});
+  ingestionCommit: new PrismaIngestionCommitRepository(prisma),
+};
+};
 
 /**
  * Fresh in-memory repositories.
@@ -240,10 +262,14 @@ export const prismaRepositories = (prisma: PrismaClient): Repositories => ({
  * Record → Relation → Hypothesis → Discovery → Reflection — run end to end with
  * no Postgres and no API key. Each call returns an isolated set.
  */
-export const memoryRepositories = (): Repositories => ({
-  records: new MemoryRecordRepository(),
-  roles: new MemoryEpistemicRoleRepository(),
-  lineage: new MemoryLineageRepository(),
+export const memoryRepositories = (): Repositories => {
+  const records = new MemoryRecordRepository();
+  const roles = new MemoryEpistemicRoleRepository();
+  const lineage = new MemoryLineageRepository();
+  return {
+  records,
+  roles,
+  lineage,
   directives: new MemoryDirectiveRepository(),
   states: new MemoryStateAssignmentRepository(),
   discoveries: new MemoryDiscoveryRepository(),
@@ -253,7 +279,9 @@ export const memoryRepositories = (): Repositories => ({
   episodes: new MemoryReflectionEpisodeRepository(),
   reflectionRecords: new MemoryUserReflectionRecordRepository(),
   preferences: new MemoryReflectionPreferenceRepository(),
-});
+  ingestionCommit: new MemoryIngestionCommitRepository(records, roles, lineage),
+};
+};
 
 /**
  * Services over the process-wide Prisma client.

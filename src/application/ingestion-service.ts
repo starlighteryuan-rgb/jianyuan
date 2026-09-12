@@ -14,11 +14,10 @@
  *   3. Resolve directives for the subject (Gate 1, §26) — computed on read so a
  *      revoked directive stops applying immediately.
  *   4. Plan (pure).
- *   5. Execute: Record first, then roles, then lineage.
+ *   5. Commit the complete plan through one atomic persistence seam.
  *
- * Roles are written AFTER the Record so a role row can never reference a
- * Record that does not exist. Nothing here re-derives identity: the plan
- * already decided it.
+ * The commit adapter owns write ordering and rollback/transaction semantics.
+ * Nothing here re-derives identity: the plan already decided it.
  */
 
 import {
@@ -39,6 +38,7 @@ import {
 } from '../domain/directive/directive-resolution';
 import type {
   DirectiveRepository,
+  IngestionCommitRepository,
   LineageRepository,
   RecordEpistemicRoleRepository,
   RecordRepository,
@@ -101,6 +101,7 @@ export interface IngestionDeps {
   readonly roles: RecordEpistemicRoleRepository;
   readonly lineage: LineageRepository;
   readonly directives: DirectiveRepository;
+  readonly commit: IngestionCommitRepository;
   readonly hash: HashFn;
   readonly ids: IdGenerator;
 }
@@ -164,6 +165,10 @@ export class IngestionService {
     const existing = await records.findBySourceFingerprint(fingerprint);
     const existingRoles =
       existing === null ? [] : await roles.listRoles(existing.id);
+    const existingLineage =
+      existing === null || request.derivation === null
+        ? []
+        : await lineage.directParents(existing.id);
 
     // ── Directives, resolved on read (§26 revocability) ────────────────────
     const activeDirectives = await directives.listActive();
@@ -178,6 +183,7 @@ export class IngestionService {
       fingerprint,
       existing,
       existingRoles,
+      existingLineage,
       permissions,
       ids: {
         recordId: ids.nextRecordId(),
@@ -188,55 +194,18 @@ export class IngestionService {
 
     if (!planned.ok) return err(planned.error);
 
-    return ok(await this.execute(planned.value, permissions));
-  }
+    await this.deps.commit.commit(planned.value);
 
-  private async execute(
-    plan: IngestionPlan,
-    permissions: EffectivePermissions,
-  ): Promise<IngestionOutcome> {
-    const { records, roles, lineage } = this.deps;
+    const recordId =
+      planned.value.kind === 'deduplicated'
+        ? planned.value.recordId
+        : planned.value.record.id;
 
-    if (plan.kind === 'deduplicated') {
-      // Reclassification only. The Record — and therefore its Evidence Unit —
-      // is left exactly as it was (INV-16).
-      for (const role of plan.rolesToAdd) {
-        await roles.addRole({ recordId: plan.recordId, role });
-      }
-
-      return {
-        recordId: plan.recordId,
-        deduplicated: true,
-        rolesAdded: plan.rolesToAdd,
-        permissions,
-      };
-    }
-
-    // Pass the determination reason through when one exists, so a minted
-    // Evidence Unit stays auditable (§42, arch §13).
-    await records.save(
-      plan.record,
-      plan.evidenceUnitDeterminationReason === null
-        ? {}
-        : { evidenceUnitReason: plan.evidenceUnitDeterminationReason },
-    );
-
-    for (const role of plan.rolesToAdd) {
-      await roles.addRole({ recordId: plan.record.id, role });
-    }
-
-    if (plan.lineageEdge !== null) {
-      await lineage.save({
-        ...plan.lineageEdge,
-        createdAt: plan.record.createdAt,
-      });
-    }
-
-    return {
-      recordId: plan.record.id,
-      deduplicated: false,
-      rolesAdded: plan.rolesToAdd,
+    return ok({
+      recordId,
+      deduplicated: planned.value.kind === 'deduplicated',
+      rolesAdded: planned.value.rolesToAdd,
       permissions,
-    };
+    });
   }
 }

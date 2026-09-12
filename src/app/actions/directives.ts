@@ -19,7 +19,6 @@
  * immediately (§26 revocability).
  */
 
-import { randomUUID } from 'node:crypto';
 import { revalidatePath } from 'next/cache';
 
 import { directiveId } from '@/domain/shared/ids';
@@ -31,8 +30,7 @@ const isChecked = (form: FormData, field: string): boolean =>
 export async function createDirective(form: FormData): Promise<void> {
   const services = getServices();
 
-  await services.repositories.directives.save({
-    id: directiveId(`dir_${randomUUID()}`),
+  const result = await services.directives.create({
     // Four independent reads. Never `allowAnalysis: storage && ...`.
     allowStorage: isChecked(form, 'allowStorage'),
     allowAnalysis: isChecked(form, 'allowAnalysis'),
@@ -43,9 +41,11 @@ export async function createDirective(form: FormData): Promise<void> {
     // scoped directive needs explicit user-selected attributes rather than a
     // guess made in a form handler.
     scope: null,
-    revokedAt: null,
-    createdAt: new Date(),
+    now: new Date(),
   });
+
+  // Domain refusal means no repository write and no success-like refresh.
+  if (!result.ok) return;
 
   revalidatePath('/settings');
   revalidatePath('/');
@@ -56,11 +56,9 @@ export async function revokeDirective(form: FormData): Promise<void> {
 
   if (typeof id !== 'string' || id.length === 0) return;
 
-  const services = getServices();
-
   // Revocation is a timestamp, not a delete: §42 wants the state to explain
   // itself, and a vanished directive cannot explain why it stopped applying.
-  await services.repositories.directives.revoke(directiveId(id), new Date());
+  await getServices().directives.revoke(directiveId(id), new Date());
 
   revalidatePath('/settings');
   revalidatePath('/');

@@ -24,6 +24,7 @@ import type { EvidenceSupportLevel } from '../relation/evidence-dimensions';
 import type { StoredHypothesis } from '../hypothesis/hypothesis';
 import type { CurrentFocusContext } from '../discovery/focus-context';
 import type { ReflectionPreference } from '../reflection/reflection-preference';
+import type { IngestionPlan } from '../ingestion/ingest-record';
 import type {
   DirectiveId,
   DiscoveryId,
@@ -96,6 +97,16 @@ export interface RecordRepository {
     record: PersonalRecord,
     options?: { readonly evidenceUnitReason?: string },
   ): Promise<void>;
+}
+
+/**
+ * Atomic persistence seam for one complete Ingestion plan.
+ *
+ * The planner owns epistemic decisions; this port owns only all-or-nothing
+ * persistence of the resulting Record, Roles, and optional Lineage.
+ */
+export interface IngestionCommitRepository {
+  commit(plan: IngestionPlan): Promise<void>;
 }
 
 export interface RecordEpistemicRoleRepository {

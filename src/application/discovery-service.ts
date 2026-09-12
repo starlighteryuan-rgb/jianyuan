@@ -42,9 +42,15 @@ import type {
   DirectiveRepository,
   DiscoveryRepository,
   FocusContextRepository,
+  HypothesisRepository,
+  RecordRepository,
+  RelationClaimRepository,
   StateAssignmentRepository,
 } from '../domain/ports/repositories';
+import type { StoredHypothesis } from '../domain/hypothesis/hypothesis';
+import type { StoredRelationClaim } from '../domain/relation/relation-claim';
 import type { DiscoveryKind } from '../domain/shared/enums';
+import { recordId, relationClaimId } from '../domain/shared/ids';
 
 export interface DiscoveryIdGenerator {
   nextDiscoveryId(): string;
@@ -55,8 +61,32 @@ export interface DiscoveryDeps {
   readonly focusContexts: FocusContextRepository;
   readonly states: StateAssignmentRepository;
   readonly directives: DirectiveRepository;
+  readonly records: RecordRepository;
+  readonly claims: RelationClaimRepository;
+  readonly hypotheses: HypothesisRepository;
   readonly ids: DiscoveryIdGenerator;
 }
+
+export type DiscoveryStreamItem =
+  | {
+      readonly kind: 'relation';
+      readonly subject: StoredRelationClaim;
+      readonly projection: DiscoveryProjection;
+    }
+  | {
+      readonly kind: 'hypothesis';
+      readonly subject: StoredHypothesis;
+      readonly projection: DiscoveryProjection;
+    };
+
+export interface DiscoveryStreamRequest {
+  readonly now: Date;
+  readonly relationLimit: number;
+}
+
+type DiscoveryStreamSource =
+  | { readonly kind: 'relation'; readonly subject: StoredRelationClaim }
+  | { readonly kind: 'hypothesis'; readonly subject: StoredHypothesis };
 
 /**
  * One subject to project, as supplied by the caller.
@@ -88,6 +118,88 @@ export interface ProjectRequest {
 
 export class DiscoveryService {
   constructor(private readonly deps: DiscoveryDeps) {}
+
+  /**
+   * Build the Awareness Stream read model through the Discovery boundary.
+   *
+   * The UI receives only subjects that survived `project()` and therefore the
+   * Directive, state, attention, and presentation rules. Relation/Hypothesis
+   * repositories stay behind the application layer rather than being read by
+   * the page directly.
+   */
+  async listStream(
+    request: DiscoveryStreamRequest,
+  ): Promise<readonly DiscoveryStreamItem[]> {
+    const [claims, hypotheses] = await Promise.all([
+      this.deps.claims.listAll(request.relationLimit),
+      this.deps.hypotheses.listAll(),
+    ]);
+
+    const sources: readonly DiscoveryStreamSource[] = [
+      ...claims.map((subject) => ({ kind: 'relation' as const, subject })),
+      ...hypotheses.map((subject) => ({ kind: 'hypothesis' as const, subject })),
+    ].sort(
+      (a, b) => b.subject.createdAt.getTime() - a.subject.createdAt.getTime(),
+    );
+
+    const subjects = await Promise.all(
+      sources.map(async (source): Promise<SubjectRequest> => {
+        const recordRefs =
+          source.kind === 'relation'
+            ? source.subject.recordRefs
+            : source.subject.supportingRecordRefs;
+
+        return {
+          subjectRef: {
+            type:
+              source.kind === 'relation' ? 'relation_claim' : 'hypothesis',
+            id: source.subject.id,
+          },
+          discoveryKind:
+            source.kind === 'relation'
+              ? 'relation_discovery'
+              : 'hypothesis_discovery',
+          resolvedTimePoints: await this.resolvedTimePoints(recordRefs),
+          directiveSubject: {
+            topicTags: [],
+            source: null,
+            relationAxes: await this.relationAxesFor(source),
+            userSelectedRefs: [source.subject.id],
+            createdAt: source.subject.createdAt,
+          },
+        };
+      }),
+    );
+
+    const projections = await this.project({
+      subjects,
+      now: request.now,
+    });
+    const sourceByStableKey = new Map(
+      sources.map((source) => [
+        deriveStableKey(
+          {
+            type:
+              source.kind === 'relation' ? 'relation_claim' : 'hypothesis',
+            id: source.subject.id,
+          },
+          source.kind === 'relation'
+            ? 'relation_discovery'
+            : 'hypothesis_discovery',
+        ),
+        source,
+      ]),
+    );
+
+    return projections.flatMap((projection): DiscoveryStreamItem[] => {
+      const source = sourceByStableKey.get(projection.discovery.stableKey);
+      if (source === undefined) return [];
+
+      return source.kind === 'relation'
+        ? [{ kind: 'relation', subject: source.subject, projection }]
+        : [{ kind: 'hypothesis', subject: source.subject, projection }];
+    });
+  }
 
   /**
    * Project subjects into Discoveries and persist their identity.
@@ -129,8 +241,14 @@ export class DiscoveryService {
     const stableKey = deriveStableKey(subject.subjectRef, subject.discoveryKind);
     const existing = await this.deps.discoveries.findByStableKey(stableKey);
 
-    const [state, activeDirectives] = await Promise.all([
-      this.deps.states.findByTarget('discovery', stableKey),
+    const [subjectState, discoveryState, activeDirectives] = await Promise.all([
+      this.deps.states.findByTarget(
+        subject.subjectRef.type,
+        subject.subjectRef.id,
+      ),
+      existing === null
+        ? Promise.resolve(null)
+        : this.deps.states.findByTarget('discovery', existing.id),
       // Resolved on read, so a revoked directive takes effect immediately (§26).
       this.deps.directives.listActive(),
     ]);
@@ -146,8 +264,12 @@ export class DiscoveryService {
         discoveryKind: subject.discoveryKind,
         identityExistedBefore: existing !== null,
         resolvedTimePoints: subject.resolvedTimePoints,
-        archived: state?.presentationState === 'archived',
-        suspended: state?.workflowState === 'suspended',
+        archived:
+          subjectState?.presentationState === 'archived' ||
+          discoveryState?.presentationState === 'archived',
+        suspended:
+          subjectState?.workflowState === 'suspended' ||
+          discoveryState?.workflowState === 'suspended',
         allowPassivePresentation: permissions.allowPassivePresentation,
         allowProactivePresentation: permissions.allowProactivePresentation,
         ...(subject.potential === undefined
@@ -172,5 +294,46 @@ export class DiscoveryService {
     const persisted = await this.deps.discoveries.ensure(projected.discovery);
 
     return { ...projected, discovery: persisted };
+  }
+
+  /**
+   * Resolve only genuine point assertions. A user-reported interval is not
+   * decomposed into synthetic observations (ENGINEERING_CONTRACT §12).
+   */
+  private async resolvedTimePoints(
+    refs: readonly string[],
+  ): Promise<readonly Date[]> {
+    const records = await Promise.all(
+      [...new Set(refs)].map((ref) => this.deps.records.findById(recordId(ref))),
+    );
+
+    return records.flatMap((record) =>
+      record === null || record.time.semantic === 'user_reported_interval'
+        ? []
+        : [record.time.at],
+    );
+  }
+
+  /** A Hypothesis can only inherit axes from its explicit stored anchors. */
+  private async relationAxesFor(
+    source: DiscoveryStreamSource,
+  ): Promise<readonly string[]> {
+    if (source.kind === 'relation') {
+      return [source.subject.comparisonAxis.dimension];
+    }
+
+    const anchors = await Promise.all(
+      [...new Set(source.subject.anchorRefs)].map((ref) =>
+        this.deps.claims.findById(relationClaimId(ref)),
+      ),
+    );
+
+    return [
+      ...new Set(
+        anchors.flatMap((anchor) =>
+          anchor === null ? [] : [anchor.comparisonAxis.dimension],
+        ),
+      ),
+    ];
   }
 }
