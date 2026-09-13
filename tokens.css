@@ -1,0 +1,57 @@
+:root {
+  --color-paper: oklch(14% 0.012 70);
+  --color-paper-2: oklch(18% 0.014 70);
+  --color-paper-3: oklch(22% 0.015 70);
+  --color-rule: oklch(30% 0.014 70);
+  --color-rule-strong: oklch(42% 0.018 70);
+  --color-neutral: oklch(66% 0.012 70);
+  --color-muted: oklch(76% 0.01 70);
+  --color-ink: oklch(94% 0.008 78);
+  --color-accent: oklch(75% 0.145 82);
+  --color-accent-soft: oklch(75% 0.145 82 / 0.14);
+  --color-accent-ink: oklch(16% 0.018 70);
+  --color-secondary: oklch(72% 0.065 302);
+  --color-error: oklch(67% 0.16 35);
+  --color-success: oklch(75% 0.105 145);
+  --color-focus: oklch(82% 0.16 86);
+  --color-overlay: oklch(8% 0.01 70 / 0.72);
+
+  --font-display: 'Tomorrow', 'Noto Sans SC', ui-sans-serif, sans-serif;
+  --font-body: 'IBM Plex Sans', 'Noto Sans SC', ui-sans-serif, sans-serif;
+  --font-outlier: 'IBM Plex Mono', ui-monospace, monospace;
+
+  --space-3xs: 0.125rem;
+  --space-2xs: 0.25rem;
+  --space-xs: 0.5rem;
+  --space-sm: 0.75rem;
+  --space-md: 1rem;
+  --space-lg: 1.5rem;
+  --space-xl: 2.5rem;
+  --space-2xl: 4rem;
+  --space-3xl: 6rem;
+  --space-4xl: 9rem;
+
+  --text-xs: 0.72rem;
+  --text-sm: 0.84rem;
+  --text-base: 1rem;
+  --text-md: 1.25rem;
+  --text-lg: 1.56rem;
+  --text-xl: 1.95rem;
+  --text-2xl: 2.44rem;
+  --text-3xl: 3.05rem;
+  --text-display: clamp(2.8rem, 6vw, 5.25rem);
+
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in: cubic-bezier(0.7, 0, 0.84, 0);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --dur-micro: 110ms;
+  --dur-short: 200ms;
+  --dur-long: 400ms;
+
+  --rule-hair: 1px;
+  --rule-heavy: 2px;
+  --radius-sm: 0.35rem;
+  --radius-md: 0.7rem;
+  --radius-lg: 1.25rem;
+  --radius-pill: 999px;
+}
