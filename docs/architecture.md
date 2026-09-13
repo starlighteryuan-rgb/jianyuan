@@ -1,4 +1,4 @@
-# Architecture — Personal Awareness MVP (Approved, Patched)
+# Architecture — 见渊（Personal Awareness）MVP (Approved, Patched)
 
 Baseline commit: `5d0c63f`
 Supersedes: `ARCHITECTURE_PROPOSAL.md` (kept as historical pre-review proposal, not deleted)

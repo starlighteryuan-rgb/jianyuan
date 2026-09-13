@@ -1,4 +1,4 @@
-import { CaptureForm } from './capture-form';
+import { DemoCaptureJourney } from '../_components/demo-capture-journey';
 
 /**
  * Capture surface shell.
@@ -8,16 +8,5 @@ import { CaptureForm } from './capture-form';
  * behind the existing ingestion interface.
  */
 export default function CapturePage() {
-  return (
-    <main>
-      <h1>Capture</h1>
-      <p className="lede">
-        Write something in your own words. When you save, it is stored as a
-        Record if your directives and storage allow it. Capture does not
-        automatically analyse what you enter.
-      </p>
-
-      <CaptureForm />
-    </main>
-  );
+  return <DemoCaptureJourney />;
 }

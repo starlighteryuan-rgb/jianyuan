@@ -1,4 +1,4 @@
-# Personal Awareness · Engineering Contract v0.2.1
+# 见渊（Personal Awareness）· Engineering Contract v0.2.1
 
 **Status:** PRODUCT LOGIC FROZEN
 **Purpose:** Engineering implementation contract
