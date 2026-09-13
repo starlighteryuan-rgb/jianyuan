@@ -3,8 +3,26 @@ node_modules/
 .env
 .env.local
 dist/
+out/
+.env.*
+!.env.example
 coverage/
 generated/prisma/
 
 tsconfig.tsbuildinfo
 next-env.d.ts
+
+# Local tools, deployment state, and caches
+.codex/
+.claude/
+.wrangler/
+.wrangler-*/
+.npm-cache-*/
+*.log
+
+# Operating-system and local credential files
+.DS_Store
+*.pem
+*.key
+*.p12
+*.pfx

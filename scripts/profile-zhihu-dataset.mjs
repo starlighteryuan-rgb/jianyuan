@@ -18,7 +18,8 @@ import { fileURLToPath } from 'node:url';
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 const PROJECT_ROOT = resolve(SCRIPT_DIR, '..');
-const DEFAULT_INPUT = 'D:\\Hackson\\dataset\\raw\\zhihu_search';
+const DEFAULT_INPUT =
+  process.env.ZHIHU_DATASET_INPUT ?? resolve(PROJECT_ROOT, 'data', 'raw', 'zhihu_search');
 const DEFAULT_OUTPUT = resolve(PROJECT_ROOT, 'docs', 'zhihu-dataset-profile.md');
 
 const LENGTH_BUCKETS = [
