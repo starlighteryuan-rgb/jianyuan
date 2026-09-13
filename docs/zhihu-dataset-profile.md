@@ -2,8 +2,8 @@
 
 ## 扫描边界
 
-- 实际数据目录：`D:\Hackson\dataset\raw\zhihu_search`
-- 报告文件：`D:\Hackson\project build\docs\zhihu-dataset-profile.md`
+- 实际数据目录：`<local_dataset_path>`
+- 报告文件：`<project_root>/docs/zhihu-dataset-profile.md`
 - 生成时间：2026-09-12T20:52:30.038Z
 - 扫描方式：递归、逐文件、一次只解析一个 JSON。
 - 数据处理：不联网、不上传、不调用 Domain/Ingestion/ExternalReference，不创建 Record。

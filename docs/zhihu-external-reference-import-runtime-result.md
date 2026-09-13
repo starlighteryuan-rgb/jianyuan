@@ -21,7 +21,7 @@ selection, but exactly five candidates entered `ExternalReferenceService`.
 
 | Input | Value |
 | --- | --- |
-| Dataset | `D:\Hackson\dataset\raw\zhihu_search` |
+| Dataset | `<local_dataset_path>` |
 | Dataset ID | `zhihu-search-export-test` |
 | Provider | `zhihu` |
 | Snapshot version | `v1` |
