@@ -12,7 +12,7 @@ workflow.
 
 | Input | Value |
 | --- | --- |
-| Dataset directory | `D:\Hackson\dataset\raw\zhihu_search` |
+| Dataset directory | `<local_dataset_path>` |
 | Dataset ID | `zhihu-search-export-test` |
 | Provider | `zhihu` |
 | Manifest `capturedAt` | `2026-09-13T00:00:00+08:00` |

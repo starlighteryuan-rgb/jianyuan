@@ -50,7 +50,7 @@ Capture → Awareness → References → Reflection
 
 ## 在线演示
 
-[Cloudflare Pages Demo](https://personal-awareness-demo.pages.dev)
+[Cloudflare Pages Demo](https://425f83c5.personal-awareness-demo.pages.dev/)
 
 ## 本地开发
 
