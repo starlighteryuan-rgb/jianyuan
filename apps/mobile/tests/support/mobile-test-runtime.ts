@@ -15,6 +15,8 @@ import { openNodeSqlDriver } from './node-sql-driver';
 import { MobileAIService } from '../../src/runtime/mobile-ai-service';
 import type { AIConfigStorage } from '../../src/runtime/ai-config-store';
 import type { AwarenessHistoryStorage } from '../../src/runtime/awareness-history-store';
+import type { AwarenessAutomationStorage } from '../../src/runtime/awareness-automation-store';
+import type { AwarenessPreferenceStorage } from '../../src/runtime/awareness-preference-store';
 
 /**
  * In-memory, per-runtime AI config store for tests. Kept separate from the
@@ -39,6 +41,36 @@ export const createTestAIConfigStorage = (): AIConfigStorage => {
  * restart behaviour without importing a native module.
  */
 const testAwarenessHistoryByLocation = new Map<string, AwarenessHistoryStorage>();
+const testAwarenessPreferenceByLocation = new Map<string, AwarenessPreferenceStorage>();
+const testAwarenessAutomationByLocation = new Map<string, AwarenessAutomationStorage>();
+
+const createTestKeyValueStorage = (): AwarenessPreferenceStorage => {
+  const values = new Map<string, string>();
+  return {
+    getItemAsync: async (key) => values.get(key) ?? null,
+    setItemAsync: async (key, value) => {
+      values.set(key, value);
+    },
+  };
+};
+
+const preferenceFor = (location: string): AwarenessPreferenceStorage => {
+  if (location === ':memory:') return createTestKeyValueStorage();
+  const existing = testAwarenessPreferenceByLocation.get(location);
+  if (existing !== undefined) return existing;
+  const created = createTestKeyValueStorage();
+  testAwarenessPreferenceByLocation.set(location, created);
+  return created;
+};
+
+const automationFor = (location: string): AwarenessAutomationStorage => {
+  if (location === ':memory:') return createTestKeyValueStorage();
+  const existing = testAwarenessAutomationByLocation.get(location);
+  if (existing !== undefined) return existing;
+  const created = createTestKeyValueStorage();
+  testAwarenessAutomationByLocation.set(location, created);
+  return created;
+};
 
 export const createTestAwarenessHistoryStorage = (): AwarenessHistoryStorage => {
   const values = new Map<string, string>();
@@ -83,6 +115,10 @@ export interface OpenMobileRuntimeOptions {
   readonly fetch?: typeof fetch;
   /** Optional Awareness history persistence; defaults to per-location memory. */
   readonly awarenessHistoryStorage?: AwarenessHistoryStorage;
+  /** Optional automatic Awareness policy persistence. */
+  readonly awarenessPreferenceStorage?: AwarenessPreferenceStorage;
+  /** Optional automatic job persistence. */
+  readonly awarenessAutomationStorage?: AwarenessAutomationStorage;
 }
 
 export const openMobileTestRuntime = async (
@@ -105,13 +141,20 @@ export const openMobileTestRuntime = async (
     ai,
   });
 
+  const runtime = new MobileRuntime(
+    composition,
+    options.awarenessHistoryStorage ?? awarenessHistoryFor(options.location),
+    options.awarenessPreferenceStorage ?? preferenceFor(options.location),
+    options.awarenessAutomationStorage ?? automationFor(options.location),
+  );
+
   return {
-    runtime: new MobileRuntime(
-      composition,
-      options.awarenessHistoryStorage ?? awarenessHistoryFor(options.location),
-    ),
+    runtime,
     composition,
     storage,
-    close: () => storage.close(),
+    close: async () => {
+      await runtime.close();
+      await storage.close();
+    },
   };
 };

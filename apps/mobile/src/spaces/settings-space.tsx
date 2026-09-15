@@ -71,6 +71,9 @@ export const SettingsSpace = () => {
   const [apiKey, setApiKey] = useState('');
   const [directives, setDirectives] = useState<readonly Directive[]>([]);
   const [operation, setOperation] = useState<OperationState>({ kind: 'idle' });
+  const [automaticAwareness, setAutomaticAwareness] = useState(
+    () => runtime.automaticAwarenessPolicy().afterRecordCapture,
+  );
   const [loading, setLoading] = useState(true);
 
   const refresh = useCallback(async () => {
@@ -474,6 +477,63 @@ export const SettingsSpace = () => {
         </View>
       </View>
 
+      <View style={styles.section}>
+        <Text style={[TYPOGRAPHY.eyebrow, { color: colors.textMuted }]}>自动觉察</Text>
+        <View style={[styles.directive, { borderColor: colors.borderSubtle, borderRadius: RADIUS.sm }]}>
+          <Text style={[TYPOGRAPHY.body, { color: colors.textPrimary }]}>保存记录后自动觉察</Text>
+          <Text style={[TYPOGRAPHY.meta, { color: colors.textSecondary, lineHeight: 22 }]}>
+            开启后，新记录保存完成一小段时间后，AI 会自动检查是否出现值得回看的可能联系。只有真正值得呈现的内容才会进入觉察。
+          </Text>
+          <Text style={[TYPOGRAPHY.meta, { color: colors.textMuted, lineHeight: 22 }]}>
+            自动觉察可能增加 AI 服务调用次数和费用。
+          </Text>
+          <View style={styles.buttonRow}>
+            <Pressable
+              testID="automatic-awareness-off"
+              accessibilityRole="button"
+              accessibilityState={{ selected: !automaticAwareness }}
+              onPress={() => {
+                setAutomaticAwareness(false);
+                void runtime.setAutomaticAwarenessEnabled(false);
+              }}
+              style={[
+                styles.button,
+                {
+                  backgroundColor: !automaticAwareness ? colors.accentSoft : colors.surface,
+                  borderColor: !automaticAwareness ? colors.accent : colors.borderSubtle,
+                  borderRadius: RADIUS.sm,
+                },
+              ]}
+            >
+              <Text style={[TYPOGRAPHY.meta, { color: colors.textPrimary }]}>关闭</Text>
+            </Pressable>
+            <Pressable
+              testID="automatic-awareness-on"
+              accessibilityRole="button"
+              accessibilityState={{ selected: automaticAwareness }}
+              onPress={() => {
+                setAutomaticAwareness(true);
+                void runtime.setAutomaticAwarenessEnabled(true);
+              }}
+              style={[
+                styles.button,
+                {
+                  backgroundColor: automaticAwareness ? colors.accentSoft : colors.surface,
+                  borderColor: automaticAwareness ? colors.accent : colors.borderSubtle,
+                  borderRadius: RADIUS.sm,
+                },
+              ]}
+            >
+              <Text style={[TYPOGRAPHY.meta, { color: colors.textPrimary }]}>开启</Text>
+            </Pressable>
+          </View>
+          {automaticAwareness && !status.ai.enabled ? (
+            <Text testID="automatic-awareness-degraded" style={[TYPOGRAPHY.meta, { color: colors.textMuted }]}>
+              AI 服务尚未配置，自动觉察暂时不可用。记录功能不受影响。
+            </Text>
+          ) : null}
+        </View>
+      </View>
       <View style={styles.section}>
         <Text style={[TYPOGRAPHY.eyebrow, { color: colors.textMuted }]}>外观</Text>
         <View style={styles.segmented}>

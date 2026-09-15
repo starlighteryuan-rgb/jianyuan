@@ -14,6 +14,7 @@
 
 import type {
   AwarenessHistoryItem,
+  AwarenessHistoryStatus,
   RelationCandidateView,
 } from './awareness-session';
 
@@ -79,17 +80,26 @@ const isCandidateView = (value: unknown): value is RelationCandidateView => {
   );
 };
 
-const isAwarenessHistoryItem = (value: unknown): value is AwarenessHistoryItem => {
-  if (!isObject(value)) return false;
-  const status = value.status;
-  if (
-    status !== 'new' &&
-    status !== 'viewed' &&
-    status !== 'responded' &&
-    status !== 'dismissed'
-  ) {
-    return false;
+const parseStoredStatus = (value: unknown): AwarenessHistoryStatus | null => {
+  switch (value) {
+    case 'new':
+    case 'pending':
+      return 'pending';
+    case 'responded':
+    case 'reflected':
+      return 'reflected';
+    case 'viewed':
+    case 'dismissed':
+      return value;
+    default:
+      return null;
   }
+};
+
+const parseStoredHistoryItem = (value: unknown): AwarenessHistoryItem | null => {
+  if (!isObject(value)) return null;
+  const status = parseStoredStatus(value.status);
+  if (status === null) return null;
   const meaning = value.meaning;
   if (
     meaning !== null &&
@@ -97,21 +107,39 @@ const isAwarenessHistoryItem = (value: unknown): value is AwarenessHistoryItem =
     meaning !== 'different_understanding' &&
     meaning !== 'not_my_experience'
   ) {
-    return false;
+    return null;
   }
-  return (
-    typeof value.candidateId === 'string' &&
-    typeof value.createdAt === 'string' &&
-    typeof value.updatedAt === 'string' &&
-    typeof value.currentRecordId === 'string' &&
-    isRelationSuggestion(value.suggestion) &&
-    isCandidateView(value.candidate) &&
-    (value.reflectionText === null || typeof value.reflectionText === 'string') &&
-    (value.targetRef === null || typeof value.targetRef === 'string') &&
-    (value.reflectionRecordId === null || typeof value.reflectionRecordId === 'string')
-  );
+  if (
+    typeof value.candidateId !== 'string' ||
+    typeof value.createdAt !== 'string' ||
+    typeof value.updatedAt !== 'string' ||
+    typeof value.currentRecordId !== 'string' ||
+    !isRelationSuggestion(value.suggestion) ||
+    !isCandidateView(value.candidate) ||
+    !(value.reflectionText === null || typeof value.reflectionText === 'string') ||
+    !(value.targetRef === null || typeof value.targetRef === 'string') ||
+    !(value.reflectionRecordId === null || typeof value.reflectionRecordId === 'string') ||
+    !(value.automationJobId === undefined || typeof value.automationJobId === 'string')
+  ) {
+    return null;
+  }
+  return {
+    candidateId: value.candidateId,
+    status,
+    ...(value.automationJobId === undefined
+      ? {}
+      : { automationJobId: value.automationJobId }),
+    createdAt: value.createdAt,
+    updatedAt: value.updatedAt,
+    currentRecordId: value.currentRecordId,
+    suggestion: value.suggestion as AwarenessHistoryItem['suggestion'],
+    candidate: value.candidate as AwarenessHistoryItem['candidate'],
+    meaning,
+    reflectionText: value.reflectionText,
+    targetRef: value.targetRef,
+    reflectionRecordId: value.reflectionRecordId,
+  };
 };
-
 /** Parse defensively: a corrupt or partial value degrades to no history. */
 export const parseAwarenessHistory = (
   raw: string | null | undefined,
@@ -120,7 +148,10 @@ export const parseAwarenessHistory = (
   try {
     const parsed: unknown = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
-    return parsed.filter(isAwarenessHistoryItem).slice(0, MAX_AWARENESS_HISTORY_ITEMS);
+    return parsed
+      .map(parseStoredHistoryItem)
+      .filter((item): item is AwarenessHistoryItem => item !== null)
+      .slice(0, MAX_AWARENESS_HISTORY_ITEMS);
   } catch {
     return [];
   }
@@ -156,6 +187,10 @@ export const writeAwarenessHistory = async (
     return false;
   }
 };
+
+export const countUnreadAwarenessItems = (
+  items: readonly AwarenessHistoryItem[],
+): number => items.filter((item) => item.status === 'pending').length;
 
 const newerFirst = (
   left: AwarenessHistoryItem,

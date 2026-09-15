@@ -70,9 +70,9 @@ export interface RelationCandidateView extends AIObservationView {
 }
 
 export type AwarenessHistoryStatus =
-  | 'new'
+  | 'pending'
   | 'viewed'
-  | 'responded'
+  | 'reflected'
   | 'dismissed';
 
 /**
@@ -85,6 +85,8 @@ export type AwarenessHistoryStatus =
 export interface AwarenessHistoryItem {
   readonly candidateId: string;
   readonly status: AwarenessHistoryStatus;
+  /** Stable automatic check boundary; absent for user-initiated observations. */
+  readonly automationJobId?: string;
   readonly createdAt: string;
   readonly updatedAt: string;
   readonly currentRecordId: string;
@@ -341,8 +343,11 @@ export const suggestRelations = async (
   currentRecordId: string,
   registry: RelationCandidateRegistry,
   audit: MobileAIInsightAuditLog,
+  options: { readonly batchRecordIds?: readonly string[] } = {},
 ): Promise<RelationSuggestionExperience> =>
-  registry.runOnce(currentRecordId, async () => {
+  registry.runOnce(
+    `auto:${[...(options.batchRecordIds ?? [currentRecordId])].sort().join(',')}`,
+    async () => {
     if (!composition.ai.enabled) {
       return {
         status: 'disabled' as const,
@@ -372,7 +377,15 @@ export const suggestRelations = async (
     const recent = await composition.records.listRecent({
       limit: MAX_RELATION_CONTEXT_RECORDS,
     });
-    const available = [current, ...recent.filter((item) => item.id !== current.id)]
+    const requested = options.batchRecordIds ?? [currentRecordId];
+    const requestedRecords = (
+      await Promise.all(requested.map((id) => composition.records.getById(id)))
+    ).filter((record): record is RecordReadModel => record !== null);
+    const available = [
+      ...requestedRecords,
+      current,
+      ...recent.filter((item) => item.id !== current.id),
+    ]
       .filter(
         (record, index, all) =>
           record.verbatim !== null &&
@@ -496,8 +509,9 @@ export const suggestRelations = async (
         const uniqueRefs = new Set(suggestion.recordRefs);
         return (
           uniqueRefs.size >= 2 &&
-          uniqueRefs.has(current.id) &&
-          [...uniqueRefs].every((id) => recordById.has(id))
+          [...uniqueRefs].every((id) => recordById.has(id)) &&
+          (options.batchRecordIds === undefined ||
+            [...uniqueRefs].some((id) => requested.includes(id)))
         );
       })
       .slice(0, MAX_VISIBLE_CANDIDATES)
@@ -543,7 +557,8 @@ export const suggestRelations = async (
 
     audit.append({ ...auditBase, outcome: experience.status });
     return experience;
-  });
+    },
+  );
 
 /**
  * User's meaning-making response to one transient Observation.

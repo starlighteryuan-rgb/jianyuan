@@ -1,12 +1,12 @@
 /**
- * Awareness space — explicit, user-initiated AI observation.
+ * Awareness space — the user's automatic and manual observation inbox.
  *
- * The page shows two things:
- *   1. a transient result from the current explicit request
- *   2. durable Awareness history that survives leaving the page and restarting
+ * The page has two entry paths:
+ *   1. automatic checks create durable pending items after a quiet window
+ *   2. the explicit "开始一次觉察" action still creates transient candidates
  *
- * Opening the tab never calls the Provider. The AI call happens only in the
- * press handler, which is the one user action the product authorises.
+ * Opening the tab never calls the Provider and never marks everything read.
+ * Only opening one concrete bubble changes that item from pending to viewed.
  */
 
 import { useCallback, useEffect, useState } from 'react';
@@ -52,25 +52,65 @@ const CHOICES: readonly [ObservationMeaning, string][] = [
   ['not_my_experience', '这不是我的体验'],
 ];
 
-const AwarenessCandidateCard = ({
-  candidate,
-  initialMeaning = null,
-  initialReflectionText = '',
-  onSubmit,
+const AwarenessBubble = ({
+  item,
+  onOpen,
 }: {
-  readonly candidate: RelationCandidateView;
-  readonly initialMeaning?: ObservationMeaning | null;
-  readonly initialReflectionText?: string;
-  readonly onSubmit: (
-    candidate: RelationCandidateView,
+  readonly item: AwarenessHistoryItem;
+  readonly onOpen: (item: AwarenessHistoryItem) => void;
+}) => {
+  const { theme } = useTheme();
+  const { colors } = theme;
+
+  return (
+    <Pressable
+      testID={`awareness-bubble-${item.candidateId}`}
+      accessibilityRole="button"
+      accessibilityLabel="新的觉察"
+      onPress={() => onOpen(item)}
+      style={[
+        styles.bubble,
+        {
+          backgroundColor: colors.accentSoft,
+          borderColor: colors.accent,
+          borderRadius: RADIUS.lg,
+        },
+      ]}
+    >
+      <View style={styles.bubbleHead}>
+        <Text style={[TYPOGRAPHY.eyebrow, { color: colors.accent }]}>新的觉察</Text>
+        <View
+          testID={`awareness-unread-${item.candidateId}`}
+          style={[styles.dot, { backgroundColor: colors.danger }]}
+        />
+      </View>
+      <Text style={[TYPOGRAPHY.lead, { color: colors.textPrimary, marginTop: SPACING.sm }]}>
+        {item.candidate.observation}
+      </Text>
+      <Text style={[TYPOGRAPHY.meta, { color: colors.textMuted, marginTop: SPACING.sm }]}>
+        {formatCapturedAt(item.createdAt)}
+      </Text>
+    </Pressable>
+  );
+};
+
+const AwarenessDetail = ({
+  item,
+  onClose,
+  onRespond,
+}: {
+  readonly item: AwarenessHistoryItem;
+  readonly onClose: () => void;
+  readonly onRespond: (
+    item: AwarenessHistoryItem,
     meaning: ObservationMeaning,
     reflectionText: string,
   ) => Promise<CandidateDecisionResult>;
 }) => {
   const { theme } = useTheme();
   const { colors } = theme;
-  const [meaning, setMeaning] = useState<ObservationMeaning | null>(initialMeaning);
-  const [reflectionText, setReflectionText] = useState(initialReflectionText);
+  const [meaning, setMeaning] = useState<ObservationMeaning | null>(item.meaning);
+  const [reflectionText, setReflectionText] = useState(item.reflectionText ?? '');
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<CandidateDecisionResult | null>(null);
 
@@ -85,42 +125,38 @@ const AwarenessCandidateCard = ({
     }
     setSubmitting(true);
     try {
-      const next = await onSubmit(candidate, meaning, reflectionText);
-      setResult(next);
+      setResult(await onRespond(item, meaning, reflectionText));
     } finally {
       setSubmitting(false);
     }
   };
 
-  const message =
-    result !== null && result.status !== 'idle' ? result.message : null;
-
   return (
     <View
-      testID={`awareness-candidate-${candidate.candidateId}`}
+      testID={`awareness-detail-${item.candidateId}`}
       style={[
-        styles.candidate,
+        styles.detail,
         {
           backgroundColor: colors.surface,
-          borderColor: colors.borderSubtle,
+          borderColor: colors.borderStrong,
           borderRadius: RADIUS.md,
         },
       ]}
     >
-      <Text style={[TYPOGRAPHY.eyebrow, { color: colors.accent }]}>临时观察</Text>
-      <Text style={[TYPOGRAPHY.lead, { color: colors.textPrimary, marginTop: SPACING.xs }]}>
-        {candidate.observation}
+      <Text style={[TYPOGRAPHY.eyebrow, { color: colors.accent }]}>觉察</Text>
+      <Text style={[TYPOGRAPHY.lead, { color: colors.textPrimary, marginTop: SPACING.sm }]}>
+        {item.candidate.observation}
       </Text>
-      {candidate.reflectionQuestion === undefined ? null : (
+      {item.candidate.reflectionQuestion === undefined ? null : (
         <Text style={[TYPOGRAPHY.body, { color: colors.textPrimary, marginTop: SPACING.sm }]}>
-          可以继续想一想：{candidate.reflectionQuestion}
+          可以继续想一想：{item.candidate.reflectionQuestion}
         </Text>
       )}
 
       <Text style={[TYPOGRAPHY.eyebrow, { color: colors.textMuted, marginTop: SPACING.md }]}>
         相关记录
       </Text>
-      {candidate.relatedRecords.map((record) => (
+      {item.candidate.relatedRecords.map((record) => (
         <Text
           key={record.id}
           style={[TYPOGRAPHY.meta, { color: colors.textSecondary, marginTop: SPACING.xs }]}
@@ -128,14 +164,14 @@ const AwarenessCandidateCard = ({
           · {record.verbatim}
         </Text>
       ))}
-      {candidate.possibleExplanation === undefined ? null : (
+      {item.candidate.possibleExplanation === undefined ? null : (
         <Text style={[TYPOGRAPHY.meta, { color: colors.textSecondary, marginTop: SPACING.sm }]}>
-          一种可能：{candidate.possibleExplanation}
+          一种可能：{item.candidate.possibleExplanation}
         </Text>
       )}
-      {candidate.uncertainty === undefined ? null : (
+      {item.candidate.uncertainty === undefined ? null : (
         <Text style={[TYPOGRAPHY.meta, { color: colors.textMuted, marginTop: SPACING.sm }]}>
-          需要留意：{candidate.uncertainty}
+          需要留意：{item.candidate.uncertainty}
         </Text>
       )}
 
@@ -148,7 +184,7 @@ const AwarenessCandidateCard = ({
           return (
             <Pressable
               key={value}
-              testID={`awareness-choice-${candidate.candidateId}-${value}`}
+              testID={`awareness-choice-${item.candidateId}-${value}`}
               accessibilityRole="button"
               accessibilityState={{ selected: active }}
               onPress={() => setMeaning(value)}
@@ -176,7 +212,7 @@ const AwarenessCandidateCard = ({
 
       {meaning !== null && meaning !== 'not_my_experience' ? (
         <TextInput
-          testID={`awareness-reflection-${candidate.candidateId}`}
+          testID={`awareness-reflection-${item.candidateId}`}
           value={reflectionText}
           onChangeText={setReflectionText}
           multiline
@@ -195,73 +231,43 @@ const AwarenessCandidateCard = ({
         />
       ) : null}
 
-      <Pressable
-        testID={`awareness-submit-${candidate.candidateId}`}
-        accessibilityRole="button"
-        disabled={meaning === null || submitting}
-        onPress={() => void submit()}
-        style={[
-          styles.secondaryButton,
-          {
-            backgroundColor: meaning === null ? colors.borderSubtle : colors.accentSoft,
-            borderColor: colors.borderSubtle,
-            borderRadius: RADIUS.sm,
-          },
-        ]}
-      >
-        <Text style={[TYPOGRAPHY.lead, { color: colors.textPrimary }]}>
-          {submitting ? '正在保存……' : '确认我的回应'}
-        </Text>
-      </Pressable>
+      <View style={styles.detailActions}>
+        <Pressable
+          testID={`awareness-submit-${item.candidateId}`}
+          accessibilityRole="button"
+          disabled={meaning === null || submitting}
+          onPress={() => void submit()}
+          style={[
+            styles.secondaryButton,
+            {
+              backgroundColor: meaning === null ? colors.borderSubtle : colors.accentSoft,
+              borderColor: colors.borderSubtle,
+              borderRadius: RADIUS.sm,
+            },
+          ]}
+        >
+          <Text style={[TYPOGRAPHY.lead, { color: colors.textPrimary }]}>
+            {submitting ? '正在保存……' : '确认我的回应'}
+          </Text>
+        </Pressable>
+        <Pressable
+          testID={`awareness-close-${item.candidateId}`}
+          accessibilityRole="button"
+          onPress={onClose}
+          style={styles.linkButton}
+        >
+          <Text style={[TYPOGRAPHY.meta, { color: colors.textSecondary }]}>收起</Text>
+        </Pressable>
+      </View>
 
-      {message !== null ? (
+      {result !== null && result.status !== 'idle' ? (
         <Text
-          testID={`awareness-result-${candidate.candidateId}`}
+          testID={`awareness-result-${item.candidateId}`}
           style={[TYPOGRAPHY.meta, { color: colors.textSecondary, marginTop: SPACING.sm }]}
         >
-          {message}
+          {result.message}
         </Text>
       ) : null}
-    </View>
-  );
-};
-
-const AwarenessHistoryCard = ({
-  item,
-}: {
-  readonly item: AwarenessHistoryItem;
-}) => {
-  const { theme } = useTheme();
-  const { colors } = theme;
-  const statusLabel =
-    item.status === 'responded'
-      ? '已回应'
-      : item.status === 'dismissed'
-        ? '已放下'
-        : '待处理';
-
-  return (
-    <View
-      testID={`awareness-history-${item.candidateId}`}
-      style={[
-        styles.historyCard,
-        {
-          backgroundColor: colors.sunken,
-          borderColor: colors.borderSubtle,
-          borderRadius: RADIUS.md,
-        },
-      ]}
-    >
-      <View style={styles.historyHead}>
-        <Text style={[TYPOGRAPHY.eyebrow, { color: colors.textMuted }]}>历史觉察</Text>
-        <Text style={[TYPOGRAPHY.meta, { color: colors.textMuted }]}>{statusLabel}</Text>
-      </View>
-      <Text style={[TYPOGRAPHY.body, { color: colors.textPrimary, marginTop: SPACING.xs }]}>
-        {item.candidate.observation}
-      </Text>
-      <Text style={[TYPOGRAPHY.meta, { color: colors.textMuted, marginTop: SPACING.xs }]}>
-        {formatCapturedAt(item.createdAt)}
-      </Text>
     </View>
   );
 };
@@ -275,13 +281,20 @@ export const AwarenessSpace = () => {
   const [selectedRecordId, setSelectedRecordId] = useState<string | null>(null);
   const [suggestion, setSuggestion] = useState<SuggestionState>({ kind: 'idle' });
   const [history, setHistory] = useState<readonly AwarenessHistoryItem[]>([]);
+  const [openItem, setOpenItem] = useState<AwarenessHistoryItem | null>(null);
   const [loading, setLoading] = useState(true);
 
   const refreshHistory = useCallback(async () => {
-    setHistory(await runtime.awarenessHistory());
+    const next = await runtime.awarenessHistory();
+    setHistory(next);
+    setOpenItem((current) => {
+      if (current === null) return null;
+      return next.find((item) => item.candidateId === current.candidateId) ?? null;
+    });
   }, [runtime]);
 
-  // Page open: read Records and durable history only. No AI call here.
+  // Page open: read Records and the durable inbox only. No AI call here, and
+  // entering the tab deliberately does not mark pending items as viewed.
   useEffect(() => {
     let cancelled = false;
     void (async () => {
@@ -303,6 +316,18 @@ export const AwarenessSpace = () => {
     };
   }, [runtime]);
 
+  const open = useCallback(
+    async (item: AwarenessHistoryItem) => {
+      const next = await runtime.markAwarenessViewed(item.candidateId);
+      await refreshHistory();
+      setOpenItem(
+        next.find((candidate) => candidate.candidateId === item.candidateId) ??
+          item,
+      );
+    },
+    [refreshHistory, runtime],
+  );
+
   const start = useCallback(async () => {
     if (selectedRecordId === null) return;
     setSuggestion({ kind: 'loading' });
@@ -313,12 +338,12 @@ export const AwarenessSpace = () => {
 
   const submit = useCallback(
     async (
-      candidate: RelationCandidateView,
+      item: AwarenessHistoryItem,
       meaning: ObservationMeaning,
       reflectionText: string,
     ) => {
       const result = await runtime.submitObservationReflection({
-        candidateId: candidate.candidateId,
+        candidateId: item.candidateId,
         meaning,
         ...(reflectionText.length === 0 ? {} : { reflectionText }),
       });
@@ -332,8 +357,24 @@ export const AwarenessSpace = () => {
     suggestion.kind === 'result' && suggestion.experience.status === 'candidates'
       ? suggestion.experience
       : null;
-  const visibleCandidateIds = new Set(result?.candidates.map((item) => item.candidateId) ?? []);
-  const historical = history.filter((item) => !visibleCandidateIds.has(item.candidateId));
+  const inbox = history.filter((item) => item.status !== 'dismissed');
+  const manualCandidates =
+    result?.candidates.filter(
+      (candidate) => !history.some((item) => item.candidateId === candidate.candidateId),
+    ) ?? [];
+  const openManualCandidate = (candidate: RelationCandidateView): AwarenessHistoryItem => ({
+    candidateId: candidate.candidateId,
+    status: 'pending',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    currentRecordId: candidate.currentRecord.id,
+    suggestion: candidate.suggestion,
+    candidate,
+    meaning: null,
+    reflectionText: null,
+    targetRef: null,
+    reflectionRecordId: null,
+  });
 
   return (
     <ScrollView
@@ -343,110 +384,181 @@ export const AwarenessSpace = () => {
     >
       <Text style={[TYPOGRAPHY.title, { color: colors.textPrimary }]}>觉察</Text>
       <Text style={[TYPOGRAPHY.body, { color: colors.textSecondary, lineHeight: 24 }]}>
-        选择一条记录，由你主动开始一次觉察。AI 只会提出临时观察，不会直接形成长期联系。
+        这里保存 AI 在你允许后准备好的观察。只有你打开具体气泡，它才会变为已查看。
       </Text>
 
       {loading ? (
         <ActivityIndicator color={colors.accent} />
-      ) : records.length === 0 ? (
-        <Text testID="awareness-empty" style={[TYPOGRAPHY.body, { color: colors.textMuted }]}>
-          还没有记录。先在“记录”里写下至少两句话，再回来觉察。
-        </Text>
       ) : (
         <>
-          <Text style={[TYPOGRAPHY.eyebrow, { color: colors.textMuted }]}>选择一条记录</Text>
-          <View style={styles.recordList}>
-            {records.map((record) => {
-              const active = record.id === selectedRecordId;
-              return (
+          <View style={styles.sectionHeader}>
+            <Text style={[TYPOGRAPHY.eyebrow, { color: colors.textMuted }]}>新的觉察</Text>
+            <Text testID="awareness-inbox-count" style={[TYPOGRAPHY.meta, { color: colors.textMuted }]}>
+              未读 {history.filter((item) => item.status === 'pending').length}
+            </Text>
+          </View>
+          {inbox.length === 0 ? (
+            <Text testID="awareness-empty" style={[TYPOGRAPHY.body, { color: colors.textMuted }]}>
+              还没有可以察觉的内容。开启自动觉察并继续记录后，值得回看的内容会安静地留在这里。
+            </Text>
+          ) : (
+            inbox.map((item) => (
+              <AwarenessBubble key={item.candidateId} item={item} onOpen={open} />
+            ))
+          )}
+
+          {openItem !== null ? (
+            <AwarenessDetail item={openItem} onClose={() => setOpenItem(null)} onRespond={submit} />
+          ) : null}
+
+          <View style={styles.divider} />
+
+          <Text style={[TYPOGRAPHY.eyebrow, { color: colors.textMuted }]}>开始一次觉察</Text>
+          <Text style={[TYPOGRAPHY.meta, { color: colors.textSecondary, lineHeight: 22 }]}>
+            选择一条记录，由你主动发起检查。手动检查不受自动静默窗口影响。
+          </Text>
+          {records.length === 0 ? (
+            <Text style={[TYPOGRAPHY.body, { color: colors.textMuted }]}>
+              先在“记录”里写下一句话。
+            </Text>
+          ) : (
+            <>
+              <View style={styles.recordList}>
+                {records.slice(0, 5).map((record) => {
+                  const active = record.id === selectedRecordId;
+                  return (
+                    <Pressable
+                      key={record.id}
+                      testID={`awareness-record-${record.id}`}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected: active }}
+                      onPress={() => {
+                        setSelectedRecordId(record.id);
+                        setSuggestion({ kind: 'idle' });
+                      }}
+                      style={[
+                        styles.recordItem,
+                        {
+                          backgroundColor: active ? colors.accentSoft : colors.surface,
+                          borderColor: active ? colors.accent : colors.borderSubtle,
+                          borderRadius: RADIUS.md,
+                        },
+                      ]}
+                    >
+                      <Text style={[TYPOGRAPHY.meta, { color: colors.textMuted }]}>
+                        {formatCapturedAt(record.capturedAt)}
+                      </Text>
+                      <Text style={[TYPOGRAPHY.body, { color: colors.textPrimary, lineHeight: 24 }]}>
+                        {record.verbatim ?? ''}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+
+              <Pressable
+                testID="awareness-start"
+                accessibilityRole="button"
+                disabled={selectedRecordId === null || suggestion.kind === 'loading'}
+                onPress={() => void start()}
+                style={[
+                  styles.primaryButton,
+                  {
+                    backgroundColor:
+                      selectedRecordId === null || suggestion.kind === 'loading'
+                        ? colors.borderSubtle
+                        : colors.accentCta,
+                    borderRadius: RADIUS.sm,
+                  },
+                ]}
+              >
+                {suggestion.kind === 'loading' ? (
+                  <ActivityIndicator color={colors.onAccent} />
+                ) : (
+                  <Text
+                    style={[
+                      TYPOGRAPHY.lead,
+                      {
+                        color:
+                          selectedRecordId === null ? colors.textMuted : colors.onAccent,
+                      },
+                    ]}
+                  >
+                    开始一次觉察
+                  </Text>
+                )}
+              </Pressable>
+
+              {suggestion.kind === 'result' && suggestion.experience.status !== 'candidates' ? (
+                <Text testID="awareness-status" style={[TYPOGRAPHY.body, { color: colors.textSecondary }]}>
+                  {suggestion.experience.message}
+                </Text>
+              ) : null}
+
+              {manualCandidates.map((candidate) => (
                 <Pressable
-                  key={record.id}
-                  testID={`awareness-record-${record.id}`}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: active }}
-                  onPress={() => {
-                    setSelectedRecordId(record.id);
-                    setSuggestion({ kind: 'idle' });
-                  }}
+                  key={candidate.candidateId}
+                  testID={`awareness-manual-${candidate.candidateId}`}
+                  onPress={() => setOpenItem(openManualCandidate(candidate))}
                   style={[
-                    styles.recordItem,
+                    styles.bubble,
                     {
-                      backgroundColor: active ? colors.accentSoft : colors.surface,
-                      borderColor: active ? colors.accent : colors.borderSubtle,
+                      backgroundColor: colors.surface,
+                      borderColor: colors.borderSubtle,
+                      borderRadius: RADIUS.lg,
+                    },
+                  ]}
+                >
+                  <Text style={[TYPOGRAPHY.eyebrow, { color: colors.accent }]}>手动觉察</Text>
+                  <Text style={[TYPOGRAPHY.lead, { color: colors.textPrimary, marginTop: SPACING.sm }]}>
+                    {candidate.observation}
+                  </Text>
+                </Pressable>
+              ))}
+            </>
+          )}
+
+          <View style={styles.divider} />
+          <Text style={[TYPOGRAPHY.eyebrow, { color: colors.textMuted }]}>历史觉察</Text>
+          {history.filter((item) => item.status !== 'pending').length === 0 ? (
+            <Text testID="awareness-history-empty" style={[TYPOGRAPHY.meta, { color: colors.textMuted }]}>
+              查看过的觉察会留在这里。
+            </Text>
+          ) : (
+            history
+              .filter((item) => item.status !== 'pending')
+              .map((item) => (
+                <Pressable
+                  key={item.candidateId}
+                  testID={`awareness-history-${item.candidateId}`}
+                  onPress={() => void open(item)}
+                  style={[
+                    styles.historyCard,
+                    {
+                      backgroundColor: colors.sunken,
+                      borderColor: colors.borderSubtle,
                       borderRadius: RADIUS.md,
                     },
                   ]}
                 >
-                  <Text style={[TYPOGRAPHY.meta, { color: colors.textMuted }]}>
-                    {formatCapturedAt(record.capturedAt)}
-                  </Text>
-                  <Text style={[TYPOGRAPHY.body, { color: colors.textPrimary, lineHeight: 24 }]}>
-                    {record.verbatim ?? ''}
+                  <View style={styles.historyHead}>
+                    <Text style={[TYPOGRAPHY.eyebrow, { color: colors.textMuted }]}>历史觉察</Text>
+                    <Text style={[TYPOGRAPHY.meta, { color: colors.textMuted }]}>
+                      {item.status === 'reflected'
+                        ? '已回应'
+                        : item.status === 'dismissed'
+                          ? '已放下'
+                          : '已查看'}
+                    </Text>
+                  </View>
+                  <Text style={[TYPOGRAPHY.body, { color: colors.textPrimary, marginTop: SPACING.xs }]}>
+                    {item.candidate.observation}
                   </Text>
                 </Pressable>
-              );
-            })}
-          </View>
-
-          <Pressable
-            testID="awareness-start"
-            accessibilityRole="button"
-            disabled={selectedRecordId === null || suggestion.kind === 'loading'}
-            onPress={() => void start()}
-            style={[
-              styles.primaryButton,
-              {
-                backgroundColor:
-                  selectedRecordId === null || suggestion.kind === 'loading'
-                    ? colors.borderSubtle
-                    : colors.accentCta,
-                borderRadius: RADIUS.sm,
-              },
-            ]}
-          >
-            {suggestion.kind === 'loading' ? (
-              <ActivityIndicator color={colors.onAccent} />
-            ) : (
-              <Text
-                style={[
-                  TYPOGRAPHY.lead,
-                  {
-                    color:
-                      selectedRecordId === null ? colors.textMuted : colors.onAccent,
-                  },
-                ]}
-              >
-                开始一次觉察
-              </Text>
-            )}
-          </Pressable>
-
-          {suggestion.kind === 'result' && suggestion.experience.status !== 'candidates' ? (
-            <Text testID="awareness-status" style={[TYPOGRAPHY.body, { color: colors.textSecondary }]}>
-              {suggestion.experience.message}
-            </Text>
-          ) : null}
-
-          {result?.candidates.map((candidate) => (
-            <AwarenessCandidateCard
-              key={candidate.candidateId}
-              candidate={candidate}
-              onSubmit={submit}
-            />
-          ))}
+              ))
+          )}
         </>
       )}
-
-      <View style={styles.historySection}>
-        <Text style={[TYPOGRAPHY.eyebrow, { color: colors.textMuted }]}>历史觉察</Text>
-        {historical.length === 0 ? (
-          <Text testID="awareness-history-empty" style={[TYPOGRAPHY.meta, { color: colors.textMuted }]}>
-            还没有历史觉察。生成过的内容会留在这里。
-          </Text>
-        ) : (
-          historical.map((item) => <AwarenessHistoryCard key={item.candidateId} item={item} />)
-        )}
-      </View>
     </ScrollView>
   );
 };
@@ -454,6 +566,11 @@ export const AwarenessSpace = () => {
 const styles = StyleSheet.create({
   root: { flex: 1 },
   content: { padding: SPACING.lg, gap: SPACING.md, paddingBottom: SPACING.xxl },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
   recordList: { gap: SPACING.sm },
   recordItem: { borderWidth: 1, padding: SPACING.md, gap: SPACING.xs },
   primaryButton: {
@@ -465,9 +582,20 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     paddingVertical: SPACING.sm,
     alignItems: 'center',
-    marginTop: SPACING.md,
   },
-  candidate: { borderWidth: 1, padding: SPACING.md },
+  bubble: {
+    borderWidth: 1,
+    padding: SPACING.lg,
+    minHeight: 132,
+    justifyContent: 'center',
+  },
+  bubbleHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  dot: { width: 9, height: 9, borderRadius: 999 },
+  detail: { borderWidth: 1, padding: SPACING.md },
   choiceRow: { flexDirection: 'row', gap: SPACING.sm, marginTop: SPACING.sm },
   choice: { flex: 1, borderWidth: 1, paddingVertical: SPACING.sm, alignItems: 'center' },
   reflectionInput: {
@@ -477,7 +605,9 @@ const styles = StyleSheet.create({
     marginTop: SPACING.sm,
     textAlignVertical: 'top',
   },
-  historySection: { gap: SPACING.sm, marginTop: SPACING.lg },
+  detailActions: { flexDirection: 'row', gap: SPACING.md, alignItems: 'center', marginTop: SPACING.md },
+  linkButton: { paddingVertical: SPACING.sm },
+  divider: { height: 1, backgroundColor: 'transparent', marginVertical: SPACING.sm },
   historyCard: { borderWidth: 1, padding: SPACING.md },
   historyHead: {
     flexDirection: 'row',

@@ -6,7 +6,7 @@
  * what keeps one composition and one set of platform semantics for the whole app.
  */
 
-import { createContext, useContext, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 
 import type { MobileRuntime } from '../runtime/mobile-runtime';
 
@@ -20,6 +20,28 @@ export const RuntimeProvider = ({
   readonly children: ReactNode;
 }) => <RuntimeContext.Provider value={runtime}>{children}</RuntimeContext.Provider>;
 
+/** Minimal external store so the Tab badge re-renders from runtime truth. */
+export const useAwarenessUnreadCount = (): number => {
+  const runtime = useRuntime();
+  const [count, setCount] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    const refresh = () => {
+      void runtime.unreadAwarenessCount().then((next) => {
+        if (!cancelled) setCount(next);
+      });
+    };
+    const unsubscribe = runtime.subscribeAwareness(refresh);
+    refresh();
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
+  }, [runtime]);
+
+  return count;
+};
 export const useRuntime = (): MobileRuntime => {
   const runtime = useContext(RuntimeContext);
   if (runtime === null) {

@@ -36,12 +36,34 @@ import { mobileAnalysisPermissionFor } from './composition-root';
 import { AI_API_KEY_SECRET_NAME } from './secret-store';
 import {
   NOOP_AWARENESS_HISTORY_STORAGE,
+  countUnreadAwarenessItems,
   readAwarenessHistory,
   upsertAwarenessHistoryItem,
   updateAwarenessHistoryItem,
   writeAwarenessHistory,
   type AwarenessHistoryStorage,
 } from './awareness-history-store';
+import {
+  NOOP_AWARENESS_AUTOMATION_STORAGE,
+  beginAutomaticAwarenessJob,
+  enqueueAutomaticAwarenessRecord,
+  finishAutomaticAwarenessJob,
+  markAutomaticAwarenessJobRunning,
+  readAwarenessAutomationState,
+  recoverInterruptedAutomaticAwarenessJob,
+  writeAwarenessAutomationState,
+  type AwarenessAutomationJob,
+  type AwarenessAutomationState,
+  type AwarenessAutomationStorage,
+} from './awareness-automation-store';
+import {
+  DEFAULT_AUTOMATIC_AWARENESS_POLICY,
+  NOOP_AWARENESS_PREFERENCE_STORAGE,
+  readAutomaticAwarenessPolicy,
+  writeAutomaticAwarenessPolicy,
+  type AutomaticAwarenessPolicy,
+  type AwarenessPreferenceStorage,
+} from './awareness-preference-store';
 import {
   MobileAIInsightAuditLog,
   RelationCandidateRegistry,
@@ -51,6 +73,7 @@ import {
   type CandidateDecisionResult,
   type MobileAIInsightAuditEntry,
   type ObservationMeaning,
+  type RelationCandidateView,
   type RelationSuggestionExperience,
 } from './awareness-session';
 
@@ -91,18 +114,49 @@ export interface CreateDirectiveInput {
   readonly scopeValue: string;
 }
 
+const DEFAULT_AUTOMATIC_AWARENESS_QUIET_WINDOW_MS = 8_000;
+
+const canonicalCandidateRecordRefs = (candidate: RelationCandidateView): string =>
+  [...candidate.suggestion.recordRefs].sort().join('\u0000');
+
 export class MobileRuntime {
   private readonly candidates = new RelationCandidateRegistry();
   private readonly insightAudit = new MobileAIInsightAuditLog();
   private readonly awarenessHistoryStorage: AwarenessHistoryStorage;
+  private readonly awarenessPreferenceStorage: AwarenessPreferenceStorage;
+  private readonly awarenessAutomationStorage: AwarenessAutomationStorage;
+  private awarenessPolicy = DEFAULT_AUTOMATIC_AWARENESS_POLICY;
+  private quietWindowTimer: ReturnType<typeof setTimeout> | null = null;
+  private automaticDrainTail: Promise<void> = Promise.resolve();
+  private automaticDrainRequested = false;
+  private readonly awarenessListeners = new Set<() => void>();
 
   constructor(
     readonly composition: MobileComposition,
     awarenessHistoryStorage: AwarenessHistoryStorage = NOOP_AWARENESS_HISTORY_STORAGE,
+    awarenessPreferenceStorage: AwarenessPreferenceStorage = NOOP_AWARENESS_PREFERENCE_STORAGE,
+    awarenessAutomationStorage: AwarenessAutomationStorage = NOOP_AWARENESS_AUTOMATION_STORAGE,
   ) {
     this.awarenessHistoryStorage = awarenessHistoryStorage;
+    this.awarenessPreferenceStorage = awarenessPreferenceStorage;
+    this.awarenessAutomationStorage = awarenessAutomationStorage;
   }
 
+  /** Restore policy and recover an interrupted job without calling AI. */
+  async hydrateAwarenessAutomation(): Promise<void> {
+    this.awarenessPolicy = await readAutomaticAwarenessPolicy(
+      this.awarenessPreferenceStorage,
+    );
+    if (!this.awarenessPolicy.afterRecordCapture) return;
+    const current = await readAwarenessAutomationState(this.awarenessAutomationStorage);
+    const recovered = recoverInterruptedAutomaticAwarenessJob(current, new Date());
+    if (recovered !== current) {
+      await writeAwarenessAutomationState(this.awarenessAutomationStorage, recovered);
+    }
+    if (recovered.pendingRecordIds.length > 0) {
+      this.scheduleAutomaticAwareness();
+    }
+  }
   /**
    * Save one Record from the user's own wording.
    *
@@ -156,13 +210,219 @@ export class MobileRuntime {
       };
     }
 
+    if (this.awarenessPolicy.afterRecordCapture) {
+      await this.enqueueAutomaticAwareness(result.value.recordId);
+    }
+
     return { ok: true, outcome: result.value };
   }
 
+  /** Whether the user has opted into automatic checks after a Record save. */
+  automaticAwarenessPolicy(): AutomaticAwarenessPolicy {
+    return this.awarenessPolicy;
+  }
+
+  /** Persist the runtime preference. OFF is immediate: no queued check runs. */
+  async setAutomaticAwarenessEnabled(enabled: boolean): Promise<void> {
+    this.awarenessPolicy = { afterRecordCapture: enabled };
+    await writeAutomaticAwarenessPolicy(this.awarenessPreferenceStorage, this.awarenessPolicy);
+    if (!enabled) this.cancelAutomaticAwarenessWindow();
+  }
+
+  /** Number of pending inbox items. This is the real Tab badge source. */
+  /** Mark one concrete bubble as viewed. Entering the Tab never calls this. */
+  async markAwarenessViewed(candidateId: string): Promise<readonly AwarenessHistoryItem[]> {
+    const current = await this.awarenessHistory();
+    const next = updateAwarenessHistoryItem(current, candidateId, {
+      status: 'viewed',
+      updatedAt: new Date().toISOString(),
+    });
+    await writeAwarenessHistory(this.awarenessHistoryStorage, next);
+    this.notifyAwarenessChanged();
+    return next;
+  }
+
+  async unreadAwarenessCount(): Promise<number> {
+    return countUnreadAwarenessItems(await this.awarenessHistory());
+  }
+
+  /** Pending automatic state is exposed for tests and diagnostics, never as Core. */
+  async automaticAwarenessState(): Promise<AwarenessAutomationState> {
+    return readAwarenessAutomationState(this.awarenessAutomationStorage);
+  }
+
+  private cancelAutomaticAwarenessWindow(): void {
+    if (this.quietWindowTimer !== null) {
+      clearTimeout(this.quietWindowTimer);
+      this.quietWindowTimer = null;
+    }
+  }
+
+  private scheduleAutomaticAwareness(delayMs = DEFAULT_AUTOMATIC_AWARENESS_QUIET_WINDOW_MS): void {
+    this.cancelAutomaticAwarenessWindow();
+    this.quietWindowTimer = setTimeout(() => {
+      this.quietWindowTimer = null;
+      void this.requestAutomaticAwareness();
+    }, delayMs);
+  }
+
+  private async enqueueAutomaticAwareness(recordId: string): Promise<void> {
+    const current = await readAwarenessAutomationState(this.awarenessAutomationStorage);
+    const next = enqueueAutomaticAwarenessRecord(current, recordId);
+    if (next !== current) {
+      await writeAwarenessAutomationState(this.awarenessAutomationStorage, next);
+    }
+    this.scheduleAutomaticAwareness();
+  }
+
+  /** Flush the scheduled work in tests and explicit foreground drains. */
+  async runScheduledAutomaticAwareness(): Promise<void> {
+    this.cancelAutomaticAwarenessWindow();
+    return this.requestAutomaticAwareness();
+  }
+
+  /** Stop timers and wait for an in-flight automatic check before storage closes. */
+  async close(): Promise<void> {
+    this.cancelAutomaticAwarenessWindow();
+    await this.automaticDrainTail;
+  }
+
+  /** Serialize drains and coalesce requests made while one is already running. */
+  private requestAutomaticAwareness(): Promise<void> {
+    if (!this.awarenessPolicy.afterRecordCapture) return Promise.resolve();
+    this.automaticDrainRequested = true;
+    const request = this.automaticDrainTail.then(async () => {
+      if (!this.automaticDrainRequested) return;
+      this.automaticDrainRequested = false;
+      await this.performAutomaticAwareness();
+    });
+    this.automaticDrainTail = request.catch(() => undefined);
+    return request;
+  }
+
+  private async performAutomaticAwareness(): Promise<void> {
+    const current = await readAwarenessAutomationState(this.awarenessAutomationStorage);
+    if (current.pendingRecordIds.length === 0) return;
+
+    const started = beginAutomaticAwarenessJob(current, new Date());
+    if (started.job === null) return;
+    const job = started.job;
+    if (started.state !== current) {
+      await writeAwarenessAutomationState(this.awarenessAutomationStorage, started.state);
+    }
+
+    const running = markAutomaticAwarenessJobRunning(started.state, job.id, new Date());
+    await writeAwarenessAutomationState(this.awarenessAutomationStorage, running);
+
+    const latestRecordId = job.recordIds.at(-1);
+    if (latestRecordId === undefined) return;
+
+    // A crash can happen after candidates were written but before the job was
+    // marked complete. Recover from that durable result instead of calling the
+    // Provider again and risking a duplicate Bubble.
+    const alreadyCovered = await this.awarenessHistory();
+    if (alreadyCovered.some((item) => item.automationJobId === job.id)) {
+      await writeAwarenessAutomationState(
+        this.awarenessAutomationStorage,
+        finishAutomaticAwarenessJob(running, {
+          jobId: job.id,
+          status: 'completed',
+          coveredRecordIds: job.recordIds,
+          at: new Date(),
+        }),
+      );
+      return;
+    }
+
+    const experience = await suggestRelations(
+      this.composition,
+      latestRecordId,
+      this.candidates,
+      this.insightAudit,
+      { batchRecordIds: job.recordIds },
+    );
+
+    if (experience.status === 'candidates') {
+      await this.recordAutomaticCandidates(started.job, experience.candidates);
+      const afterCandidates = await readAwarenessAutomationState(this.awarenessAutomationStorage);
+      await writeAwarenessAutomationState(
+        this.awarenessAutomationStorage,
+        finishAutomaticAwarenessJob(afterCandidates, {
+          jobId: started.job.id,
+          status: 'completed',
+          coveredRecordIds: started.job.recordIds,
+          at: new Date(),
+        }),
+      );
+      return;
+    }
+
+    const afterRun = await readAwarenessAutomationState(this.awarenessAutomationStorage);
+    await writeAwarenessAutomationState(
+      this.awarenessAutomationStorage,
+      finishAutomaticAwarenessJob(afterRun, {
+        jobId: started.job.id,
+        status:
+          experience.status === 'no_candidate' ||
+          experience.status === 'not_enough_context'
+            ? 'no_observation'
+            : 'failed',
+        ...(experience.status === 'no_candidate' ||
+        experience.status === 'not_enough_context'
+          ? { coveredRecordIds: started.job.recordIds }
+          : { failureReason: experience.status }),
+        at: new Date(),
+      }),
+    );
+  }
+
+  private async recordAutomaticCandidates(
+    job: AwarenessAutomationJob,
+    candidates: readonly RelationCandidateView[],
+  ): Promise<void> {
+    const current = await this.awarenessHistory();
+    const now = new Date().toISOString();
+    let next = current;
+    for (const candidate of candidates) {
+      const idempotentMatch = next.find(
+        (item) =>
+          item.automationJobId === job.id &&
+          canonicalCandidateRecordRefs(item.candidate) ===
+            canonicalCandidateRecordRefs(candidate),
+      );
+      if (idempotentMatch !== undefined) continue;
+      next = upsertAwarenessHistoryItem(next, {
+        candidateId: candidate.candidateId,
+        status: 'pending',
+        automationJobId: job.id,
+        createdAt: now,
+        updatedAt: now,
+        currentRecordId: candidate.currentRecord.id,
+        suggestion: candidate.suggestion,
+        candidate,
+        meaning: null,
+        reflectionText: null,
+        targetRef: null,
+        reflectionRecordId: null,
+      });
+    }
+    await writeAwarenessHistory(this.awarenessHistoryStorage, next);
+    this.notifyAwarenessChanged();
+  }
   /** Recent Records, newest first, for the timeline. */
   /** Durable Awareness history, newest first. */
   async awarenessHistory(): Promise<readonly AwarenessHistoryItem[]> {
     return readAwarenessHistory(this.awarenessHistoryStorage);
+  }
+
+  /** Subscribe to inbox changes so the Bottom Tab badge uses real state. */
+  subscribeAwareness(listener: () => void): () => void {
+    this.awarenessListeners.add(listener);
+    return () => this.awarenessListeners.delete(listener);
+  }
+
+  private notifyAwarenessChanged(): void {
+    for (const listener of this.awarenessListeners) listener();
   }
 
   async listRecent(limit: number = DEFAULT_TIMELINE_LIMIT): Promise<readonly RecordReadModel[]> {
@@ -203,13 +463,13 @@ export class MobileRuntime {
           (item) =>
             !(
               item.currentRecordId === candidate.currentRecord.id &&
-              item.status === 'new' &&
+              item.status === 'pending' &&
               item.candidateId !== candidate.candidateId
             ),
         );
         next = upsertAwarenessHistoryItem(withoutStaleCard, {
           candidateId: candidate.candidateId,
-          status: 'new',
+          status: 'pending',
           createdAt: now,
           updatedAt: now,
           currentRecordId: candidate.currentRecord.id,
@@ -222,6 +482,7 @@ export class MobileRuntime {
         });
       }
       await writeAwarenessHistory(this.awarenessHistoryStorage, next);
+      this.notifyAwarenessChanged();
       return experience;
     });
   }
@@ -254,7 +515,7 @@ export class MobileRuntime {
         return result;
       }
       const next = updateAwarenessHistoryItem(current, input.candidateId, {
-        status: result.status === 'discarded' ? 'dismissed' : 'responded',
+        status: result.status === 'discarded' ? 'dismissed' : 'reflected',
         updatedAt: new Date().toISOString(),
         meaning: input.meaning,
         reflectionText:
@@ -264,6 +525,7 @@ export class MobileRuntime {
           result.status === 'discovery' ? result.reflectionRecordId ?? null : null,
       });
       await writeAwarenessHistory(this.awarenessHistoryStorage, next);
+      this.notifyAwarenessChanged();
       return result;
     });
   }

@@ -40,6 +40,7 @@ import {
   TAB_SPACES,
   type SpaceId,
 } from './spaces';
+import { useAwarenessUnreadCount } from './runtime-context';
 import { useTheme } from '../theme/theme-context';
 import { SPACING, TYPOGRAPHY } from '../theme/tokens';
 
@@ -71,6 +72,7 @@ export const AppShell = () => {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const { theme } = useTheme();
   const { colors } = theme;
+  const unreadAwareness = useAwarenessUnreadCount();
 
   // Settings is a separate entry: opening it switches the active space, and the
   // header button toggles back to the space the user came from.
@@ -145,6 +147,7 @@ export const AppShell = () => {
                 ]}
               >
                 {SPACE_LABELS[space]}
+                {space === 'awareness' && unreadAwareness > 0 ? ` (${unreadAwareness})` : ''}
               </Text>
             </Pressable>
           );

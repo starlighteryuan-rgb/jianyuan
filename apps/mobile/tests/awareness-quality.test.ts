@@ -237,7 +237,7 @@ describe('Mobile Awareness quality and persistence (M2.2)', () => {
     expect(history).toHaveLength(1);
     expect(history[0]).toMatchObject({
       candidateId: experience.candidates[0]!.candidateId,
-      status: 'new',
+      status: 'pending',
     });
 
     await first.close();
@@ -247,7 +247,7 @@ describe('Mobile Awareness quality and persistence (M2.2)', () => {
     expect(restored).toHaveLength(1);
     expect(restored[0]).toMatchObject({
       candidateId: experience.candidates[0]!.candidateId,
-      status: 'new',
+      status: 'pending',
     });
     expect(restored[0]!.candidate.observation).toContain('开始前先停一下');
   });
@@ -288,7 +288,7 @@ describe('Mobile Awareness quality and persistence (M2.2)', () => {
       expect(history[0]).toMatchObject({
         candidateId: candidate.candidateId,
         meaning,
-        status: meaning === 'not_my_experience' ? 'dismissed' : 'responded',
+        status: meaning === 'not_my_experience' ? 'dismissed' : 'reflected',
       });
       expect(history[0]!.meaning).toBe(meaning);
     },
