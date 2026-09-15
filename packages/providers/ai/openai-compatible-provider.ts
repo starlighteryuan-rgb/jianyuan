@@ -11,6 +11,7 @@ import type {
   ReflectionPromptSuggestion,
   RelationSuggestion,
   RelationSuggestionRequest,
+  RelationSuggestionResult,
 } from './contracts';
 import {
   EVIDENCE_DIMENSIONS,
@@ -51,6 +52,30 @@ const containsIdentityOrDiagnosisClaim = (value: string): boolean =>
   /你就是|说明你|证明你|你的人格|你的身份|心理诊断|本质上是|你本质上|你(?:总是|永远|天生|一定是)|你(?:害怕|担心|在逃避|逃避|潜意识|内心)/.test(
     value,
   );
+
+const containsHan = (value: string): boolean => /[\u3400-\u4dbf\u4e00-\u9fff]/u.test(value);
+
+/** User-facing Awareness copy must be simplified Chinese, never a mixed title. */
+const isSimplifiedChineseCopy = (value: string): boolean => {
+  const trimmed = value.trim();
+  if (trimmed.length === 0 || !containsHan(trimmed)) return false;
+  const latinWords = trimmed.match(/[A-Za-z]{2,}/gu)?.length ?? 0;
+  const hanCharacters = trimmed.match(/[\u3400-\u4dbf\u4e00-\u9fff]/gu)?.length ?? 0;
+  return latinWords === 0 || hanCharacters >= latinWords * 3;
+};
+
+/** Weak signals the product must never surface as an Awareness item. */
+const describesOnlyWeakSignal = (suggestion: RelationSuggestion): boolean => {
+  const copy = [
+    suggestion.comparisonAxis.question,
+    suggestion.comparisonAxis.dimension,
+    suggestion.relationType,
+    suggestion.evidenceSummary,
+  ].join(' ');
+  const weakOnly = /(?:同一天|同一日|时间接近|时间相近|时间戳|时间都|都是日常|一(?:条|个).{0,8}(?:抽象|具体).{0,8}一(?:条|个).{0,8}(?:抽象|具体)|(?:抽象|具体).{0,6}(?:差异|对比|不同)|一般概念|过泛|字面相似|相似词|弱联系|弱语义|weak|same day|close in time|timestamp|one .{0,12}(?:abstract|concrete)|(?:abstract|concrete).{0,12}(?:difference|contrast)|generic category)/iu;
+  const strongTheme = /(?:共同主题|重复模式|反复出现|相同的触发条件|相同的选择|相同的行动|相同处境|共同条件|重复条件|值得回看|structural|pattern|repeated|shared condition|shared trigger)/iu;
+  return weakOnly.test(copy) && !strongTheme.test(copy);
+};
 
 const fail = (
   kind: AIProviderError['kind'],
@@ -283,7 +308,7 @@ export class OpenAICompatibleProvider
 
   async suggestRelations(
     request: RelationSuggestionRequest,
-  ): Promise<AIProviderResult<readonly RelationSuggestion[]>> {
+  ): Promise<AIProviderResult<RelationSuggestionResult>> {
     const authorized = validateAuthorization(
       request.authorization,
       request.records.map((record) => record.recordId),
@@ -292,14 +317,57 @@ export class OpenAICompatibleProvider
     if (!authorized.ok) return authorized;
 
     const result = await this.completeJson(
-      'You suggest tentative, descriptive relations between selected personal records. Do not diagnose, infer personality or identity, assert hidden motives, or answer for the user. Return JSON only: {"suggestions":[{"recordRefs":["..."],"comparisonAxis":{"question":"...","dimension":"..."},"relationType":"...","evidenceSummary":"...","assertsTemporalOrdering":false}]}. Every item is only a candidate for later deterministic gates.',
+      'You suggest tentative, descriptive relations between selected personal records. Simplified Chinese is mandatory for every user-visible field. Do not diagnose, infer personality or identity, assert hidden motives, or answer for the user. Only surface a relation when there is a clear shared theme, repeated pattern, or structural connection that the user may genuinely want to revisit. Never surface a relation based only on the same day, close timestamps, one record being abstract and the other concrete, a generic shared category, weak semantic similarity, or both being daily records. When no relation clears that bar, return status NO_OBSERVATION with an empty suggestions array; that is a correct outcome, not a failure. Return JSON only: {"status":"SURFACE"|"NO_OBSERVATION","language":"zh-CN","suggestions":[{"recordRefs":["..."],"comparisonAxis":{"question":"...","dimension":"..."},"relationType":"...","evidenceSummary":"...","assertsTemporalOrdering":false}]}. Every item is only a candidate for later deterministic gates.',
       {
         purpose: request.authorization.reason,
         selectedRecords: request.records,
       },
     );
     if (!result.ok) return result;
-    if (!isObject(result.value) || !Array.isArray(result.value.suggestions)) {
+    if (!isObject(result.value)) {
+      return fail(
+        'malformed_response',
+        'The AI provider returned malformed relation suggestions.',
+        false,
+      );
+    }
+
+    const parsed = this.parseRelationSuggestionResult(result.value, request);
+    if (parsed.ok) return parsed;
+
+    // Retry once when the model returned an invalid or non-Chinese shape.
+    const retry = await this.completeJson(
+      'Repeat the structured relation task. All user-visible strings must be concise simplified Chinese with no English words. If no relation is strong enough, return {"status":"NO_OBSERVATION","language":"zh-CN","suggestions":[]}. Never invent a relation from same-day timing, close timestamps, abstraction differences, or generic categories. Return JSON only: {"status":"SURFACE"|"NO_OBSERVATION","language":"zh-CN","suggestions":[{"recordRefs":["..."],"comparisonAxis":{"question":"...","dimension":"..."},"relationType":"...","evidenceSummary":"...","assertsTemporalOrdering":false}]}.',
+      {
+        purpose: request.authorization.reason,
+        selectedRecords: request.records,
+        previous: result.value,
+      },
+    );
+    if (!retry.ok) return retry;
+    if (!isObject(retry.value)) return parsed;
+    return this.parseRelationSuggestionResult(retry.value, request);
+  }
+
+  private parseRelationSuggestionResult(
+    value: Record<string, unknown>,
+    request: RelationSuggestionRequest,
+  ): AIProviderResult<RelationSuggestionResult> {
+    const status = value.status === undefined ? 'SURFACE' : value.status;
+    if (status !== 'SURFACE' && status !== 'NO_OBSERVATION') {
+      return fail(
+        'malformed_response',
+        'The AI provider returned malformed relation suggestions.',
+        false,
+      );
+    }
+    if (status === 'NO_OBSERVATION') {
+      return {
+        ok: true,
+        value: { status, language: 'zh-CN', suggestions: [] },
+      };
+    }
+    if (!Array.isArray(value.suggestions) || value.suggestions.length === 0) {
       return fail(
         'malformed_response',
         'The AI provider returned malformed relation suggestions.',
@@ -309,7 +377,7 @@ export class OpenAICompatibleProvider
 
     const allowed = new Set(request.authorization.selectedRecordIds);
     const suggestions: RelationSuggestion[] = [];
-    for (const item of result.value.suggestions) {
+    for (const item of value.suggestions) {
       if (
         !isObject(item) ||
         !Array.isArray(item.recordRefs) ||
@@ -323,6 +391,9 @@ export class OpenAICompatibleProvider
         !nonEmptyString(item.relationType) ||
         !nonEmptyString(item.evidenceSummary) ||
         typeof item.assertsTemporalOrdering !== 'boolean' ||
+        !isSimplifiedChineseCopy(item.comparisonAxis.question) ||
+        !isSimplifiedChineseCopy(item.comparisonAxis.dimension) ||
+        !isSimplifiedChineseCopy(item.evidenceSummary) ||
         containsIdentityOrDiagnosisClaim(item.comparisonAxis.question) ||
         containsIdentityOrDiagnosisClaim(item.comparisonAxis.dimension) ||
         containsIdentityOrDiagnosisClaim(item.relationType) ||
@@ -334,7 +405,7 @@ export class OpenAICompatibleProvider
           false,
         );
       }
-      suggestions.push({
+      const suggestion: RelationSuggestion = {
         kind: 'relation_candidate',
         recordRefs: item.recordRefs,
         comparisonAxis: {
@@ -344,9 +415,20 @@ export class OpenAICompatibleProvider
         relationType: item.relationType,
         evidenceSummary: item.evidenceSummary,
         assertsTemporalOrdering: item.assertsTemporalOrdering,
-      });
+      };
+      if (describesOnlyWeakSignal(suggestion)) continue;
+      suggestions.push(suggestion);
     }
-    return { ok: true, value: suggestions };
+    if (suggestions.length === 0) {
+      return {
+        ok: true,
+        value: { status: 'NO_OBSERVATION', language: 'zh-CN', suggestions: [] },
+      };
+    }
+    return {
+      ok: true,
+      value: { status: 'SURFACE', language: 'zh-CN', suggestions },
+    };
   }
 
   async createReflectionPrompt(
@@ -410,7 +492,7 @@ export class OpenAICompatibleProvider
     });
     if (!result.ok) return { candidates: [] };
     return {
-      candidates: result.value.map((suggestion) => ({
+      candidates: result.value.suggestions.map((suggestion) => ({
         recordRefs: suggestion.recordRefs.map(recordId),
         comparisonAxis: suggestion.comparisonAxis,
         relationType: suggestion.relationType,

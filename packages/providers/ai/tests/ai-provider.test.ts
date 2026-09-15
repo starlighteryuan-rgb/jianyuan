@@ -267,10 +267,84 @@ describe('OpenAICompatibleProvider awareness capabilities', () => {
       await provider.suggestRelations({ authorization, records }),
     ).toMatchObject({
       ok: true,
-      value: [{ kind: 'relation_candidate', relationType: 'possible_change' }],
+      value: {
+        status: 'SURFACE',
+        suggestions: [{ kind: 'relation_candidate', relationType: 'possible_change' }],
+      },
     });
   });
 
+  it('accepts an explicit no-observation result without inventing a candidate', async () => {
+    const provider = new OpenAICompatibleProvider(
+      config(),
+      vi.fn(async () =>
+        completion({ status: 'NO_OBSERVATION', language: 'zh-CN', suggestions: [] }),
+      ) as unknown as typeof fetch,
+    );
+
+    const result = await provider.suggestRelations({ authorization, records });
+    expect(result).toEqual({
+      ok: true,
+      value: { status: 'NO_OBSERVATION', language: 'zh-CN', suggestions: [] },
+    });
+  });
+
+  it('filters a candidate that only cites a same-day or close-time signal', async () => {
+    const provider = new OpenAICompatibleProvider(
+      config(),
+      vi.fn(async () =>
+        completion({
+          status: 'SURFACE',
+          language: 'zh-CN',
+          suggestions: [
+            {
+              recordRefs: ['record-1', 'record-2'],
+              comparisonAxis: { question: '两条记录是否在同一天？', dimension: '时间接近' },
+              relationType: 'temporal_proximity',
+              evidenceSummary: '两条记录在同一天写下，时间也接近。',
+              assertsTemporalOrdering: false,
+            },
+          ],
+        }),
+      ) as unknown as typeof fetch,
+    );
+
+    expect(await provider.suggestRelations({ authorization, records })).toEqual({
+      ok: true,
+      value: { status: 'NO_OBSERVATION', language: 'zh-CN', suggestions: [] },
+    });
+  });
+
+  it('rejects a non-Chinese or mixed-language observation instead of passing it through', async () => {
+    const fetcher = vi.fn(async () =>
+      completion({
+        status: 'SURFACE',
+        language: 'zh-CN',
+        suggestions: [
+          {
+            recordRefs: ['record-1', 'record-2'],
+            comparisonAxis: {
+              question: 'What did these records share?',
+              dimension: 'shared pattern',
+            },
+            relationType: 'shared_pattern',
+            evidenceSummary: 'Both records describe the same start.',
+            assertsTemporalOrdering: false,
+          },
+        ],
+      }),
+    );
+    const provider = new OpenAICompatibleProvider(
+      config(),
+      fetcher as unknown as typeof fetch,
+    );
+
+    expect(await provider.suggestRelations({ authorization, records })).toMatchObject({
+      ok: false,
+      error: { kind: 'malformed_response' },
+    });
+    expect(fetcher).toHaveBeenCalledTimes(2);
+  });
   it('returns relation candidates without evidence, identity, or conclusion fields', async () => {
     const provider = new OpenAICompatibleProvider(
       config(),
@@ -297,7 +371,8 @@ describe('OpenAICompatibleProvider awareness capabilities', () => {
     const result = await provider.suggestRelations({ authorization, records });
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error('expected relation suggestion');
-    expect(result.value[0]).toEqual({
+    expect(result.value.status).toBe('SURFACE');
+    expect(result.value.suggestions[0]).toEqual({
       kind: 'relation_candidate',
       recordRefs: ['record-1', 'record-2'],
       comparisonAxis: {
@@ -308,9 +383,9 @@ describe('OpenAICompatibleProvider awareness capabilities', () => {
       evidenceSummary: '可能存在值得回看的共同点。',
       assertsTemporalOrdering: false,
     });
-    expect(result.value[0]).not.toHaveProperty('assessment');
-    expect(result.value[0]).not.toHaveProperty('supportLevel');
-    expect(result.value[0]).not.toHaveProperty('identity');
+    expect(result.value.suggestions[0]).not.toHaveProperty('assessment');
+    expect(result.value.suggestions[0]).not.toHaveProperty('supportLevel');
+    expect(result.value.suggestions[0]).not.toHaveProperty('identity');
   });
 
   it('returns a reflection invitation and never a user answer', async () => {

@@ -9,6 +9,7 @@ import {
 import type {
   AIProviderErrorKind,
   RelationSuggestion,
+  RelationSuggestionResult,
 } from '../../packages/providers/ai/index';
 import type { CoreComposition } from './capture-composition-root';
 
@@ -320,9 +321,6 @@ const suggestionContainsObservationBoundaryRisk = (suggestion: unknown): boolean
   );
 };
 
-const isRelationSuggestionArray = (
-  value: unknown,
-): value is readonly RelationSuggestion[] => Array.isArray(value);
 
 const unresolvedAnalysisDeny = (
   directives: readonly Directive[],
@@ -479,8 +477,9 @@ const suggestRelationsAfterCaptureInternal = async (
   // future provider may satisfy the TypeScript contract while still drifting
   // into identity, diagnosis, motive, or certainty language.
   if (
-    !isRelationSuggestionArray(result.value) ||
-    result.value.some(suggestionContainsObservationBoundaryRisk)
+    result.value.language !== 'zh-CN' ||
+    !Array.isArray(result.value.suggestions) ||
+    result.value.suggestions.some(suggestionContainsObservationBoundaryRisk)
   ) {
     getAIInsightAuditLog().append({
       ...auditBase,
@@ -494,8 +493,18 @@ const suggestRelationsAfterCaptureInternal = async (
     };
   }
 
+  if (result.value.status === 'NO_OBSERVATION') {
+    getAIInsightAuditLog().append({ ...auditBase, outcome: 'no_observation' });
+    return {
+      status: 'no_candidate',
+      message: '目前没有发现值得回看的明显联系。',
+      candidates: [],
+    };
+  }
+
+  const providerResult = result.value as RelationSuggestionResult;
   const recordById = new Map(context.map((record) => [record.id, record]));
-  const candidates = result.value
+  const candidates = providerResult.suggestions
     .filter((suggestion) => {
       const uniqueRefs = new Set(suggestion.recordRefs);
       return (
@@ -535,7 +544,7 @@ const suggestRelationsAfterCaptureInternal = async (
     ? {
         status: 'no_candidate',
         message:
-          '记录已保存。暂时没有发现明显联系。这并不代表没有模式，只是当前记录不足以支持进一步观察。',
+          '目前没有发现值得回看的明显联系。',
         candidates: [],
       }
     : {

@@ -14,6 +14,7 @@ import { createMobileStorage, type MobileSqliteStorageAdapter } from '../../src/
 import { openNodeSqlDriver } from './node-sql-driver';
 import { MobileAIService } from '../../src/runtime/mobile-ai-service';
 import type { AIConfigStorage } from '../../src/runtime/ai-config-store';
+import type { AwarenessHistoryStorage } from '../../src/runtime/awareness-history-store';
 
 /**
  * In-memory, per-runtime AI config store for tests. Kept separate from the
@@ -28,6 +29,34 @@ export const createTestAIConfigStorage = (): AIConfigStorage => {
       values.set(key, value);
     },
   };
+};
+
+/**
+ * In-memory Awareness history storage.
+ *
+ * Production uses `expo-sqlite/kv-store`, which survives a process restart.
+ * Reusing the same double by database location gives the Node tests the same
+ * restart behaviour without importing a native module.
+ */
+const testAwarenessHistoryByLocation = new Map<string, AwarenessHistoryStorage>();
+
+export const createTestAwarenessHistoryStorage = (): AwarenessHistoryStorage => {
+  const values = new Map<string, string>();
+  return {
+    getItemAsync: async (key) => values.get(key) ?? null,
+    setItemAsync: async (key, value) => {
+      values.set(key, value);
+    },
+  };
+};
+
+const awarenessHistoryFor = (location: string): AwarenessHistoryStorage => {
+  if (location === ':memory:') return createTestAwarenessHistoryStorage();
+  const existing = testAwarenessHistoryByLocation.get(location);
+  if (existing !== undefined) return existing;
+  const created = createTestAwarenessHistoryStorage();
+  testAwarenessHistoryByLocation.set(location, created);
+  return created;
 };
 
 export interface MobileTestRuntime {
@@ -52,6 +81,8 @@ export interface OpenMobileRuntimeOptions {
   readonly aiConfigStorage?: AIConfigStorage;
   /** Optional fetch double for Provider tests. */
   readonly fetch?: typeof fetch;
+  /** Optional Awareness history persistence; defaults to per-location memory. */
+  readonly awarenessHistoryStorage?: AwarenessHistoryStorage;
 }
 
 export const openMobileTestRuntime = async (
@@ -75,7 +106,10 @@ export const openMobileTestRuntime = async (
   });
 
   return {
-    runtime: new MobileRuntime(composition),
+    runtime: new MobileRuntime(
+      composition,
+      options.awarenessHistoryStorage ?? awarenessHistoryFor(options.location),
+    ),
     composition,
     storage,
     close: () => storage.close(),

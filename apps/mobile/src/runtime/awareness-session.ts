@@ -29,6 +29,7 @@ import {
 import type {
   AIProviderErrorKind,
   RelationSuggestion,
+  RelationSuggestionResult,
 } from '../../../../packages/providers/ai/index';
 
 import type { MobileComposition } from './composition-root';
@@ -64,6 +65,35 @@ export interface RelationCandidateView extends AIObservationView {
   readonly question: string;
   readonly dimension: string;
   readonly explanation: string;
+  /** Retained so presentation history can be persisted and rehydrated. */
+  readonly suggestion: RelationSuggestion;
+}
+
+export type AwarenessHistoryStatus =
+  | 'new'
+  | 'viewed'
+  | 'responded'
+  | 'dismissed';
+
+/**
+ * One durable Awareness item. It is presentation history, not a Core Relation.
+ *
+ * The transient registry still owns response processing for the current
+ * session. This record exists so the user can leave and return without losing
+ * what was already surfaced.
+ */
+export interface AwarenessHistoryItem {
+  readonly candidateId: string;
+  readonly status: AwarenessHistoryStatus;
+  readonly createdAt: string;
+  readonly updatedAt: string;
+  readonly currentRecordId: string;
+  readonly suggestion: RelationSuggestion;
+  readonly candidate: RelationCandidateView;
+  readonly meaning: ObservationMeaning | null;
+  readonly reflectionText: string | null;
+  readonly targetRef: string | null;
+  readonly reflectionRecordId: string | null;
 }
 
 export type RelationSuggestionExperience =
@@ -128,6 +158,11 @@ interface StoredRelationCandidate {
   readonly expiresAt: number;
 }
 
+export interface RelationCandidateRegistryHooks {
+  readonly stored?: (candidate: StoredRelationCandidate) => void;
+  readonly removed?: (candidateId: string) => void;
+}
+
 /**
  * In-memory registry for transient Observations.
  *
@@ -139,6 +174,8 @@ export class RelationCandidateRegistry {
   private readonly candidates = new Map<string, StoredRelationCandidate>();
   private readonly inFlight = new Map<string, Promise<unknown>>();
   private sequence = 0;
+
+  constructor(private readonly hooks: RelationCandidateRegistryHooks = {}) {}
 
   store(input: Omit<StoredRelationCandidate, 'candidateId' | 'expiresAt'>): string {
     this.prune();
@@ -155,6 +192,8 @@ export class RelationCandidateRegistry {
       candidateId,
       expiresAt: Date.now() + CANDIDATE_TTL_MS,
     });
+    const stored = this.candidates.get(candidateId);
+    if (stored !== undefined) this.hooks.stored?.(stored);
     return candidateId;
   }
 
@@ -165,6 +204,7 @@ export class RelationCandidateRegistry {
 
   remove(candidateId: string): void {
     this.candidates.delete(candidateId);
+    this.hooks.removed?.(candidateId);
   }
 
   runOnce<T>(key: string, operation: () => Promise<T>): Promise<T> {
@@ -418,8 +458,9 @@ export const suggestRelations = async (
     }
 
     if (
-      !Array.isArray(result.value) ||
-      result.value.some(suggestionContainsObservationBoundaryRisk)
+      result.value.language !== 'zh-CN' ||
+      !Array.isArray(result.value.suggestions) ||
+      result.value.suggestions.some(suggestionContainsObservationBoundaryRisk)
     ) {
       audit.append({ ...auditBase, outcome: 'error', errorType: 'malformed_response' });
       return {
@@ -429,10 +470,21 @@ export const suggestRelations = async (
       };
     }
 
+    if (result.value.status === 'NO_OBSERVATION') {
+      audit.append({ ...auditBase, outcome: 'no_observation' });
+      return {
+        status: 'no_candidate' as const,
+        message: '目前没有发现值得回看的明显联系。',
+        candidates: [] as const,
+      };
+    }
+
     const recordById = new Map(context.map((record) => [record.id, record]));
-    // Array.isArray narrows a readonly array to ny[] in this TypeScript
-    // version, so re-state the Provider contract after the runtime check.
-    const suggestions = result.value as readonly RelationSuggestion[];
+    // The runtime checks above establish the provider contract. Re-state it
+    // here because Array.isArray widens a readonly array in this TypeScript
+    // version and would otherwise erase the element type.
+    const providerResult = result.value as RelationSuggestionResult;
+    const suggestions = providerResult.suggestions;
     const candidates = suggestions
       .filter((suggestion) => {
         const uniqueRefs = new Set(suggestion.recordRefs);
@@ -465,6 +517,7 @@ export const suggestRelations = async (
           question: suggestion.comparisonAxis.question,
           dimension: suggestion.comparisonAxis.dimension,
           explanation: suggestion.evidenceSummary,
+          suggestion,
           ...asAIObservation(suggestion, [currentRecord, ...relatedRecords]),
         };
       });
@@ -473,8 +526,7 @@ export const suggestRelations = async (
       candidates.length === 0
         ? {
             status: 'no_candidate',
-            message:
-              '记录已保存。暂时没有发现明显联系。这并不代表没有模式，只是当前记录不足以支持进一步观察。',
+            message: '目前没有发现值得回看的明显联系。',
             candidates: [],
           }
         : {

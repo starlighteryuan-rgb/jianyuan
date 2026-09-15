@@ -178,7 +178,19 @@ describe('AI-native product orchestration boundaries', () => {
     const fetcher = vi.fn(async (_url: string | URL | Request, init?: RequestInit) => {
       requests.push(JSON.parse(String(init?.body)));
       return new Response(
-        JSON.stringify({ choices: [{ message: { content: JSON.stringify({ suggestions: [] }) } }] }),
+        JSON.stringify({
+          choices: [
+            {
+              message: {
+                content: JSON.stringify({
+                  status: 'NO_OBSERVATION',
+                  language: 'zh-CN',
+                  suggestions: [],
+                }),
+              },
+            },
+          ],
+        }),
         { status: 200 },
       );
     });
@@ -248,7 +260,19 @@ describe('AI-native product orchestration boundaries', () => {
       calls += 1;
       await new Promise((resolve) => setTimeout(resolve, 10));
       return new Response(
-        JSON.stringify({ choices: [{ message: { content: JSON.stringify({ suggestions: [] }) } }] }),
+        JSON.stringify({
+          choices: [
+            {
+              message: {
+                content: JSON.stringify({
+                  status: 'NO_OBSERVATION',
+                  language: 'zh-CN',
+                  suggestions: [],
+                }),
+              },
+            },
+          ],
+        }),
         { status: 200 },
       );
     });

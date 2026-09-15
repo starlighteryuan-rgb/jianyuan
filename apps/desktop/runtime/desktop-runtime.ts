@@ -208,8 +208,9 @@ export class DesktopRuntime {
       throw new Error(result.error.message);
     }
     if (
-      !Array.isArray(result.value) ||
-      result.value.some(suggestionContainsObservationBoundaryRisk)
+      result.value.language !== 'zh-CN' ||
+      !Array.isArray(result.value.suggestions) ||
+      result.value.suggestions.some(suggestionContainsObservationBoundaryRisk)
     ) {
       this.insightAudit.push({
         ...auditBase,
@@ -218,8 +219,16 @@ export class DesktopRuntime {
       });
       throw new Error('The AI provider returned an observation that cannot be safely shown.');
     }
-    this.insightAudit.push({ ...auditBase, outcome: result.value.length > 0 ? 'candidates' : 'no_candidate' });
-    return result.value;
+    if (result.value.status === 'NO_OBSERVATION') {
+      this.insightAudit.push({ ...auditBase, outcome: 'no_observation' });
+      return [];
+    }
+    const suggestions = result.value.suggestions;
+    this.insightAudit.push({
+      ...auditBase,
+      outcome: suggestions.length > 0 ? 'candidates' : 'no_candidate',
+    });
+    return suggestions;
   }
 
   listAIInsightAudit(): readonly DesktopAIInsightAuditEntry[] {

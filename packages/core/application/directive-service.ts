@@ -46,8 +46,18 @@ export class DirectiveService {
   async create(
     input: CreateDirectiveInput,
   ): Promise<Result<Directive, DirectiveScopeError>> {
+    const active = await this.deps.directives.listActive();
+    const existing = active.find(
+      (candidate) =>
+        candidate.appliesToFutureSimilar === input.appliesToFutureSimilar &&
+        ((candidate.scope === null && input.scope === null) ||
+          (candidate.scope !== null &&
+            input.scope !== null &&
+            candidate.scope.kind === input.scope.kind &&
+            candidate.scope.value === input.scope.value)),
+    );
     const directive: Directive = {
-      id: directiveId(this.deps.ids.nextDirectiveId()),
+      id: existing?.id ?? directiveId(this.deps.ids.nextDirectiveId()),
       allowAnalysis: input.allowAnalysis,
       allowStorage: input.allowStorage,
       allowPassivePresentation: input.allowPassivePresentation,
@@ -55,7 +65,7 @@ export class DirectiveService {
       appliesToFutureSimilar: input.appliesToFutureSimilar,
       scope: input.scope,
       revokedAt: null,
-      createdAt: input.now,
+      createdAt: existing?.createdAt ?? input.now,
     };
 
     const problem = validateDirectiveScope(directive);

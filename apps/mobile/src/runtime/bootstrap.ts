@@ -30,6 +30,7 @@ import { openMobileSqlDriver, MOBILE_DATABASE_NAME } from '../storage/expo-sql-d
 import { createMobileStorage } from '../storage/mobile-sqlite-storage';
 import { MobileAIService } from './mobile-ai-service';
 import { createMobileAIConfigStorage } from './ai-config-storage';
+import { createMobileAwarenessHistoryStorage } from './awareness-history-storage';
 
 export interface MobileBootstrapResult {
   readonly runtime: MobileRuntime;
@@ -68,5 +69,8 @@ export const bootstrapMobileRuntime = async (
     ai,
   });
 
-  return { runtime: new MobileRuntime(composition), composition };
+  return {
+    runtime: new MobileRuntime(composition, createMobileAwarenessHistoryStorage()),
+    composition,
+  };
 };

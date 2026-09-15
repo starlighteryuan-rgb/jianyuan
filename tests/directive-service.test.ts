@@ -42,6 +42,29 @@ describe('DirectiveService Domain validation boundary', () => {
     expect(await repository.listActive()).toEqual([]);
   });
 
+  it('overwrites the same active Directive instead of appending duplicate cards', async () => {
+    const repository = new MemoryDirectiveRepository();
+    let nextId = 0;
+    const service = new DirectiveService({
+      directives: repository,
+      ids: { nextDirectiveId: () => `dir_${++nextId}` },
+    });
+
+    const first = await service.create(validInput());
+    const second = await service.create({
+      ...validInput(),
+      allowAnalysis: false,
+      now: new Date('2026-09-13T00:05:00.000Z'),
+    });
+
+    expect(first.ok && second.ok).toBe(true);
+    if (!first.ok || !second.ok) throw new Error('directive create failed');
+    expect(second.value.id).toBe(first.value.id);
+    expect(second.value.createdAt).toEqual(first.value.createdAt);
+    expect(second.value.allowAnalysis).toBe(false);
+    expect(await repository.listActive()).toHaveLength(1);
+  });
+
   it('persists a valid Directive after Domain validation', async () => {
     const repository = new MemoryDirectiveRepository();
     const service = serviceWith(repository);

@@ -6,6 +6,7 @@ import type {
   ReflectionPromptSuggestion,
   RelationSuggestion,
   RelationSuggestionRequest,
+  RelationSuggestionResult,
 } from './contracts';
 import {
   EVIDENCE_DIMENSIONS,
@@ -50,7 +51,7 @@ export class DisabledAIProvider
 
   async suggestRelations(
     _request: RelationSuggestionRequest,
-  ): Promise<AIProviderResult<readonly RelationSuggestion[]>> {
+  ): Promise<AIProviderResult<RelationSuggestionResult>> {
     return disabled();
   }
 

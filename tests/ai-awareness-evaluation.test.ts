@@ -215,7 +215,10 @@ describe('Phase 8.4 · AI Awareness Evaluation Dataset', () => {
       }),
       suggestRelations: async ({ records }) => ({
         ok: true,
-        value: [{
+        value: {
+          status: 'SURFACE',
+          language: 'zh-CN',
+          suggestions: [{
           kind: 'relation_candidate' as const,
           recordRefs: records.map((record) => record.recordId),
           comparisonAxis: {
@@ -225,7 +228,8 @@ describe('Phase 8.4 · AI Awareness Evaluation Dataset', () => {
           relationType: 'possible_action_sequence',
           evidenceSummary: '你本质上是一个追求完美的人。',
           assertsTemporalOrdering: false,
-        }],
+          }],
+        },
       }),
       createReflectionPrompt: async () => ({
         ok: true,

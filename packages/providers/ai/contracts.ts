@@ -71,6 +71,21 @@ export interface RelationSuggestion {
   readonly assertsTemporalOrdering: boolean;
 }
 
+export type RelationSuggestionStatus = 'SURFACE' | 'NO_OBSERVATION';
+
+/**
+ * Provider output for one explicit Awareness request.
+ *
+ * NO_OBSERVATION is a successful, conservative outcome: the provider saw no
+ * relation strong enough to put in front of the user. It must not be treated
+ * as an error or as a reason to synthesize a candidate from weak signals.
+ */
+export interface RelationSuggestionResult {
+  readonly status: RelationSuggestionStatus;
+  readonly language: 'zh-CN';
+  readonly suggestions: readonly RelationSuggestion[];
+}
+
 export interface RelationSuggestionRequest {
   readonly authorization: AIInvocationAuthorization;
   readonly records: readonly AIRecordContext[];
@@ -98,7 +113,7 @@ export interface AwarenessAIProvider {
 
   suggestRelations(
     request: RelationSuggestionRequest,
-  ): Promise<AIProviderResult<readonly RelationSuggestion[]>>;
+  ): Promise<AIProviderResult<RelationSuggestionResult>>;
 
   createReflectionPrompt(
     request: ReflectionPromptRequest,

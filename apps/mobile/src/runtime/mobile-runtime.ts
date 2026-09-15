@@ -35,10 +35,19 @@ import type { MobileComposition } from './composition-root';
 import { mobileAnalysisPermissionFor } from './composition-root';
 import { AI_API_KEY_SECRET_NAME } from './secret-store';
 import {
+  NOOP_AWARENESS_HISTORY_STORAGE,
+  readAwarenessHistory,
+  upsertAwarenessHistoryItem,
+  updateAwarenessHistoryItem,
+  writeAwarenessHistory,
+  type AwarenessHistoryStorage,
+} from './awareness-history-store';
+import {
   MobileAIInsightAuditLog,
   RelationCandidateRegistry,
   submitObservationReflection,
   suggestRelations,
+  type AwarenessHistoryItem,
   type CandidateDecisionResult,
   type MobileAIInsightAuditEntry,
   type ObservationMeaning,
@@ -85,8 +94,14 @@ export interface CreateDirectiveInput {
 export class MobileRuntime {
   private readonly candidates = new RelationCandidateRegistry();
   private readonly insightAudit = new MobileAIInsightAuditLog();
+  private readonly awarenessHistoryStorage: AwarenessHistoryStorage;
 
-  constructor(readonly composition: MobileComposition) {}
+  constructor(
+    readonly composition: MobileComposition,
+    awarenessHistoryStorage: AwarenessHistoryStorage = NOOP_AWARENESS_HISTORY_STORAGE,
+  ) {
+    this.awarenessHistoryStorage = awarenessHistoryStorage;
+  }
 
   /**
    * Save one Record from the user's own wording.
@@ -145,6 +160,11 @@ export class MobileRuntime {
   }
 
   /** Recent Records, newest first, for the timeline. */
+  /** Durable Awareness history, newest first. */
+  async awarenessHistory(): Promise<readonly AwarenessHistoryItem[]> {
+    return readAwarenessHistory(this.awarenessHistoryStorage);
+  }
+
   async listRecent(limit: number = DEFAULT_TIMELINE_LIMIT): Promise<readonly RecordReadModel[]> {
     const capped = Math.min(Math.max(limit, 1), MAX_TIMELINE_LIMIT);
     return this.composition.records.listRecent({ limit: capped });
@@ -171,7 +191,39 @@ export class MobileRuntime {
       currentRecordId,
       this.candidates,
       this.insightAudit,
-    );
+    ).then(async (experience) => {
+      if (experience.status !== 'candidates') return experience;
+      const current = await this.awarenessHistory();
+      const now = new Date().toISOString();
+      let next = current;
+      for (const candidate of experience.candidates) {
+        // Re-requesting one Record replaces its prior pending card rather than
+        // leaving stale duplicates in the durable history.
+        const withoutStaleCard = next.filter(
+          (item) =>
+            !(
+              item.currentRecordId === candidate.currentRecord.id &&
+              item.status === 'new' &&
+              item.candidateId !== candidate.candidateId
+            ),
+        );
+        next = upsertAwarenessHistoryItem(withoutStaleCard, {
+          candidateId: candidate.candidateId,
+          status: 'new',
+          createdAt: now,
+          updatedAt: now,
+          currentRecordId: candidate.currentRecord.id,
+          suggestion: candidate.suggestion,
+          candidate,
+          meaning: null,
+          reflectionText: null,
+          targetRef: null,
+          reflectionRecordId: null,
+        });
+      }
+      await writeAwarenessHistory(this.awarenessHistoryStorage, next);
+      return experience;
+    });
   }
 
   /** Respond to one transient Observation. Only free text may reach Core. */
@@ -192,7 +244,28 @@ export class MobileRuntime {
         now: input.now ?? new Date(),
       },
       this.candidates,
-    );
+    ).then(async (result) => {
+      const current = await this.awarenessHistory();
+      // Only terminal outcomes update durable history. A validation error
+      // (`reflection_required`) or a transient failure (`unavailable`) must
+      // leave the item pending, and a rejection must not retain text the user
+      // typed before switching to `not_my_experience`.
+      if (result.status !== 'discovery' && result.status !== 'discarded') {
+        return result;
+      }
+      const next = updateAwarenessHistoryItem(current, input.candidateId, {
+        status: result.status === 'discarded' ? 'dismissed' : 'responded',
+        updatedAt: new Date().toISOString(),
+        meaning: input.meaning,
+        reflectionText:
+          result.status === 'discovery' ? input.reflectionText ?? null : null,
+        targetRef: result.status === 'discovery' ? result.targetRef : null,
+        reflectionRecordId:
+          result.status === 'discovery' ? result.reflectionRecordId ?? null : null,
+      });
+      await writeAwarenessHistory(this.awarenessHistoryStorage, next);
+      return result;
+    });
   }
 
   /** Understanding: persisted Reflections attached to a relation target. */

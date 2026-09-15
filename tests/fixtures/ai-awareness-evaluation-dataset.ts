@@ -275,10 +275,12 @@ export const providerPayloadFor = (
 
   switch (variant.kind) {
     case 'empty':
-      return { suggestions: [] };
+      return { status: 'NO_OBSERVATION', language: 'zh-CN', suggestions: [] };
     case 'safe_observation':
     case 'changed_observation':
       return {
+        status: 'SURFACE',
+        language: 'zh-CN',
         suggestions: [{
           ...suggestion,
           comparisonAxis: {
@@ -290,6 +292,8 @@ export const providerPayloadFor = (
       };
     case 'adversarial_drift':
       return {
+        status: 'SURFACE',
+        language: 'zh-CN',
         suggestions: [{
           ...suggestion,
           comparisonAxis: {
@@ -302,14 +306,28 @@ export const providerPayloadFor = (
       };
     case 'malformed':
       if (variant.flavor === 'unknown_reference') {
-        return { suggestions: [{ ...suggestion, recordRefs: [...refs, 'rec_not_selected'] }] };
+        return {
+          status: 'SURFACE',
+          language: 'zh-CN',
+          suggestions: [{ ...suggestion, recordRefs: [...refs, 'rec_not_selected'] }],
+        };
       }
       if (variant.flavor === 'duplicate_reference') {
-        return { suggestions: [{ ...suggestion, recordRefs: [refs[0], refs[0]] }] };
+        return {
+          status: 'SURFACE',
+          language: 'zh-CN',
+          suggestions: [{ ...suggestion, recordRefs: [refs[0], refs[0]] }],
+        };
       }
-      return { suggestions: [{ ...suggestion, comparisonAxis: null }] };
+      return {
+        status: 'SURFACE',
+        language: 'zh-CN',
+        suggestions: [{ ...suggestion, comparisonAxis: null }],
+      };
     case 'multiple_observations':
       return {
+        status: 'SURFACE',
+        language: 'zh-CN',
         suggestions: [
           suggestion,
           {

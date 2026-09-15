@@ -37,6 +37,8 @@ const fakeOpenAI = () => {
     let content: unknown;
     if (system.startsWith('You suggest tentative')) {
       content = {
+        status: 'SURFACE',
+        language: 'zh-CN',
         suggestions: [
           {
             recordRefs: user.selectedRecords?.map((record) => record.recordId) ?? [],
@@ -92,6 +94,28 @@ const fakeOpenAI = () => {
 };
 
 describe('Desktop Runtime Spike', () => {
+  it('returns no observation for a weak relation without surfacing a card', async () => {
+    const appDataDir = mkdtempSync(join(tmpdir(), 'jianyuan-desktop-no-observation-'));
+    directories.push(appDataDir);
+    const runtime = new DesktopRuntime({ appDataDir });
+    expect((await runtime.capture('第一条弱联系测试记录。')).ok).toBe(true);
+    expect((await runtime.capture('第二条弱联系测试记录。')).ok).toBe(true);
+    const records = await runtime.listRecords();
+    const noObservation = vi.spyOn(runtime.composition.ai, 'suggestRelations').mockResolvedValue({
+      ok: true,
+      value: { status: 'NO_OBSERVATION', language: 'zh-CN', suggestions: [] },
+    });
+
+    await expect(runtime.suggestRelations(records.map((record) => record.id))).resolves.toEqual([]);
+    expect(runtime.listAIInsightAudit()).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ outcome: 'no_observation' }),
+      ]),
+    );
+    noObservation.mockRestore();
+    runtime.close();
+  });
+
   it('reuses Provider V1 discovery/cache and persists the Core graph across restart', async () => {
     const appDataDir = mkdtempSync(join(tmpdir(), 'jianyuan-desktop-spike-'));
     directories.push(appDataDir);
@@ -210,7 +234,10 @@ describe('Desktop Runtime Spike', () => {
     const records = await runtime.listRecords();
     const unsafe = vi.spyOn(runtime.composition.ai, 'suggestRelations').mockResolvedValue({
       ok: true,
-      value: [{
+      value: {
+        status: 'SURFACE',
+        language: 'zh-CN',
+        suggestions: [{
         kind: 'relation_candidate',
         recordRefs: records.map((record) => record.id),
         comparisonAxis: {
@@ -220,7 +247,8 @@ describe('Desktop Runtime Spike', () => {
         relationType: 'possible_action_sequence',
         evidenceSummary: '你本质上是一个追求完美的人。',
         assertsTemporalOrdering: false,
-      }],
+        }],
+      },
     });
 
     await expect(runtime.suggestRelations(records.map((record) => record.id)))
