@@ -12,6 +12,9 @@ use std::{
 #[cfg(target_os = "windows")]
 use std::collections::HashMap;
 
+#[cfg(target_os = "windows")]
+use std::os::windows::process::CommandExt;
+
 use serde::Serialize;
 use tauri::{Manager, Runtime};
 use uuid::Uuid;
@@ -483,6 +486,14 @@ fn start_runtime<R: Runtime>(app: &tauri::App<R>) -> Result<(), String> {
         .stdin(Stdio::piped())
         .stdout(Stdio::null())
         .stderr(Stdio::piped());
+
+    // The bundled Node sidecar must never create a visible console. Pipe and
+    // Stdio handles continue to work normally; only window creation changes.
+    #[cfg(target_os = "windows")]
+    {
+        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+        command.creation_flags(CREATE_NO_WINDOW);
+    }
     if let Some(phase) = validation_phase {
         command
             .env("JIANYUAN_NATIVE_VALIDATION", "1")

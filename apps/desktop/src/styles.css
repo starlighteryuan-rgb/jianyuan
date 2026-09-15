@@ -225,6 +225,14 @@ section {
   background: transparent;
 }
 
+main[data-active-space] > [data-space] { display: none; }
+
+main[data-active-space="records"] > [data-space="records"],
+main[data-active-space="awareness"] > [data-space="awareness"],
+main[data-active-space="reflection"] > [data-space="reflection"],
+main[data-active-space="exploration"] > [data-space="exploration"],
+main[data-active-space="settings"] > [data-space="settings"] { display: block; }
+
 section > h2 {
   display: flex;
   align-items: baseline;
