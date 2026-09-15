@@ -23,6 +23,10 @@ export default async function AwarenessStreamPage() {
           见渊保存你愿意留下的原话，帮助你在长期记录中发现可能值得重访的线索。系统只提出可能性，意义始终由你决定。
         </p>
       </header>
+      <section className="home-download" aria-labelledby="download-title">
+        <div className="section-heading"><div><span className="stage-label">Windows Desktop</span><h2 id="download-title">下载见渊桌面版</h2></div><a className="action-link" href="https://github.com/starlighteryuan-rgb/jianyuan/releases/download/v0.2.0-alpha/%E8%A7%81%E6%B8%8A_0.2.0-alpha_x64-setup.exe" download>下载安装包 <span aria-hidden="true">↓</span></a></div>
+        <div className="notice home-empty-state"><p>Local-first · Alpha · SQLite currently NOT encrypted at rest</p></div>
+      </section>
       <section className="home-capture" aria-labelledby="capture-title">
         <div className="panel-heading"><span>记录</span><h2 id="capture-title">记录此刻想留下的一句话</h2></div>
         <CaptureForm />
@@ -49,3 +53,4 @@ export default async function AwarenessStreamPage() {
     </main>
   );
 }
+
