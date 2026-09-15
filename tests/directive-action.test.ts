@@ -7,11 +7,11 @@ const { create, revoke, directSave, revalidatePath } = vi.hoisted(() => ({
   revalidatePath: vi.fn(),
 }));
 
-vi.mock('@/server/container', () => ({
-  getServices: () => ({
+vi.mock('@/server/capture-composition-root', () => ({
+  getCoreComposition: async () => ({
     directives: { create, revoke },
-    // If the Action reaches through the Application boundary, the test fails.
-    repositories: { directives: { save: directSave } },
+    // If the Action reaches through the storage adapter, the test fails.
+    storage: { directives: { save: directSave } },
   }),
 }));
 
@@ -65,6 +65,26 @@ describe('Directive Action Application boundary', () => {
     expect(create).toHaveBeenCalledOnce();
     expect(directSave).not.toHaveBeenCalled();
     expect(revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it('passes only an explicit user-entered scope to Core', async () => {
+    const form = new FormData();
+    form.set('allowAnalysis', 'on');
+    form.set('appliesToFutureSimilar', 'on');
+    form.set('scopeKind', 'topic_tag');
+    form.set('scopeValue', '  sleep  ');
+
+    await createDirective(form);
+
+    expect(create).toHaveBeenCalledWith({
+      allowStorage: false,
+      allowAnalysis: true,
+      allowPassivePresentation: false,
+      allowProactivePresentation: false,
+      appliesToFutureSimilar: true,
+      scope: { kind: 'topic_tag', value: 'sleep' },
+      now: expect.any(Date),
+    });
   });
 
   it('routes revocation through DirectiveService', async () => {

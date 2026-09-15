@@ -1,0 +1,23 @@
+[package]
+name = "jianyuan-desktop"
+version = "0.2.0-alpha"
+description = "Jianyuan desktop runtime spike"
+authors = ["Jianyuan"]
+edition = "2021"
+rust-version = "1.88"
+
+[lib]
+name = "jianyuan_desktop_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+keyring = "4.2"
+keyring-core = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tauri = { version = "2.11.5", features = [] }
+uuid = { version = "1", features = ["v4"] }
+

@@ -1,0 +1,35 @@
+{
+  "name": "@jianyuan/desktop",
+  "version": "0.2.0-alpha",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tauri dev",
+    "dev:renderer": "npm run build:runtime && vite --host 127.0.0.1",
+    "build": "npm run prepare:node-runtime && npm run build:renderer && npm run build:runtime",
+    "build:renderer": "vite build",
+    "build:runtime": "esbuild runtime/server.ts --bundle --platform=node --target=node24 --format=esm --outfile=runtime-dist/server.mjs",
+    "prepare:node-runtime": "node scripts/prepare-node-runtime.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "tauri": "tauri"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "2.11.1",
+    "react": "19.2.0",
+    "react-dom": "19.2.0"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "2.11.4",
+    "@types/node": "22.20.2",
+    "@types/react": "19.2.18",
+    "@types/react-dom": "19.2.7",
+    "@vitejs/plugin-react": "6.1.1",
+    "esbuild": "0.28.2",
+    "tsx": "4.23.13",
+    "typescript": "5.9.3",
+    "vite": "8.3.0",
+    "vitest": "3.2.7"
+  }
+}
+

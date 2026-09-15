@@ -21,14 +21,37 @@
 
 import { revalidatePath } from 'next/cache';
 
-import { directiveId } from '@/domain/shared/ids';
-import { getServices } from '@/server/container';
+import {
+  DIRECTIVE_SCOPE_KINDS,
+  directiveId,
+  type DirectiveScope,
+} from '../../../packages/core/index';
+import { getCoreComposition } from '@/server/capture-composition-root';
 
 const isChecked = (form: FormData, field: string): boolean =>
   form.get(field) === 'on';
 
+const explicitScope = (form: FormData): DirectiveScope | null => {
+  const kind = form.get('scopeKind');
+  const value = form.get('scopeValue');
+  if (
+    typeof kind !== 'string' ||
+    !DIRECTIVE_SCOPE_KINDS.includes(
+      kind as (typeof DIRECTIVE_SCOPE_KINDS)[number],
+    ) ||
+    typeof value !== 'string' ||
+    value.trim().length === 0
+  ) {
+    return null;
+  }
+  return {
+    kind: kind as (typeof DIRECTIVE_SCOPE_KINDS)[number],
+    value: value.trim(),
+  };
+};
+
 export async function createDirective(form: FormData): Promise<void> {
-  const services = getServices();
+  const services = await getCoreComposition();
 
   const result = await services.directives.create({
     // Four independent reads. Never `allowAnalysis: storage && ...`.
@@ -37,10 +60,9 @@ export async function createDirective(form: FormData): Promise<void> {
     allowPassivePresentation: isChecked(form, 'allowPassivePresentation'),
     allowProactivePresentation: isChecked(form, 'allowProactivePresentation'),
     appliesToFutureSimilar: isChecked(form, 'appliesToFutureSimilar'),
-    // Scope stays null here: §13 forbids inferring what "similar" means, and a
-    // scoped directive needs explicit user-selected attributes rather than a
-    // guess made in a form handler.
-    scope: null,
+    // Scope is accepted only when the user names both its kind and value.
+    // Nothing in this action infers what "similar" means.
+    scope: explicitScope(form),
     now: new Date(),
   });
 
@@ -58,7 +80,10 @@ export async function revokeDirective(form: FormData): Promise<void> {
 
   // Revocation is a timestamp, not a delete: §42 wants the state to explain
   // itself, and a vanished directive cannot explain why it stopped applying.
-  await getServices().directives.revoke(directiveId(id), new Date());
+  await (await getCoreComposition()).directives.revoke(
+    directiveId(id),
+    new Date(),
+  );
 
   revalidatePath('/settings');
   revalidatePath('/');

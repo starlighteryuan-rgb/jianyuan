@@ -37,41 +37,82 @@
  */
 
 import { revalidatePath } from 'next/cache';
+import { redirect } from 'next/navigation';
 
-import type { ReflectionEpisode } from '@/domain/reflection/reflection-episode';
-import type { ReflectionFeedback } from '@/domain/reflection/response-routing';
 import {
   REFLECTION_RESPONSES,
+  type ReflectionFeedback,
   type ReflectionResponse,
-} from '@/domain/shared/enums';
-import { reflectionEpisodeId } from '@/domain/shared/ids';
-import { CryptoIdGenerator } from '@/infra/ids/crypto-id-generator';
-import { getServices } from '@/server/container';
-
-const ids = new CryptoIdGenerator();
-
-/** Explicit-only directive scope. Nothing is inferred (§13). */
-const NO_SCOPE = {
-  topicTags: [] as readonly string[],
-  source: null,
-  relationAxes: [] as readonly string[],
-  userSelectedRefs: [] as readonly string[],
-};
-
-const openEpisode = (targetRef: string, now: Date): ReflectionEpisode => ({
-  id: reflectionEpisodeId(ids.nextReflectionEpisodeId()),
-  // The system showed the claim; the user is replying to it (§22).
-  elicitationMode: 'prompted',
-  stimulusType: 'evidence_relation',
-  systemFollowupCount: 0,
-  stimulusRef: targetRef,
-  targetRef,
-  occurredAt: now,
-});
+} from '../../../packages/core/index';
+import { getCoreComposition } from '@/server/capture-composition-root';
+import type { ReflectionSubmitCode } from './reflection-submit-code';
 
 const isResponse = (value: unknown): value is ReflectionResponse =>
   typeof value === 'string' &&
   (REFLECTION_RESPONSES as readonly string[]).includes(value);
+
+/**
+ * What one of the three forms actually did.
+ *
+ * Deliberately carries NO reflection text. The user's words live in one
+ * persisted place, and the page re-reads them through Core; echoing them
+ * back through the action would create a second copy that could drift from
+ * what was stored. What reaches the browser is only a status code: the page
+ * turns it into one sentence, then reads the real content back from Core.
+ */
+/**
+ * End one submission by sending the browser back to the same Discovery with
+ * an outcome code.
+ *
+ * Same mechanism Settings already uses for Restore: the page owns the wording
+ * and re-reads stored content through Core, so the action never becomes a
+ * second source of the user's text. Call it outside any try/catch, because
+ * `redirect` signals by throwing.
+ *
+ * A function declaration rather than a `const` arrow: only the declaration
+ * form lets TypeScript see that a `never` return ends the branch, which is
+ * what narrows `response` and `freeText` after the guards below.
+ */
+function finishSubmit(
+  targetRef: string,
+  code: ReflectionSubmitCode,
+): never {
+  const path = `/reflect/${encodeURIComponent(targetRef)}`;
+
+  revalidatePath(path);
+  revalidatePath('/reflection');
+  revalidatePath('/');
+
+  redirect(`${path}?submitted=${code}`);
+}
+
+/**
+ * Run one response through the Core Reflection flow and classify the outcome.
+ *
+ * `respondToRelation` throws when the user's text could not be captured, and
+ * returns null when the Discovery no longer exists. Neither may be presented
+ * as success: a storage failure that looks like a save is how a user loses
+ * words they already wrote.
+ */
+const respond = async (
+  targetRef: string,
+  feedback: ReflectionFeedback,
+  now: Date,
+): Promise<
+  | { readonly ok: true; readonly recordId: string | null }
+  | { readonly ok: false; readonly code: 'target-missing' | 'unavailable' }
+> => {
+  try {
+    const result = await (
+      await getCoreComposition()
+    ).reflectionFlow.respondToRelation({ targetRef, feedback, now });
+
+    if (result === null) return { ok: false, code: 'target-missing' };
+    return { ok: true, recordId: result.recordId };
+  } catch {
+    return { ok: false, code: 'unavailable' };
+  }
+};
 
 /**
  * The user took a position by clicking (§21).
@@ -83,9 +124,12 @@ export async function submitPosition(form: FormData): Promise<void> {
   const response = form.get('response');
 
   if (typeof targetRef !== 'string' || targetRef.length === 0) return;
+
   // Validated against the domain's own set, never cast — a form field is
-  // untrusted input.
-  if (!isResponse(response)) return;
+  // untrusted input. An unrecognised value is refused rather than recorded as
+  // a position the domain does not have, and said out loud instead of silently
+  // doing nothing.
+  if (!isResponse(response)) finishSubmit(targetRef, 'rejected');
 
   const now = new Date();
 
@@ -97,17 +141,13 @@ export async function submitPosition(form: FormData): Promise<void> {
     userInitiatedContinuation: false,
   };
 
-  await getServices().reflection.respond({
-    episode: openEpisode(targetRef, now),
-    feedback,
-    subject: NO_SCOPE,
-    targetType: 'relation_claim',
-    targetRef,
-    now,
-  });
+  const result = await respond(targetRef, feedback, now);
 
-  revalidatePath(`/reflect/${encodeURIComponent(targetRef)}`);
-  revalidatePath('/');
+  if (!result.ok) finishSubmit(targetRef, result.code);
+
+  // A click creates no Record (§21), so the honest outcome is a remembered
+  // position, never a saved reflection.
+  finishSubmit(targetRef, 'position-recorded');
 }
 
 /**
@@ -130,17 +170,12 @@ export async function submitLeaveForNow(form: FormData): Promise<void> {
     userInitiatedContinuation: false,
   };
 
-  await getServices().reflection.respond({
-    episode: openEpisode(targetRef, now),
-    feedback,
-    subject: NO_SCOPE,
-    targetType: 'relation_claim',
-    targetRef,
-    now,
-  });
+  const result = await respond(targetRef, feedback, now);
 
-  revalidatePath(`/reflect/${encodeURIComponent(targetRef)}`);
-  revalidatePath('/');
+  if (!result.ok) finishSubmit(targetRef, result.code);
+
+  // Deferral carries no position and creates no Record (§21).
+  finishSubmit(targetRef, 'left-for-now');
 }
 
 /**
@@ -154,7 +189,12 @@ export async function submitProse(form: FormData): Promise<void> {
   const freeText = form.get('freeText');
 
   if (typeof targetRef !== 'string' || targetRef.length === 0) return;
-  if (typeof freeText !== 'string' || freeText.trim().length === 0) return;
+
+  // Whitespace decides whether anything was written; the stored value keeps
+  // the user's exact wording either way.
+  if (typeof freeText !== 'string' || freeText.trim().length === 0) {
+    finishSubmit(targetRef, 'not-stored');
+  }
 
   const now = new Date();
 
@@ -167,15 +207,14 @@ export async function submitProse(form: FormData): Promise<void> {
     userInitiatedContinuation: false,
   };
 
-  await getServices().reflection.respond({
-    episode: openEpisode(targetRef, now),
-    feedback,
-    subject: NO_SCOPE,
-    targetType: 'relation_claim',
-    targetRef,
-    now,
-  });
+  const result = await respond(targetRef, feedback, now);
 
-  revalidatePath(`/reflect/${encodeURIComponent(targetRef)}`);
-  revalidatePath('/');
+  if (!result.ok) finishSubmit(targetRef, result.code);
+
+  // Free text is the only input that can become a Record (§21). If Core says
+  // none was created, that is reported as not stored rather than as a save.
+  finishSubmit(
+    targetRef,
+    result.recordId === null ? 'not-stored' : 'reflection-saved',
+  );
 }

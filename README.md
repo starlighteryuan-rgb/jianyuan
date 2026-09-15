@@ -1,56 +1,58 @@
-# 见渊（Personal Awareness）
+# 见渊
+Personal Awareness
 
-见渊是一条从用户自己的话出发，经过可能线索与外部视角，最后把解释权交还给用户的个人觉察体验。
+“AI 提出可能性，你决定它对你意味着什么。”
 
-## 产品概念
+记录 → 觉察 → 理解 → 探索
 
-“见”代表看见、注意到与重新回望；“渊”代表经验中可能存在、却尚未被注意到的更深层次。
+见渊把你的经历放回你自己手中：你写下原话，AI 只提出临时观察，你的回应和解释成为长期记录。它不替你定义“你是谁”，也不把模式包装成结论。
 
-见渊不替用户判断“你是什么样的人”，也不把可能性包装成结论。它把用户愿意留下的表达、记录之间可能值得回看的线索、外部参考和个人回应放在清晰分开的环节中，让用户保留最终解释权。
+## 产品状态
 
-## 核心流程
+- **Early Preview / Alpha**
+- 本产品仍在早期开发阶段，功能和界面会继续调整。
+- **Local-first**：数据保存在本机。
+- **Windows Desktop**：当前提供 Windows 安装包。
+- **AI Provider configuration**：AI 可选，由你自行配置。
+- **SQLite currently NOT encrypted at rest**：当前数据库未加密。
+- **Cloud Sync 未完成**。
+- **Mobile 未完成**。
+
+## 核心语义
 
 ```text
-Capture → Awareness → References → Reflection
+Record → AI Observation（临时）→ User Reflection → Core Gate → Relation / Evidence
 ```
 
-- **Capture**：从用户自己的话开始，记录一段愿意之后重看的表达。
-- **Awareness**：展示演示记录之间可能值得回看的观察或待检验解释，不做人格判断。
-- **References**：引入知乎等外部内容作为背景与视角；外部参考不会成为用户身份或个人结论。
-- **Reflection**：由用户回应这条线索。当前演示中的回应只保留在页面/浏览器会话内，不上传、不写入数据库。
+- AI 是观察者，不是解释者。
+- 只有你的自由文字会进入 Core Gate。
+- 你拒绝的观察不会成为长期联系或证据。
+- AI 观察始终标记为临时。
 
-## 架构概览
+## 安装
 
-项目按领域、应用、基础设施和展示层分层组织：
+1. 下载 `见渊_0.2.0-alpha_x64-setup.exe`。
+2. 双击安装，按提示完成。
+3. 启动见渊。
 
-- 领域层负责 Evidence、Relation、Hypothesis、Discovery、Reflection 等核心语义边界。
-- 应用层编排捕获、发现、外部参考和反思流程。
-- 基础设施层提供持久化边界与外部参考适配；知乎内容作为 External Reference 与个人材料隔离。
-- Presentation Layer 使用 Next.js/React 展示竞赛 Demo，并提供 Capture、Awareness、References、Reflection 路由。
+不需要 Node、Rust 或终端。
 
-## 技术栈
+## AI 服务
 
-- Next.js 15
-- React 19
-- TypeScript
-- Vitest
-- Prisma 7
-- Cloudflare Pages（部署目标）
+AI 默认关闭。你可以在设置中自行配置 OpenAI-compatible 服务：
 
-## 当前 Demo 状态
+- Base URL
+- API Key（只写入系统凭据存储）
+- 模型标识
 
-当前网页是用于竞赛展示的完整引导式 Demo，使用确定性的竞赛 fixtures 来展示产品结构。它包含 Awareness、Discovery、知乎 External Reference、刘看山展示角色，以及 Reflection 回应交互。
+如果你不启用 AI，记录功能仍然完整可用。
 
-当前版本的边界：
+## 数据与隐私
 
-- 当前 Demo 使用竞赛演示数据，不代表真实用户分析。
-- 尚未接入 AI 推理，也不需要 AI API key。
-- 不提供账户、登录或个人数据采集；当前 Capture 与 Reflection 内容只保留在页面/浏览器会话中。
-- 外部参考只提供背景、知识与观点，不会自动转化为个人结论。
-
-## 在线演示
-
-[Cloudflare Pages Demo](https://425f83c5.personal-awareness-demo.pages.dev/)
+- 数据保存在本机 SQLite 数据库。
+- 当前版本数据库未加密（`NOT encrypted at rest`）。
+- 导出内容是明文 JSON，不代表加密备份。
+- 不会上传你的记录或自动生成画像。
 
 ## 本地开发
 
@@ -59,16 +61,23 @@ npm install
 npm run dev
 ```
 
-开发服务器默认运行在 `http://localhost:3000`。
-
-## 验证命令
+桌面开发：
 
 ```bash
-npm run typecheck
-npm test
+cd apps/desktop
+npm run dev
+```
+
+## 构建
+
+```bash
+npm install
 npm run build
 ```
 
-## 项目定位
+桌面原生构建：
 
-见渊当前是一个保持不确定性、强调用户控制和个人反思的竞赛 Demo。系统可以提出值得回看的可能线索，但意义与最终判断始终由用户自己决定。
+```bash
+cd apps/desktop
+npm run build
+```

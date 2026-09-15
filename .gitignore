@@ -11,6 +11,7 @@ generated/prisma/
 
 tsconfig.tsbuildinfo
 next-env.d.ts
+.jianyuan/
 
 # Local tools, deployment state, and caches
 .codex/
@@ -18,6 +19,9 @@ next-env.d.ts
 .wrangler/
 .wrangler-*/
 .npm-cache-*/
+.cargo-home-desktop/
+apps/desktop/runtime-dist/
+apps/desktop/src-tauri/target/
 *.log
 
 # Operating-system and local credential files
@@ -26,3 +30,7 @@ next-env.d.ts
 *.key
 *.p12
 *.pfx
+apps/desktop/scripts/probe-out/
+
+apps/desktop/src-tauri/gen/
+.hallmark/

@@ -1,0 +1,14 @@
+{
+  "name": "@jianyuan/provider-ai",
+  "version": "0.2.0-alpha",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "scripts": {
+    "check": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run --config vitest.config.ts"
+  }
+}
+
