@@ -1,0 +1,275 @@
+name: iOS Unsigned Build
+
+# 产出：未签名的 iOS .ipa 与 .app.zip。
+#
+# 为什么用 GitHub Actions：
+#   iOS 二进制只能在 macOS 上编译。本项目在 Windows 上开发，本地
+#   `expo prebuild --platform ios` 会被 Expo 直接跳过（已实测），
+#   因此真实的 iphoneos 构建只能在 macOS runner 上完成。
+#
+# 为什么不需要证书 / 账号 / Team：
+#   xcodebuild 用 CODE_SIGNING_ALLOWED=NO 关闭签名，只做编译与链接。
+#   产物是未签名的 .app，手工包成 Payload/Jianyuan.app 再压缩为 .ipa。
+#   这种 ipa 不能直接装到普通 iPhone 上（系统要求签名），
+#   它的用途是：验证真实原生工程可编译、可归档、体积与结构可审计。
+#
+# 本工作流不使用任何 secret，也不读取任何密钥。
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-unsigned-ipa:
+    name: Build unsigned iphoneos IPA
+    runs-on: macos-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          # Node 24 is the version used for local verification of the
+          # mobile tests, which import node:sqlite.
+          node-version: '24'
+
+      - name: Report toolchain versions
+        run: |
+          node --version
+          npm --version
+          xcodebuild -version
+          sw_vers
+
+      - name: Install mobile dependencies
+        working-directory: apps/mobile
+        run: npm ci
+
+      - name: Typecheck mobile
+        working-directory: apps/mobile
+        run: npm run typecheck
+
+      - name: Run mobile tests
+        working-directory: apps/mobile
+        run: npm test
+
+      - name: Generate the native iOS project
+        working-directory: apps/mobile
+        run: npx expo prebuild --platform ios --clean --no-install
+
+      - name: Install CocoaPods dependencies
+        working-directory: apps/mobile/ios
+        run: pod install
+
+      - name: Record the resolved native configuration
+        working-directory: apps/mobile/ios
+        run: |
+          echo '--- workspace / project ---'
+          ls -1
+          echo '--- schemes ---'
+          xcodebuild -workspace *.xcworkspace -list
+          echo '--- app Info.plist files ---'
+          # 不硬编码工程名：应用名是中文，Expo 会把非 ASCII 字符剔除，
+          # 工程名会退化成 'app'，所以这里只枚举真实存在的 Info.plist。
+          find . -name Info.plist -not -path '*/Pods/*' -print
+          echo '--- bundle identifier(s) ---'
+          for plist in $(find . -name Info.plist -not -path '*/Pods/*'); do
+            echo "$plist: $(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$plist" 2>/dev/null || echo '(none)') (display: $(/usr/libexec/PlistBuddy -c 'Print :CFBundleDisplayName' "$plist" 2>/dev/null || echo '(none)'))"
+          done
+          echo '--- entitlements files ---'
+          find . -name '*.entitlements' -print || true
+
+      - name: Build for iphoneos Release with signing disabled
+        working-directory: apps/mobile/ios
+        run: |
+          set -o pipefail
+          WORKSPACE="$(ls -d *.xcworkspace | head -1)"
+          # `xcodebuild -list -json` can print toolchain warnings before the
+          # JSON object. Slice from the first '{' so parsing does not depend on
+          # an empty stdout prefix.
+          SCHEME="$(xcodebuild -workspace "$WORKSPACE" -list -json \
+            | node -e "let d='';process.stdin.on('data',c=>d+=c).on('end',()=>{const start=d.indexOf('{');if(start<0)throw new Error('xcodebuild -list produced no JSON');const j=JSON.parse(d.slice(start));const s=(j.workspace&&j.workspace.schemes)||(j.project&&j.project.schemes)||[];if(!s.length)throw new Error('xcodebuild -list found no schemes');console.log(s[0]);})")"
+          echo "workspace=$WORKSPACE scheme=$SCHEME"
+
+          # 全部签名相关开关都关掉。CODE_SIGNING_ALLOWED=NO 是关键：
+          # 它让 xcodebuild 完全不尝试签名，因此不需要证书、profile 或 Team。
+          # 不使用 xcbeautify，避免依赖 runner 上未预装的第三方工具。
+          xcodebuild \
+            -workspace "$WORKSPACE" \
+            -scheme "$SCHEME" \
+            -configuration Release \
+            -sdk iphoneos \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            EXPANDED_CODE_SIGN_IDENTITY=""
+
+      - name: Locate the built app bundle
+        id: locate
+        working-directory: apps/mobile/ios
+        run: |
+          APP_PATH="$(find build/Build/Products/Release-iphoneos -maxdepth 1 -name '*.app' | head -1)"
+          if [ -z "$APP_PATH" ]; then
+            echo 'No .app produced in Release-iphoneos'
+            find build/Build/Products -maxdepth 3 -name '*.app' || true
+            exit 1
+          fi
+          echo "app=$APP_PATH"
+          echo "app_path=$APP_PATH" >> "$GITHUB_OUTPUT"
+
+      - name: Audit entitlements and signature state
+        working-directory: apps/mobile/ios
+        run: |
+          APP='${{ steps.locate.outputs.app_path }}'
+          echo "APP BUNDLE: $APP"
+
+          echo '--- bundle contents (top level) ---'
+          ls -1 "$APP"
+
+          echo '--- embedded.mobileprovision ---'
+          if [ -e "$APP/embedded.mobileprovision" ]; then
+            echo 'EMBEDDED MOBILEPROVISION: PRESENT'
+          else
+            echo 'EMBEDDED MOBILEPROVISION: ABSENT'
+          fi
+
+          echo '--- code signature ---'
+          if [ -d "$APP/_CodeSignature" ]; then
+            echo 'CODE SIGNATURE DIRECTORY: PRESENT'
+          else
+            echo 'CODE SIGNATURE DIRECTORY: ABSENT'
+          fi
+
+          echo '--- codesign verification ---'
+          codesign -dv --verbose=4 "$APP" 2>&1 || echo 'codesign: no signature (expected)'
+
+          echo '--- nested bundles ---'
+          find "$APP" -name '*.framework' -o -name '*.appex' -o -name '*.dylib' | sort || true
+
+          echo '--- entitlements actually present ---'
+          for f in $(find "$APP" -name '*.entitlements'); do
+            echo "ENTITLEMENTS FILE: $f"
+            plutil -p "$f"
+          done
+
+      - name: Strip nested signatures and package the unsigned IPA
+        working-directory: apps/mobile/ios
+        run: |
+          set -eu
+          APP='${{ steps.locate.outputs.app_path }}'
+          STAGE="$RUNNER_TEMP/ipa-stage"
+          rm -rf "$STAGE"
+          mkdir -p "$STAGE/Payload"
+          cp -R "$APP" "$STAGE/Payload/Jianyuan.app"
+
+          # 去掉嵌套签名残留，保证产物是“完全未签名”的。
+          find "$STAGE/Payload/Jianyuan.app" -name '_CodeSignature' -type d -prune -exec rm -rf {} + || true
+          find "$STAGE/Payload/Jianyuan.app" -name 'CodeResources' -delete || true
+          find "$STAGE/Payload/Jianyuan.app" -name 'embedded.mobileprovision' -delete || true
+
+          cd "$STAGE"
+          zip -qry "$RUNNER_TEMP/Jianyuan-iOS-unsigned.ipa" Payload
+          cd "$RUNNER_TEMP"
+          ditto -c -k --sequesterRsrc --keepParent "$STAGE/Payload/Jianyuan.app" \
+            "$RUNNER_TEMP/Jianyuan-iOS-unsigned.app.zip"
+
+          ls -la "$RUNNER_TEMP"/*.ipa "$RUNNER_TEMP"/*.zip
+
+      - name: Verify the unsigned IPA
+        id: verify
+        run: |
+          set -eu
+          IPA="$RUNNER_TEMP/Jianyuan-iOS-unsigned.ipa"
+          rm -rf "$RUNNER_TEMP/verify"
+          mkdir -p "$RUNNER_TEMP/verify"
+          ditto -x -k "$IPA" "$RUNNER_TEMP/verify"
+
+          APP="$RUNNER_TEMP/verify/Payload/Jianyuan.app"
+          FAIL=0
+
+          if [ ! -d "$APP" ]; then
+            echo 'Payload/Jianyuan.app is missing'
+            exit 1
+          fi
+
+          if [ -e "$APP/embedded.mobileprovision" ]; then
+            echo 'EMBEDDED MOBILEPROVISION: PRESENT'
+            FAIL=1
+          else
+            echo 'EMBEDDED MOBILEPROVISION: ABSENT'
+          fi
+
+          if [ -d "$APP/_CodeSignature" ]; then
+            echo 'CODE SIGNATURE: PRESENT'
+            FAIL=1
+          else
+            echo 'CODE SIGNATURE: ABSENT'
+          fi
+
+          if codesign -dv "$APP" >/dev/null 2>&1; then
+            echo 'APPLE SIGNING IDENTITY: PRESENT'
+            FAIL=1
+          else
+            echo 'APPLE SIGNING IDENTITY: NONE'
+          fi
+
+          echo '--- main executable ---'
+          EXEC_NAME="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$APP/Info.plist")"
+          echo "CFBundleExecutable=$EXEC_NAME"
+          echo "CFBundleIdentifier=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP/Info.plist")"
+          file "$APP/$EXEC_NAME"
+
+          echo '--- nested signatures ---'
+          NESTED="$(find "$APP" -name '_CodeSignature' -o -name 'embedded.mobileprovision' | wc -l | tr -d ' ')"
+          echo "NESTED SIGNATURE ARTIFACTS: $NESTED"
+          if [ "$NESTED" != '0' ]; then FAIL=1; fi
+
+          CODE_RESOURCES="$(find "$APP" -name 'CodeResources' | wc -l | tr -d ' ')"
+          echo "CODE RESOURCES ARTIFACTS: $CODE_RESOURCES"
+          if [ "$CODE_RESOURCES" != '0' ]; then FAIL=1; fi
+
+          # A nested framework or dylib can carry a signature even when the main
+          # app bundle does not. Audit each nested Mach-O container explicitly.
+          NESTED_SIGNED=0
+          while IFS= read -r nested; do
+            [ -z "$nested" ] && continue
+            if codesign -dv "$nested" >/dev/null 2>&1; then
+              echo "NESTED SIGNED: $nested"
+              NESTED_SIGNED=1
+            else
+              echo "NESTED UNSIGNED: $nested"
+            fi
+          done < <(find "$APP" \( -name '*.framework' -o -name '*.appex' -o -name '*.dylib' \) -print)
+          if [ "$NESTED_SIGNED" != '0' ]; then FAIL=1; fi
+
+          if [ "$FAIL" != '0' ]; then
+            echo 'UNSIGNED IPA CHECK: FAIL'
+            exit 1
+          fi
+          echo 'UNSIGNED IPA CHECK: PASS'
+
+      - name: Record artifact hashes
+        run: |
+          cd "$RUNNER_TEMP"
+          shasum -a 256 Jianyuan-iOS-unsigned.ipa Jianyuan-iOS-unsigned.app.zip | tee SHA256SUMS.txt
+
+      - name: Upload unsigned IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: Jianyuan-iOS-unsigned-ipa
+          path: |
+            ${{ runner.temp }}/Jianyuan-iOS-unsigned.ipa
+            ${{ runner.temp }}/SHA256SUMS.txt
+          if-no-files-found: error
+
+      - name: Upload unsigned app bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: Jianyuan-iOS-unsigned-app
+          path: ${{ runner.temp }}/Jianyuan-iOS-unsigned.app.zip
+          if-no-files-found: error

@@ -1,0 +1,37 @@
+{
+  "expo": {
+    "name": "见渊",
+    "slug": "jianyuan-mobile",
+    "version": "0.2.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "backgroundColor": "#161512",
+    "primaryColor": "#d4a464",
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.jianyuan.personalawareness",
+      "buildNumber": "1",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "package": "com.jianyuan.personalawareness",
+      "adaptiveIcon": {
+        "backgroundColor": "#161512",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-sqlite",
+      "expo-secure-store"
+    ]
+  }
+}
