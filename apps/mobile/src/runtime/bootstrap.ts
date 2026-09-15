@@ -28,6 +28,8 @@ import { createMobileSecretStore } from './secret-store';
 import { MobileRuntime } from './mobile-runtime';
 import { openMobileSqlDriver, MOBILE_DATABASE_NAME } from '../storage/expo-sql-driver';
 import { createMobileStorage } from '../storage/mobile-sqlite-storage';
+import { MobileAIService } from './mobile-ai-service';
+import { createMobileAIConfigStorage } from './ai-config-storage';
 
 export interface MobileBootstrapResult {
   readonly runtime: MobileRuntime;
@@ -51,11 +53,19 @@ export const bootstrapMobileRuntime = async (
   const platform = createPlatformServices(() => Crypto.randomUUID());
   const secretStore = await createMobileSecretStore();
 
+  // AI is optional: a missing configuration or Keychain degrades to a disabled
+  // provider, which is a supported local-first mode.
+  const ai = await MobileAIService.create(
+    createMobileAIConfigStorage(),
+    secretStore,
+  );
+
   const composition = createMobileComposition({
     driver,
     storage,
     platform,
     secretStore,
+    ai,
   });
 
   return { runtime: new MobileRuntime(composition), composition };

@@ -14,10 +14,12 @@
  *   Mobile Provider   packages/providers/ai — AI behind the Core contract.
  *   Mobile SecretStore src/runtime/secret-store — credentials, Keychain only.
  *
- * AI BOUNDARY IN M1
- * The Provider is `DisabledAIProvider`. That is a supported product mode, not a
- * gap: saving a Record performs no AI call, so Record persistence works with no
- * key configured and no network. tests/record-does-not-call-ai.test.ts pins the
+ * AI BOUNDARY
+ * The Provider is `MobileAIService`, which wraps the shared
+ * `OpenAICompatibleProvider`. When no Base URL or API key is configured it
+ * exposes a `DisabledAIProvider`. That is a supported product mode, not a gap:
+ * saving a Record performs no AI call, so Record persistence works with no key
+ * configured and no network. tests/record-does-not-call-ai.test.ts pins the
  * invariant that capture never reaches the provider.
  */
 
@@ -35,8 +37,8 @@ import {
   resolveEffectivePermissions,
   type CoreStoragePorts,
 } from '../../../../packages/core/index';
-import { DisabledAIProvider } from '../../../../packages/providers/ai/index';
 
+import type { MobileAIService } from './mobile-ai-service';
 import { createPlatformServices, type MobilePlatformServices } from './platform-services';
 import type { MobileSecretStore } from './secret-store';
 import type { MobileSqliteStorageAdapter } from '../storage/mobile-sqlite-storage';
@@ -49,11 +51,13 @@ export interface MobileCompositionOptions {
   readonly storage: MobileSqliteStorageAdapter;
   readonly platform: MobilePlatformServices;
   readonly secretStore: MobileSecretStore;
+  /** Fully-constructed AI service; owns Provider selection and the key. */
+  readonly ai: MobileAIService;
 }
 
 export interface MobileComposition {
   readonly storage: MobileSqliteStorageAdapter;
-  readonly ai: DisabledAIProvider;
+  readonly ai: MobileAIService;
   readonly secretStore: MobileSecretStore;
   readonly ingestion: IngestionService;
   readonly records: RecordQueryService;
@@ -69,16 +73,15 @@ export interface MobileComposition {
  * Wire the Mobile runtime from already-constructed platform pieces.
  *
  * Pure construction: no I/O, no async, no platform import. Everything
- * device-specific (the driver, the UUID source, the Keychain) is created by the
- * caller and passed in, which is what makes this function runnable under Node
- * with a `node:sqlite` driver and a plain counter for ids.
+ * device-specific (the driver, the UUID source, the Keychain, the AI service)
+ * is created by the caller and passed in, which is what makes this function
+ * runnable under Node with a `node:sqlite` driver and a plain counter for ids.
  */
 export const createMobileComposition = (
   options: MobileCompositionOptions,
 ): MobileComposition => {
-  const { storage, platform, secretStore } = options;
+  const { storage, platform, secretStore, ai } = options;
   const ports: CoreStoragePorts = storage;
-  const ai = new DisabledAIProvider();
   const ids = platform.ids;
 
   const ingestion = new IngestionService({

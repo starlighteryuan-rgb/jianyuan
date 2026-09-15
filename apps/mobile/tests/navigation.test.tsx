@@ -173,6 +173,23 @@ describe('Mobile navigation isolation (M1-B)', () => {
     expect(testIds(tree)).not.toContain('space-records');
   });
 
+  it('renders the M2 settings surface with AI, data, and diagnostics entries', async () => {
+    const tree = renderShell(testRuntime!.runtime);
+    await flush();
+
+    await press(tree, 'settings-entry');
+    await flush();
+
+    const ids = testIds(tree);
+    expect(ids).toContain('ai-base-url');
+    expect(ids).toContain('ai-api-key');
+    expect(ids).toContain('ai-test');
+    expect(ids).toContain('directive-empty');
+    expect(ids).toContain('data-export');
+    expect(ids).toContain('data-restore');
+    expect(ids).toContain('setting-数据结构版本');
+  });
+
   it('keeps the tab bar present on every space', async () => {
     const tree = renderShell(testRuntime!.runtime);
     await flush();

@@ -20,11 +20,17 @@
  * time" or "an unscored claim is returned by no level query", this file does the
  * same thing, because those are Core's rules and Core is shared.
  *
+ * EXPORT / RESTORE
+ * `exportData` / `restoreData` emit and accept the same logical backup shape as
+ * the Desktop adapter (`jianyuan.sqlite.logical-export` v1): one JSON object
+ * holding every table's rows. That format is platform-independent, so a backup
+ * taken on one platform can be read on the other without a second definition
+ * of the data model. The physical statements differ (async expo-sqlite here,
+ * synchronous node:sqlite there); the semantics do not.
+ *
  * WHAT IS DELIBERATELY ABSENT
- * No export/restore, no native-validation artifact cleanup, no encryption
- * controller. Those are Desktop harness and Desktop at-rest concerns; M1 has no
- * requirement for them and adding them here would create a second definition of
- * Desktop-only behaviour.
+ * Native-validation artifact cleanup and the encryption controller. Those are
+ * Desktop harness and Desktop at-rest concerns.
  */
 
 import type {
@@ -56,6 +62,14 @@ import type { SqlDriver, SqlExecutor, SqlValue } from './sql-driver';
 
 type SqlRow = Record<string, SqlValue>;
 
+export interface MobileLogicalExportV1 {
+  readonly format: 'jianyuan.sqlite.logical-export';
+  readonly version: 1;
+  readonly schemaVersion: number;
+  readonly exportedAt: string;
+  readonly tables: Readonly<Record<DataTable, readonly SqlRow[]>>;
+}
+
 /**
  * Tables in the order Desktop declares them. Reversed for deletion so foreign
  * keys are respected (children before parents) with `foreign_keys = ON`.
@@ -76,6 +90,43 @@ const TABLES = [
   'reflection_episodes',
   'user_reflection_records',
 ] as const;
+
+type DataTable = (typeof TABLES)[number];
+
+const asRow = (value: unknown): SqlRow => value as SqlRow;
+
+/**
+ * Validate a serialized backup before touching the live database.
+ *
+ * Every check happens up front, so an incompatible or truncated file is
+ * rejected without clearing the user's existing data first.
+ */
+export const parseMobileLogicalExport = (
+  serialized: string,
+): MobileLogicalExportV1 => {
+  const parsed: unknown = JSON.parse(serialized);
+  if (parsed === null || typeof parsed !== 'object') {
+    throw new Error('Invalid Jianyuan SQLite export');
+  }
+
+  const candidate = parsed as Partial<MobileLogicalExportV1>;
+  if (
+    candidate.format !== 'jianyuan.sqlite.logical-export' ||
+    candidate.version !== 1 ||
+    candidate.schemaVersion !== MOBILE_SQLITE_SCHEMA_VERSION ||
+    candidate.tables === undefined
+  ) {
+    throw new Error('Unsupported Jianyuan SQLite export');
+  }
+
+  for (const table of TABLES) {
+    if (!Array.isArray(candidate.tables[table])) {
+      throw new Error(`SQLite export is missing table ${table}`);
+    }
+  }
+
+  return candidate as MobileLogicalExportV1;
+};
 
 /**
  * Records, newest first.
@@ -485,6 +536,56 @@ export class MobileSqliteStorageAdapter implements CoreStoragePorts {
   };
 
   /** Delete every stored entity. Used by tests and by an explicit user reset. */
+  /**
+   * Serialize every table into the shared logical backup format.
+   *
+   * Rows are read in insertion order so a restore reproduces the same
+   * `rowid`-dependent ordering the live database used.
+   */
+  async exportData(): Promise<string> {
+    this.assertOpen();
+    const tables = Object.fromEntries(
+      await Promise.all(
+        TABLES.map(async (table) => {
+          const rows = await this.driver.getAllAsync<SqlRow>(
+            `SELECT * FROM "${table}" ORDER BY rowid`,
+            [],
+          );
+          return [table, rows.map(asRow)] as const;
+        }),
+      ),
+    ) as unknown as Record<DataTable, readonly SqlRow[]>;
+
+    const exported: MobileLogicalExportV1 = {
+      format: 'jianyuan.sqlite.logical-export',
+      version: 1,
+      schemaVersion: MOBILE_SQLITE_SCHEMA_VERSION,
+      exportedAt: new Date().toISOString(),
+      tables,
+    };
+    return JSON.stringify(exported, null, 2);
+  }
+
+  /**
+   * Replace the database contents with a validated backup.
+   *
+   * The whole restore is one transaction: if any row is rejected the previous
+   * data is still intact, so a bad file cannot destroy existing Records.
+   */
+  async restoreData(serialized: string): Promise<void> {
+    this.assertOpen();
+    const restored = parseMobileLogicalExport(serialized);
+    await this.atomic(async (transaction) => {
+      for (const table of [...TABLES].reverse()) {
+        await transaction.execAsync(`DELETE FROM "${table}"`);
+      }
+      for (const table of TABLES) {
+        for (const row of restored.tables[table]) {
+          await this.insertExportRow(transaction, table, row);
+        }
+      }
+    });
+  }
   async clear(): Promise<void> {
     this.assertOpen();
     await this.atomic(async (transaction) => {
@@ -749,6 +850,41 @@ export class MobileSqliteStorageAdapter implements CoreStoragePorts {
         context.createdAt.toISOString(),
         encodeEntity(context),
       ],
+    );
+  }
+
+  /**
+   * Insert one exported row verbatim.
+   *
+   * Column names are read from the live schema and intersected with the
+   * exported row, so a hand-edited or future-version file cannot smuggle an
+   * arbitrary column into the INSERT. Missing columns are written as NULL
+   * rather than dropped, which is what keeps a backup round-trip lossless.
+   */
+  private async insertExportRow(
+    executor: SqlExecutor,
+    table: DataTable,
+    row: SqlRow,
+  ): Promise<void> {
+    const info = await executor.getAllAsync<SqlRow>(
+      `PRAGMA table_info("${table}")`,
+      [],
+    );
+    const allowedColumns = new Set(
+      info.map((entry) => requiredText(entry, 'name')),
+    );
+    const columns = Object.keys(row);
+    if (
+      columns.length === 0 ||
+      columns.some((column) => !allowedColumns.has(column))
+    ) {
+      throw new Error(`Invalid columns in SQLite export table ${table}`);
+    }
+    const placeholders = columns.map(() => '?').join(', ');
+    const quoted = columns.map((column) => `"${column}"`).join(', ');
+    await executor.runAsync(
+      `INSERT INTO "${table}" (${quoted}) VALUES (${placeholders})`,
+      columns.map((column) => row[column] ?? null),
     );
   }
 }

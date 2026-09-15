@@ -12,6 +12,23 @@ import { createPlatformServices } from '../../src/runtime/platform-services';
 import { UnavailableSecretStore, type MobileSecretStore } from '../../src/runtime/secret-store';
 import { createMobileStorage, type MobileSqliteStorageAdapter } from '../../src/storage/mobile-sqlite-storage';
 import { openNodeSqlDriver } from './node-sql-driver';
+import { MobileAIService } from '../../src/runtime/mobile-ai-service';
+import type { AIConfigStorage } from '../../src/runtime/ai-config-store';
+
+/**
+ * In-memory, per-runtime AI config store for tests. Kept separate from the
+ * production `expo-sqlite/kv-store` binding so the Node test graph never
+ * imports a native module.
+ */
+export const createTestAIConfigStorage = (): AIConfigStorage => {
+  const values = new Map<string, string>();
+  return {
+    getItemAsync: async (key) => values.get(key) ?? null,
+    setItemAsync: async (key, value) => {
+      values.set(key, value);
+    },
+  };
+};
 
 export interface MobileTestRuntime {
   readonly runtime: MobileRuntime;
@@ -31,6 +48,10 @@ export interface OpenMobileRuntimeOptions {
   readonly location: string;
   /** Inject a secret store double; defaults to the unavailable store. */
   readonly secretStore?: MobileSecretStore;
+  /** Optional AI config persistence; defaults to a fresh in-memory store. */
+  readonly aiConfigStorage?: AIConfigStorage;
+  /** Optional fetch double for Provider tests. */
+  readonly fetch?: typeof fetch;
 }
 
 export const openMobileTestRuntime = async (
@@ -38,11 +59,19 @@ export const openMobileTestRuntime = async (
 ): Promise<MobileTestRuntime> => {
   const driver = openNodeSqlDriver(options.location);
   const storage = await createMobileStorage(driver);
+  const secretStore =
+    options.secretStore ?? new UnavailableSecretStore('test default');
+  const ai = await MobileAIService.create(
+    options.aiConfigStorage ?? createTestAIConfigStorage(),
+    secretStore,
+    options.fetch ?? fetch,
+  );
   const composition = createMobileComposition({
     driver,
     storage,
     platform: createPlatformServices(counterUuids()),
     secretStore: options.secretStore ?? new UnavailableSecretStore('test default'),
+    ai,
   });
 
   return {

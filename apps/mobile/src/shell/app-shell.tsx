@@ -29,12 +29,13 @@ import {
   View,
 } from 'react-native';
 
-import { EmptySpace } from '../spaces/empty-space';
+import { AwarenessSpace } from '../spaces/awareness-space';
+import { ExplorationSpace } from '../spaces/exploration-space';
 import { RecordSpace } from '../spaces/record-space';
 import { SettingsSpace } from '../spaces/settings-space';
+import { UnderstandingSpace } from '../spaces/understanding-space';
 import {
   SETTINGS_SPACE,
-  SPACE_EMPTY_STATE,
   SPACE_LABELS,
   TAB_SPACES,
   type SpaceId,
@@ -53,39 +54,15 @@ const renderActiveSpace = (space: SpaceId) => {
     case 'records':
       return <RecordSpace />;
     case 'awareness':
-      return (
-        <EmptySpace
-          spaceId="awareness"
-          title={SPACE_LABELS.awareness}
-          description={SPACE_EMPTY_STATE.awareness}
-        />
-      );
+      return <AwarenessSpace />;
     case 'reflection':
-      return (
-        <EmptySpace
-          spaceId="reflection"
-          title={SPACE_LABELS.reflection}
-          description={SPACE_EMPTY_STATE.reflection}
-        />
-      );
+      return <UnderstandingSpace />;
     case 'exploration':
-      return (
-        <EmptySpace
-          spaceId="exploration"
-          title={SPACE_LABELS.exploration}
-          description={SPACE_EMPTY_STATE.exploration}
-        />
-      );
+      return <ExplorationSpace />;
     case 'settings':
       return <SettingsSpace />;
     default:
-      return (
-        <EmptySpace
-          spaceId="awareness"
-          title={SPACE_LABELS.awareness}
-          description={SPACE_EMPTY_STATE.awareness}
-        />
-      );
+      return <RecordSpace />;
   }
 };
 
