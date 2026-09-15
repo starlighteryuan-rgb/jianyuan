@@ -30,6 +30,12 @@ import {
   type SemanticJudgmentPort,
 } from '../../core/index';
 import { PROHIBITED_ABSTRACTION_CATEGORIES } from '../../core/domain/ports/semantic-judgment';
+import {
+  containsIdentityOrDiagnosisClaim,
+  containsInternalAwarenessLabel,
+  isAwarenessCopyWithin,
+  isSimplifiedChineseCopy,
+} from './awareness-copy';
 
 type FetchLike = typeof fetch;
 
@@ -45,24 +51,14 @@ const isObject = (value: unknown): value is Record<string, unknown> =>
 const nonEmptyString = (value: unknown): value is string =>
   typeof value === 'string' && value.trim().length > 0;
 
-const containsIdentityOrDiagnosisClaim = (value: string): boolean =>
-  /\b(?:you are|your personality|your identity|diagnos(?:e|is)|proves? that you)\b/i.test(
-    value,
-  ) ||
-  /你就是|说明你|证明你|你的人格|你的身份|心理诊断|本质上是|你本质上|你(?:总是|永远|天生|一定是)|你(?:害怕|担心|在逃避|逃避|潜意识|内心)/.test(
-    value,
-  );
+const isAwarenessCopy = (value: unknown, maxHanCharacters: number): value is string =>
+  nonEmptyString(value) &&
+  isSimplifiedChineseCopy(value) &&
+  !containsInternalAwarenessLabel(value) &&
+  isAwarenessCopyWithin(value, maxHanCharacters);
 
-const containsHan = (value: string): boolean => /[\u3400-\u4dbf\u4e00-\u9fff]/u.test(value);
-
-/** User-facing Awareness copy must be simplified Chinese, never a mixed title. */
-const isSimplifiedChineseCopy = (value: string): boolean => {
-  const trimmed = value.trim();
-  if (trimmed.length === 0 || !containsHan(trimmed)) return false;
-  const latinWords = trimmed.match(/[A-Za-z]{2,}/gu)?.length ?? 0;
-  const hanCharacters = trimmed.match(/[\u3400-\u4dbf\u4e00-\u9fff]/gu)?.length ?? 0;
-  return latinWords === 0 || hanCharacters >= latinWords * 3;
-};
+const optionalAwarenessCopy = (value: unknown, maxHanCharacters: number): value is string | undefined =>
+  value === undefined || isAwarenessCopy(value, maxHanCharacters);
 
 /** Weak signals the product must never surface as an Awareness item. */
 const describesOnlyWeakSignal = (suggestion: RelationSuggestion): boolean => {
@@ -70,7 +66,7 @@ const describesOnlyWeakSignal = (suggestion: RelationSuggestion): boolean => {
     suggestion.comparisonAxis.question,
     suggestion.comparisonAxis.dimension,
     suggestion.relationType,
-    suggestion.evidenceSummary,
+    suggestion.observation,
   ].join(' ');
   const weakOnly = /(?:同一天|同一日|时间接近|时间相近|时间戳|时间都|都是日常|一(?:条|个).{0,8}(?:抽象|具体).{0,8}一(?:条|个).{0,8}(?:抽象|具体)|(?:抽象|具体).{0,6}(?:差异|对比|不同)|一般概念|过泛|字面相似|相似词|弱联系|弱语义|weak|same day|close in time|timestamp|one .{0,12}(?:abstract|concrete)|(?:abstract|concrete).{0,12}(?:difference|contrast)|generic category)/iu;
   const strongTheme = /(?:共同主题|重复模式|反复出现|相同的触发条件|相同的选择|相同的行动|相同处境|共同条件|重复条件|值得回看|structural|pattern|repeated|shared condition|shared trigger)/iu;
@@ -317,7 +313,7 @@ export class OpenAICompatibleProvider
     if (!authorized.ok) return authorized;
 
     const result = await this.completeJson(
-      'You suggest tentative, descriptive relations between selected personal records. Simplified Chinese is mandatory for every user-visible field. Do not diagnose, infer personality or identity, assert hidden motives, or answer for the user. Only surface a relation when there is a clear shared theme, repeated pattern, or structural connection that the user may genuinely want to revisit. Never surface a relation based only on the same day, close timestamps, one record being abstract and the other concrete, a generic shared category, weak semantic similarity, or both being daily records. When no relation clears that bar, return status NO_OBSERVATION with an empty suggestions array; that is a correct outcome, not a failure. Return JSON only: {"status":"SURFACE"|"NO_OBSERVATION","language":"zh-CN","suggestions":[{"recordRefs":["..."],"comparisonAxis":{"question":"...","dimension":"..."},"relationType":"...","evidenceSummary":"...","assertsTemporalOrdering":false}]}. Every item is only a candidate for later deterministic gates.',
+      'You suggest a tentative, descriptive observation between selected personal records. Simplified Chinese is mandatory for every user-visible field. Say the least that is genuinely useful; do not fill fields to satisfy a shape. observation is required only when status is SURFACE and should normally be about 20-80 Han characters. question, explanation, and uncertainty are optional: omit them unless each one adds something specific and useful. A simple observation may contain only observation. Do not explain an observation that is already clear, ask a question merely to fill a field, or repeat a disclaimer. Do not diagnose, infer personality or identity, assert hidden motives, or answer for the user. Never mention internal labels or taxonomy names such as activity_domain, time_context, relation_type, semantic_similarity, recorded_time_proximity, calendar_date_co_occurrence, generality, or concreteness. Only surface a relation when there is a clear shared theme, repeated pattern, or structural connection that the user may genuinely want to revisit. Never surface a relation based only on the same day, close timestamps, one record being abstract and the other concrete, a generic shared category, weak semantic similarity, or both being daily records. When no relation clears that bar, return status NO_OBSERVATION with an empty suggestions array; that is a correct, preferred outcome, not a failure. Return JSON only: {"status":"SURFACE"|"NO_OBSERVATION","language":"zh-CN","suggestions":[{"recordRefs":["..."],"comparisonAxis":{"question":"...","dimension":"..."},"relationType":"...","observation":"...","question":"optional","explanation":"optional","uncertainty":"optional","assertsTemporalOrdering":false}]}. Every item is only a candidate for later deterministic gates.',
       {
         purpose: request.authorization.reason,
         selectedRecords: request.records,
@@ -337,7 +333,7 @@ export class OpenAICompatibleProvider
 
     // Retry once when the model returned an invalid or non-Chinese shape.
     const retry = await this.completeJson(
-      'Repeat the structured relation task. All user-visible strings must be concise simplified Chinese with no English words. If no relation is strong enough, return {"status":"NO_OBSERVATION","language":"zh-CN","suggestions":[]}. Never invent a relation from same-day timing, close timestamps, abstraction differences, or generic categories. Return JSON only: {"status":"SURFACE"|"NO_OBSERVATION","language":"zh-CN","suggestions":[{"recordRefs":["..."],"comparisonAxis":{"question":"...","dimension":"..."},"relationType":"...","evidenceSummary":"...","assertsTemporalOrdering":false}]}.',
+      'Repeat the structured relation task. All user-visible strings must be concise simplified Chinese with no English words. If no relation is strong enough, return {"status":"NO_OBSERVATION","language":"zh-CN","suggestions":[]}. Surface only when observation itself is worth a second look. Omit question, explanation, and uncertainty when they do not add something specific; do not fill the shape. Never invent a relation from same-day timing, close timestamps, abstraction differences, or generic categories. Never mention internal labels or taxonomy names. Return JSON only: {"status":"SURFACE"|"NO_OBSERVATION","language":"zh-CN","suggestions":[{"recordRefs":["..."],"comparisonAxis":{"question":"...","dimension":"..."},"relationType":"...","observation":"...","question":"optional","explanation":"optional","uncertainty":"optional","assertsTemporalOrdering":false}]}.',
       {
         purpose: request.authorization.reason,
         selectedRecords: request.records,
@@ -389,15 +385,20 @@ export class OpenAICompatibleProvider
         !nonEmptyString(item.comparisonAxis.question) ||
         !nonEmptyString(item.comparisonAxis.dimension) ||
         !nonEmptyString(item.relationType) ||
-        !nonEmptyString(item.evidenceSummary) ||
+        !isAwarenessCopy(item.observation, 100) ||
+        !optionalAwarenessCopy(item.question, 50) ||
+        !optionalAwarenessCopy(item.explanation, 100) ||
+        !optionalAwarenessCopy(item.uncertainty, 50) ||
         typeof item.assertsTemporalOrdering !== 'boolean' ||
         !isSimplifiedChineseCopy(item.comparisonAxis.question) ||
         !isSimplifiedChineseCopy(item.comparisonAxis.dimension) ||
-        !isSimplifiedChineseCopy(item.evidenceSummary) ||
         containsIdentityOrDiagnosisClaim(item.comparisonAxis.question) ||
         containsIdentityOrDiagnosisClaim(item.comparisonAxis.dimension) ||
         containsIdentityOrDiagnosisClaim(item.relationType) ||
-        containsIdentityOrDiagnosisClaim(item.evidenceSummary)
+        containsIdentityOrDiagnosisClaim(item.observation) ||
+        (item.question !== undefined && containsIdentityOrDiagnosisClaim(item.question)) ||
+        (item.explanation !== undefined && containsIdentityOrDiagnosisClaim(item.explanation)) ||
+        (item.uncertainty !== undefined && containsIdentityOrDiagnosisClaim(item.uncertainty))
       ) {
         return fail(
           'malformed_response',
@@ -413,7 +414,10 @@ export class OpenAICompatibleProvider
           dimension: item.comparisonAxis.dimension,
         },
         relationType: item.relationType,
-        evidenceSummary: item.evidenceSummary,
+        observation: item.observation,
+        ...(item.question === undefined ? {} : { question: item.question }),
+        ...(item.explanation === undefined ? {} : { explanation: item.explanation }),
+        ...(item.uncertainty === undefined ? {} : { uncertainty: item.uncertainty }),
         assertsTemporalOrdering: item.assertsTemporalOrdering,
       };
       if (describesOnlyWeakSignal(suggestion)) continue;
@@ -496,7 +500,7 @@ export class OpenAICompatibleProvider
         recordRefs: suggestion.recordRefs.map(recordId),
         comparisonAxis: suggestion.comparisonAxis,
         relationType: suggestion.relationType,
-        evidenceSummary: suggestion.evidenceSummary,
+        evidenceSummary: suggestion.observation,
         assertsTemporalOrdering: suggestion.assertsTemporalOrdering,
       })),
     };

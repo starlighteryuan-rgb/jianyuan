@@ -38,15 +38,23 @@ const suggestionContainsObservationBoundaryRisk = (suggestion: unknown): boolean
   const candidate = suggestion as {
     readonly comparisonAxis?: unknown;
     readonly relationType?: unknown;
-    readonly evidenceSummary?: unknown;
+    readonly observation?: unknown;
+    readonly question?: unknown;
+    readonly explanation?: unknown;
+    readonly uncertainty?: unknown;
   };
   if (typeof candidate.comparisonAxis !== 'object' || candidate.comparisonAxis === null) return true;
   const axis = candidate.comparisonAxis as {
     readonly question?: unknown;
     readonly dimension?: unknown;
   };
-  return [axis.question, axis.dimension, candidate.relationType, candidate.evidenceSummary]
-    .some((value) => typeof value !== 'string' || containsObservationBoundaryRisk(value));
+  const required = [axis.question, axis.dimension, candidate.relationType, candidate.observation];
+  if (required.some((value) => typeof value !== 'string' || containsObservationBoundaryRisk(value))) {
+    return true;
+  }
+  return [candidate.question, candidate.explanation, candidate.uncertainty].some(
+    (value) => value !== undefined && (typeof value !== 'string' || containsObservationBoundaryRisk(value)),
+  );
 };
 
 export type DesktopObservationMeaning =

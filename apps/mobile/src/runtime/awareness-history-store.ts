@@ -51,7 +51,10 @@ const isRelationSuggestion = (value: unknown): boolean => {
   }
   return (
     typeof value.relationType === 'string' &&
-    typeof value.evidenceSummary === 'string' &&
+    typeof value.observation === 'string' &&
+    (value.question === undefined || typeof value.question === 'string') &&
+    (value.explanation === undefined || typeof value.explanation === 'string') &&
+    (value.uncertainty === undefined || typeof value.uncertainty === 'string') &&
     typeof value.assertsTemporalOrdering === 'boolean'
   );
 };
@@ -61,9 +64,9 @@ const isCandidateView = (value: unknown): value is RelationCandidateView => {
   return (
     typeof value.candidateId === 'string' &&
     typeof value.observation === 'string' &&
-    typeof value.possibleExplanation === 'string' &&
-    typeof value.uncertainty === 'string' &&
-    typeof value.reflectionQuestion === 'string' &&
+    (value.possibleExplanation === undefined || typeof value.possibleExplanation === 'string') &&
+    (value.uncertainty === undefined || typeof value.uncertainty === 'string') &&
+    (value.reflectionQuestion === undefined || typeof value.reflectionQuestion === 'string') &&
     typeof value.question === 'string' &&
     typeof value.dimension === 'string' &&
     typeof value.explanation === 'string' &&

@@ -48,6 +48,13 @@ export function RelationCandidateReview({
         <p>{candidate.observation}</p>
       </section>
 
+      {candidate.reflectionQuestion === undefined ? null : (
+        <section className="ai-observation-copy">
+          <h3>一个可以继续思考的问题</h3>
+          <blockquote>{candidate.reflectionQuestion}</blockquote>
+        </section>
+      )}
+
       <section className="ai-observation-copy">
         <h3>相关记录</h3>
         <div className="ai-candidate-records">
@@ -66,21 +73,19 @@ export function RelationCandidateReview({
         </p>
       </section>
 
-      <section className="ai-observation-copy">
-        <h3>一种可能解释</h3>
-        <p>{candidate.possibleExplanation}</p>
-        <p className="hint">但也可能存在其他解释。</p>
-      </section>
+      {candidate.possibleExplanation === undefined ? null : (
+        <section className="ai-observation-copy">
+          <h3>一种可能解释</h3>
+          <p>{candidate.possibleExplanation}</p>
+        </section>
+      )}
 
-      <section className="ai-observation-copy">
-        <h3>AI 也不确定</h3>
-        <p>{candidate.uncertainty}</p>
-      </section>
-
-      <section className="ai-observation-copy">
-        <h3>一个可以继续思考的问题</h3>
-        <blockquote>{candidate.reflectionQuestion}</blockquote>
-      </section>
+      {candidate.uncertainty === undefined ? null : (
+        <section className="ai-observation-copy">
+          <h3>需要留意的不确定</h3>
+          <p>{candidate.uncertainty}</p>
+        </section>
+      )}
 
       {handled ? null : (
         <form action={action}>

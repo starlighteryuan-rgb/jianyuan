@@ -35,7 +35,7 @@ const fakeOpenAI = () => {
       readonly selectedRecords?: readonly { readonly recordId: string }[];
     };
     let content: unknown;
-    if (system.startsWith('You suggest tentative')) {
+    if (system.startsWith('You suggest a tentative')) {
       content = {
         status: 'SURFACE',
         language: 'zh-CN',
@@ -47,7 +47,7 @@ const fakeOpenAI = () => {
               dimension: '行动启动顺序',
             },
             relationType: 'action_sequence',
-            evidenceSummary: '两条记录都描述了一个具体开始动作。',
+            observation: '两条记录都描述了一个具体开始动作。',
             assertsTemporalOrdering: false,
           },
         ],
@@ -245,7 +245,7 @@ describe('Desktop Runtime Spike', () => {
           dimension: '行动启动顺序',
         },
         relationType: 'possible_action_sequence',
-        evidenceSummary: '你本质上是一个追求完美的人。',
+        observation: '你本质上是一个追求完美的人。',
         assertsTemporalOrdering: false,
         }],
       },

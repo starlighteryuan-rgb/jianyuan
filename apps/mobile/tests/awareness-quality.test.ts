@@ -52,7 +52,7 @@ const suggestion = (overrides: Record<string, unknown> = {}): Record<string, unk
     dimension: '开始前的停顿',
   },
   relationType: 'descriptive_similarity',
-  evidenceSummary: '两条记录都描述了开始前先停一下的共同结构。',
+  observation: '两条记录都描述了开始前先停一下的共同结构。',
   assertsTemporalOrdering: false,
   ...overrides,
 });
@@ -87,7 +87,7 @@ const providerWith = (options?: {
         recordRefs: selectedRecordIds,
       });
     const system = body.messages[0]?.content ?? '';
-    if (system.startsWith('You suggest tentative')) {
+    if (system.startsWith('You suggest a tentative')) {
       return completion({
         status: 'SURFACE',
         language: 'zh-CN',
@@ -187,7 +187,7 @@ describe('Mobile Awareness quality and persistence (M2.2)', () => {
         suggestion({
           comparisonAxis: { question: '两条记录是否在同一天？', dimension: '时间接近' },
           relationType: 'temporal_proximity',
-          evidenceSummary: '两条记录在同一天写下，时间也接近。',
+          observation: '两条记录在同一天写下，时间也接近。',
         }),
       ],
     });
@@ -202,6 +202,21 @@ describe('Mobile Awareness quality and persistence (M2.2)', () => {
     expect(experience.candidates).toEqual([]);
   });
 
+  it('keeps observation-only selection while omitting absent optional sections', async () => {
+    const keychain = workingKeychain();
+    const first = await openRuntime({ fetch: providerWith(), secretStore: keychain });
+    await configureAI(first.runtime, keychain);
+    await captureTwo(first.runtime);
+    const records = await first.runtime.listRecent();
+    const experience = await first.runtime.suggestRelations(records[0]!.id);
+    if (experience.status !== 'candidates') throw new Error('expected candidate');
+
+    const candidate = experience.candidates[0]!;
+    expect(candidate.observation).toContain('开始前先停一下');
+    expect(candidate).not.toHaveProperty('possibleExplanation');
+    expect(candidate).not.toHaveProperty('uncertainty');
+    expect(candidate).not.toHaveProperty('reflectionQuestion');
+  });
   it('keeps a compliant Chinese observation and rehydrates it after restart', async () => {
     const keychain = workingKeychain();
     const databasePath = scratchDatabasePath();

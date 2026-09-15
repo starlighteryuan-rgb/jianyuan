@@ -115,7 +115,7 @@ const fakeProvider = (options?: {
                   dimension: '共同条件',
                 },
                 relationType: 'descriptive_similarity',
-                evidenceSummary: '两条记录都描述了一个具体行动开始前的情形。',
+                observation: '两条记录都描述了一个具体行动开始前的情形。',
                 assertsTemporalOrdering: false,
               },
             ]

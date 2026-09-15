@@ -55,7 +55,10 @@ interface RelationSuggestion {
   readonly recordRefs: readonly string[];
   readonly comparisonAxis: { readonly question: string; readonly dimension: string };
   readonly relationType: string;
-  readonly evidenceSummary: string;
+  readonly observation: string;
+  readonly question?: string;
+  readonly explanation?: string;
+  readonly uncertainty?: string;
   readonly assertsTemporalOrdering: boolean;
 }
 
@@ -555,21 +558,26 @@ export function App() {
               </div>
               <div className="ai-observation-copy">
                 <h4>AI 注意到</h4>
-                <p>{suggestion.evidenceSummary}</p>
+                <p>{suggestion.observation}</p>
               </div>
-              <div className="ai-observation-copy">
-                <h4>一种可能解释</h4>
-                <p>一种可能是，这些记录在“{suggestion.comparisonAxis.dimension}”上呈现了相似的安排。</p>
-                <p className="muted">但也可能存在其他解释。</p>
-              </div>
-              <div className="ai-observation-copy">
-                <h4>AI 也不确定</h4>
-                <p>我无法判断这是长期模式，还是这几次经历恰好相似。</p>
-              </div>
-              <div className="ai-observation-copy">
-                <h4>一个可以继续思考的问题</h4>
-                <blockquote>{suggestion.comparisonAxis.question}</blockquote>
-              </div>
+              {suggestion.question === undefined ? null : (
+                <div className="ai-observation-copy">
+                  <h4>一个可以继续思考的问题</h4>
+                  <blockquote>{suggestion.question}</blockquote>
+                </div>
+              )}
+              {suggestion.explanation === undefined ? null : (
+                <div className="ai-observation-copy">
+                  <h4>一种可能解释</h4>
+                  <p>{suggestion.explanation}</p>
+                </div>
+              )}
+              {suggestion.uncertainty === undefined ? null : (
+                <div className="ai-observation-copy">
+                  <h4>需要留意的不确定</h4>
+                  <p>{suggestion.uncertainty}</p>
+                </div>
+              )}
               <form onSubmit={(event) => void submitObservation(event, suggestion).catch((error: Error) => { setPendingObservationKey(null); setNotice(error.message); })}>
                 <fieldset className="user-reflection-input" disabled={pending}>
                   <legend>你的理解</legend>

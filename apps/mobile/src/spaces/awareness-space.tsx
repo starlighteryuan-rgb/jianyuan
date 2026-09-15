@@ -111,15 +111,11 @@ const AwarenessCandidateCard = ({
       <Text style={[TYPOGRAPHY.lead, { color: colors.textPrimary, marginTop: SPACING.xs }]}>
         {candidate.observation}
       </Text>
-      <Text style={[TYPOGRAPHY.body, { color: colors.textSecondary, marginTop: SPACING.sm }]}>
-        一种可能：{candidate.possibleExplanation}
-      </Text>
-      <Text style={[TYPOGRAPHY.meta, { color: colors.textMuted, marginTop: SPACING.sm }]}>
-        不确定性：{candidate.uncertainty}
-      </Text>
-      <Text style={[TYPOGRAPHY.body, { color: colors.textPrimary, marginTop: SPACING.sm }]}>
-        可以继续想一想：{candidate.reflectionQuestion}
-      </Text>
+      {candidate.reflectionQuestion === undefined ? null : (
+        <Text style={[TYPOGRAPHY.body, { color: colors.textPrimary, marginTop: SPACING.sm }]}>
+          可以继续想一想：{candidate.reflectionQuestion}
+        </Text>
+      )}
 
       <Text style={[TYPOGRAPHY.eyebrow, { color: colors.textMuted, marginTop: SPACING.md }]}>
         相关记录
@@ -132,6 +128,16 @@ const AwarenessCandidateCard = ({
           · {record.verbatim}
         </Text>
       ))}
+      {candidate.possibleExplanation === undefined ? null : (
+        <Text style={[TYPOGRAPHY.meta, { color: colors.textSecondary, marginTop: SPACING.sm }]}>
+          一种可能：{candidate.possibleExplanation}
+        </Text>
+      )}
+      {candidate.uncertainty === undefined ? null : (
+        <Text style={[TYPOGRAPHY.meta, { color: colors.textMuted, marginTop: SPACING.sm }]}>
+          需要留意：{candidate.uncertainty}
+        </Text>
+      )}
 
       <Text style={[TYPOGRAPHY.eyebrow, { color: colors.textMuted, marginTop: SPACING.md }]}>
         你的回应

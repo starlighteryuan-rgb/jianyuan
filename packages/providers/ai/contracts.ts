@@ -67,7 +67,14 @@ export interface RelationSuggestion {
     readonly dimension: string;
   };
   readonly relationType: string;
-  readonly evidenceSummary: string;
+  /** The single required user-facing sentence when status is SURFACE. */
+  readonly observation: string;
+  /** Optional invitation for the user to look again. */
+  readonly question?: string;
+  /** Optional context that explains why this was noticed. Not a new inference. */
+  readonly explanation?: string;
+  /** Optional, only when a specific uncertainty matters to understanding. */
+  readonly uncertainty?: string;
   readonly assertsTemporalOrdering: boolean;
 }
 
@@ -81,6 +88,7 @@ export type RelationSuggestionStatus = 'SURFACE' | 'NO_OBSERVATION';
  * as an error or as a reason to synthesize a candidate from weak signals.
  */
 export interface RelationSuggestionResult {
+  /** `SURFACE` requires exactly one observation; all other copy is optional. */
   readonly status: RelationSuggestionStatus;
   readonly language: 'zh-CN';
   readonly suggestions: readonly RelationSuggestion[];

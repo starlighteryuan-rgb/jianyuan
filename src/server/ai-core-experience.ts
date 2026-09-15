@@ -32,9 +32,9 @@ export interface CandidateRecordView {
 export interface AIObservationView {
   readonly observation: string;
   readonly referencedRecords: readonly CandidateRecordView[];
-  readonly possibleExplanation: string;
-  readonly uncertainty: string;
-  readonly reflectionQuestion: string;
+  readonly possibleExplanation?: string;
+  readonly uncertainty?: string;
+  readonly reflectionQuestion?: string;
 }
 
 /**
@@ -270,14 +270,11 @@ const asAIObservation = (
   AIObservationView,
   'observation' | 'referencedRecords' | 'possibleExplanation' | 'uncertainty' | 'reflectionQuestion'
 > => ({
-  // `evidenceSummary` is the Provider's descriptive observation field. It is
-  // deliberately not presented as evidence or as a conclusion.
-  observation: suggestion.evidenceSummary,
+  observation: suggestion.observation,
   referencedRecords,
-  possibleExplanation:
-    `一种可能是，这些记录在“${suggestion.comparisonAxis.dimension}”上呈现了相似的安排。`,
-  uncertainty: '我无法判断这是长期模式，还是这几次经历恰好相似。',
-  reflectionQuestion: suggestion.comparisonAxis.question,
+  ...(suggestion.explanation === undefined ? {} : { possibleExplanation: suggestion.explanation }),
+  ...(suggestion.uncertainty === undefined ? {} : { uncertainty: suggestion.uncertainty }),
+  ...(suggestion.question === undefined ? {} : { reflectionQuestion: suggestion.question }),
 });
 
 /**
@@ -298,7 +295,10 @@ const suggestionContainsObservationBoundaryRisk = (suggestion: unknown): boolean
   const candidate = suggestion as {
     readonly comparisonAxis?: unknown;
     readonly relationType?: unknown;
-    readonly evidenceSummary?: unknown;
+    readonly observation?: unknown;
+    readonly question?: unknown;
+    readonly explanation?: unknown;
+    readonly uncertainty?: unknown;
   };
   if (
     typeof candidate.comparisonAxis !== 'object' ||
@@ -310,14 +310,12 @@ const suggestionContainsObservationBoundaryRisk = (suggestion: unknown): boolean
     readonly question?: unknown;
     readonly dimension?: unknown;
   };
-  const fields = [
-    axis.question,
-    axis.dimension,
-    candidate.relationType,
-    candidate.evidenceSummary,
-  ];
-  return fields.some(
-    (value) => typeof value !== 'string' || containsObservationBoundaryRisk(value),
+  const required = [axis.question, axis.dimension, candidate.relationType, candidate.observation];
+  if (required.some((value) => typeof value !== 'string' || containsObservationBoundaryRisk(value))) {
+    return true;
+  }
+  return [candidate.question, candidate.explanation, candidate.uncertainty].some(
+    (value) => value !== undefined && (typeof value !== 'string' || containsObservationBoundaryRisk(value)),
   );
 };
 
@@ -535,7 +533,7 @@ const suggestRelationsAfterCaptureInternal = async (
         relatedRecords,
         question: suggestion.comparisonAxis.question,
         dimension: suggestion.comparisonAxis.dimension,
-        explanation: suggestion.evidenceSummary,
+        explanation: suggestion.observation,
         ...asAIObservation(suggestion, [currentRecord, ...relatedRecords]),
       };
     });

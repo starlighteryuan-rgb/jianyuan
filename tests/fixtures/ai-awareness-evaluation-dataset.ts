@@ -8,20 +8,20 @@
 export type AwarenessProviderVariant =
   | {
       readonly kind: 'safe_observation';
-      readonly evidenceSummary: string;
+      readonly observation: string;
       readonly question: string;
       readonly dimension: string;
     }
   | {
       readonly kind: 'changed_observation';
-      readonly evidenceSummary: string;
+      readonly observation: string;
       readonly question: string;
       readonly dimension: string;
     }
   | { readonly kind: 'empty' }
   | {
       readonly kind: 'adversarial_drift';
-      readonly field: 'evidenceSummary' | 'question' | 'dimension';
+      readonly field: 'observation' | 'question' | 'dimension';
       readonly value: string;
     }
   | {
@@ -63,7 +63,7 @@ const records = [
 
 const safe = {
   kind: 'safe_observation' as const,
-  evidenceSummary: '两条记录都描述了开始行动前的具体准备。',
+  observation: '两条记录都描述了开始行动前的具体准备。',
   question: '当你准备开始时，通常先做哪个具体动作？',
   dimension: '行动启动顺序',
 };
@@ -104,7 +104,7 @@ export const AI_AWARENESS_EVALUATION_DATASET: readonly AwarenessEvaluationCase[]
     records,
     provider: {
       kind: 'adversarial_drift',
-      field: 'evidenceSummary',
+      field: 'observation',
       value: '你本质上是一个追求完美的人。',
     },
     userPath: 'observe_only',
@@ -188,7 +188,7 @@ export const AI_AWARENESS_EVALUATION_DATASET: readonly AwarenessEvaluationCase[]
     records,
     provider: {
       kind: 'changed_observation',
-      evidenceSummary: '两次记录都提到了先把下一步说清楚。',
+      observation: '两次记录都提到了先把下一步说清楚。',
       question: '下一步变得清楚以后，发生了什么？',
       dimension: '下一步的清晰度',
     },
@@ -269,7 +269,7 @@ export const providerPayloadFor = (
       dimension: safe.dimension,
     },
     relationType: 'possible_action_sequence',
-    evidenceSummary: safe.evidenceSummary,
+    observation: safe.observation,
     assertsTemporalOrdering: false,
   };
 
@@ -287,7 +287,7 @@ export const providerPayloadFor = (
             question: variant.question,
             dimension: variant.dimension,
           },
-          evidenceSummary: variant.evidenceSummary,
+          observation: variant.observation,
         }],
       };
     case 'adversarial_drift':
@@ -300,8 +300,8 @@ export const providerPayloadFor = (
             question: variant.field === 'question' ? variant.value : safe.question,
             dimension: variant.field === 'dimension' ? variant.value : safe.dimension,
           },
-          evidenceSummary:
-            variant.field === 'evidenceSummary' ? variant.value : safe.evidenceSummary,
+          observation:
+            variant.field === 'observation' ? variant.value : safe.observation,
         }],
       };
     case 'malformed':
@@ -337,7 +337,7 @@ export const providerPayloadFor = (
               dimension: '行动继续方式',
             },
             relationType: 'possible_continuation',
-            evidenceSummary: '两条记录都提到了明确下一步后继续行动。',
+            observation: '两条记录都提到了明确下一步后继续行动。',
           },
         ],
       };

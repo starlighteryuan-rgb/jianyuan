@@ -68,7 +68,7 @@ describe('AI Provider + SQLite Core graph', () => {
         messages: Array<{ role: string; content: string }>;
       };
       const system = request.messages[0]?.content ?? '';
-      if (system.includes('suggest tentative')) {
+      if (system.includes('suggest a tentative')) {
         return completion({
           suggestions: [
             {
@@ -78,7 +78,7 @@ describe('AI Provider + SQLite Core graph', () => {
                 dimension: '行动启动顺序',
               },
               relationType: 'possible_action_sequence',
-              evidenceSummary: '两条记录都描述先执行一个最小动作。',
+              observation: '两条记录都描述先执行一个最小动作。',
               assertsTemporalOrdering: false,
             },
           ],
@@ -161,14 +161,14 @@ describe('AI Provider + SQLite Core graph', () => {
 
       expect(suggestion.candidates[0]).toMatchObject({
         observation: '两条记录都描述先执行一个最小动作。',
-        possibleExplanation: expect.stringContaining('一种可能是'),
-        uncertainty: expect.stringContaining('无法判断'),
-        reflectionQuestion: '两次记录是否都由一个最小动作启动？',
         referencedRecords: expect.arrayContaining([
           expect.objectContaining({ verbatim: '我先打开文档并写下一行。' }),
           expect.objectContaining({ verbatim: '我先整理一个最小任务再继续。' }),
         ]),
       });
+      expect(suggestion.candidates[0]).not.toHaveProperty('possibleExplanation');
+      expect(suggestion.candidates[0]).not.toHaveProperty('uncertainty');
+      expect(suggestion.candidates[0]).not.toHaveProperty('reflectionQuestion');
 
       // A visible observation remains disposable until the user writes their own meaning.
       const withoutText = await submitAIObservationReflection(
@@ -231,7 +231,11 @@ describe('AI Provider + SQLite Core graph', () => {
       ).toHaveLength(1);
       restarted.storage.close();
     } finally {
-      rmSync(directory, { recursive: true, force: true });
+      try {
+        rmSync(directory, { recursive: true, force: true });
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== 'EPERM') throw error;
+      }
     }
   });
 

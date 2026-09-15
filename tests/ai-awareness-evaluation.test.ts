@@ -186,10 +186,10 @@ describe('Phase 8.4 · AI Awareness Evaluation Dataset', () => {
         expect(candidate).toMatchObject({
           observation: expect.any(String),
           referencedRecords: expect.any(Array),
-          possibleExplanation: expect.stringContaining('一种可能是'),
-          uncertainty: expect.stringContaining('无法判断'),
-          reflectionQuestion: expect.any(String),
         });
+        expect(candidate).not.toHaveProperty('possibleExplanation');
+        expect(candidate).not.toHaveProperty('uncertainty');
+        expect(candidate).not.toHaveProperty('reflectionQuestion');
         expect(candidate).not.toHaveProperty('supportLevel');
         expect(candidate).not.toHaveProperty('evidence');
       }
@@ -226,7 +226,7 @@ describe('Phase 8.4 · AI Awareness Evaluation Dataset', () => {
             dimension: '行动启动顺序',
           },
           relationType: 'possible_action_sequence',
-          evidenceSummary: '你本质上是一个追求完美的人。',
+          observation: '你本质上是一个追求完美的人。',
           assertsTemporalOrdering: false,
           }],
         },

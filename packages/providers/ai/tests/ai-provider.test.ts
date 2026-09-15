@@ -247,7 +247,7 @@ describe('OpenAICompatibleProvider awareness capabilities', () => {
               recordRefs: ['record-1', 'record-2'],
               comparisonAxis: { question: '有什么共同变化？', dimension: '变化' },
               relationType: 'possible_change',
-              evidenceSummary: '两条记录可能呈现变化。',
+              observation: '两条记录可能呈现变化。',
               assertsTemporalOrdering: false,
             },
           ],
@@ -301,7 +301,7 @@ describe('OpenAICompatibleProvider awareness capabilities', () => {
               recordRefs: ['record-1', 'record-2'],
               comparisonAxis: { question: '两条记录是否在同一天？', dimension: '时间接近' },
               relationType: 'temporal_proximity',
-              evidenceSummary: '两条记录在同一天写下，时间也接近。',
+              observation: '两条记录在同一天写下，时间也接近。',
               assertsTemporalOrdering: false,
             },
           ],
@@ -328,7 +328,7 @@ describe('OpenAICompatibleProvider awareness capabilities', () => {
               dimension: 'shared pattern',
             },
             relationType: 'shared_pattern',
-            evidenceSummary: 'Both records describe the same start.',
+            observation: 'Both records describe the same start.',
             assertsTemporalOrdering: false,
           },
         ],
@@ -358,7 +358,7 @@ describe('OpenAICompatibleProvider awareness capabilities', () => {
                 dimension: '行动触发条件',
               },
               relationType: 'possible_pattern',
-              evidenceSummary: '可能存在值得回看的共同点。',
+              observation: '可能存在值得回看的共同点。',
               assertsTemporalOrdering: false,
               assessment: { total: 100 },
               identity: 'should be discarded',
@@ -380,7 +380,7 @@ describe('OpenAICompatibleProvider awareness capabilities', () => {
         dimension: '行动触发条件',
       },
       relationType: 'possible_pattern',
-      evidenceSummary: '可能存在值得回看的共同点。',
+      observation: '可能存在值得回看的共同点。',
       assertsTemporalOrdering: false,
     });
     expect(result.value.suggestions[0]).not.toHaveProperty('assessment');
@@ -388,6 +388,108 @@ describe('OpenAICompatibleProvider awareness capabilities', () => {
     expect(result.value.suggestions[0]).not.toHaveProperty('identity');
   });
 
+  it('accepts adaptive observation-only and optional detail fields', async () => {
+    const baseSuggestion = {
+      recordRefs: ['record-1', 'record-2'],
+      comparisonAxis: { question: '两次开始前发生了什么？', dimension: '开始前的准备' },
+      relationType: 'possible_shared_preparation',
+      assertsTemporalOrdering: false,
+    };
+    const observationOnly = new OpenAICompatibleProvider(
+      config(),
+      vi.fn(async () =>
+        completion({
+          status: 'SURFACE',
+          language: 'zh-CN',
+          suggestions: [{ ...baseSuggestion, observation: '两次记录都在开始前先停了一下。' }],
+        }),
+      ) as unknown as typeof fetch,
+    );
+    const onlyResult = await observationOnly.suggestRelations({ authorization, records });
+    expect(onlyResult).toMatchObject({
+      ok: true,
+      value: {
+        status: 'SURFACE',
+        suggestions: [{ observation: '两次记录都在开始前先停了一下。' }],
+      },
+    });
+    if (!onlyResult.ok) throw new Error('expected observation-only result');
+    expect(onlyResult.value.suggestions[0]).not.toHaveProperty('question');
+    expect(onlyResult.value.suggestions[0]).not.toHaveProperty('explanation');
+    expect(onlyResult.value.suggestions[0]).not.toHaveProperty('uncertainty');
+
+    const detailed = new OpenAICompatibleProvider(
+      config(),
+      vi.fn(async () =>
+        completion({
+          status: 'SURFACE',
+          language: 'zh-CN',
+          suggestions: [{
+            ...baseSuggestion,
+            observation: '两次记录都在开始前先停了一下。',
+            question: '这种停顿对你来说熟悉吗？',
+            explanation: '这里只回看两条原话中重复出现的开始方式。',
+            uncertainty: '目前还不能判断它是否会反复出现。',
+          }],
+        }),
+      ) as unknown as typeof fetch,
+    );
+    expect(await detailed.suggestRelations({ authorization, records })).toMatchObject({
+      ok: true,
+      value: {
+        status: 'SURFACE',
+        suggestions: [{
+          observation: '两次记录都在开始前先停了一下。',
+          question: '这种停顿对你来说熟悉吗？',
+          explanation: '这里只回看两条原话中重复出现的开始方式。',
+          uncertainty: '目前还不能判断它是否会反复出现。',
+        }],
+      },
+    });
+  });
+
+  it('requires observation for SURFACE and blocks internal labels', async () => {
+    const missingObservation = new OpenAICompatibleProvider(
+      config(),
+      vi.fn(async () =>
+        completion({
+          status: 'SURFACE',
+          language: 'zh-CN',
+          suggestions: [{
+            recordRefs: ['record-1', 'record-2'],
+            comparisonAxis: { question: '两次是否相似？', dimension: '共同方式' },
+            relationType: 'possible_similarity',
+            assertsTemporalOrdering: false,
+          }],
+        }),
+      ) as unknown as typeof fetch,
+    );
+    expect(await missingObservation.suggestRelations({ authorization, records })).toMatchObject({
+      ok: false,
+      error: { kind: 'malformed_response' },
+    });
+
+    const leakedLabel = new OpenAICompatibleProvider(
+      config(),
+      vi.fn(async () =>
+        completion({
+          status: 'SURFACE',
+          language: 'zh-CN',
+          suggestions: [{
+            recordRefs: ['record-1', 'record-2'],
+            comparisonAxis: { question: '两次是否相似？', dimension: '共同方式' },
+            relationType: 'possible_similarity',
+            observation: '两条记录属于不同 activity_domain。',
+            assertsTemporalOrdering: false,
+          }],
+        }),
+      ) as unknown as typeof fetch,
+    );
+    expect(await leakedLabel.suggestRelations({ authorization, records })).toMatchObject({
+      ok: false,
+      error: { kind: 'malformed_response' },
+    });
+  });
   it('returns a reflection invitation and never a user answer', async () => {
     const provider = new OpenAICompatibleProvider(
       config(),
@@ -421,7 +523,7 @@ describe('OpenAICompatibleProvider awareness capabilities', () => {
               recordRefs: ['record-1', 'record-1'],
               comparisonAxis: { question: '可能的联系？', dimension: '变化' },
               relationType: 'possible_change',
-              evidenceSummary: '仅供回看。',
+              observation: '仅供回看。',
               assertsTemporalOrdering: false,
             },
           ],
@@ -441,7 +543,7 @@ describe('OpenAICompatibleProvider awareness capabilities', () => {
               recordRefs: ['record-1', 'record-2'],
               comparisonAxis: { question: '你就是一个拖延的人。', dimension: '人格' },
               relationType: 'possible_identity',
-              evidenceSummary: '你的人格已经被证明。',
+              observation: '你的人格已经被证明。',
               assertsTemporalOrdering: false,
             },
           ],
