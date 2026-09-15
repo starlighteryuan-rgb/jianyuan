@@ -1,0 +1,173 @@
+/* ============================================================
+   见渊 · Semantic design tokens
+   Pair A: Dark · Deep Amber  /  Light · Warm Paper
+
+   One component set, two value sets. Everything downstream reads
+   these variables, so Light and Dark can never drift apart in
+   layout, typography, spacing or geometry.
+
+   Contrast: every text/accent pairing below was verified at
+   >= 4.5:1 against canvas, surface AND the recessed writing well.
+   ============================================================ */
+
+:root {
+  /* ---- type ---- */
+  --font-display: "Noto Serif SC", "Source Han Serif SC", Georgia, "Songti SC", serif;
+  --font-body: "Segoe UI", "Microsoft YaHei", "Noto Sans SC", system-ui, sans-serif;
+  --font-mono: Consolas, "Cascadia Mono", "JetBrains Mono", monospace;
+
+  /* ---- spacing (4px base) ---- */
+  --s-1: 4px;  --s-2: 8px;  --s-3: 12px; --s-4: 16px;
+  --s-5: 24px; --s-6: 32px; --s-7: 48px; --s-8: 64px;
+
+  /* ---- geometry ---- */
+  --r-sm: 4px; --r-md: 8px; --r-lg: 12px;
+  --nav-w: 220px;
+  --read-max: 620px;
+
+  /* ---- type scale ---- */
+  --t-eyebrow: 11px; --t-meta: 11.5px; --t-body: 13.5px;
+  --t-lead: 15px; --t-h2: 15px; --t-h1: 25px;
+  --lh-body: 1.75; --lh-h1: 1.3;
+
+  /* ---- motion (CSS transitions only in this release) ---- */
+  --dur-fast: 140ms;
+  --dur-normal: 220ms;
+  --ease-standard: cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+/* ============================================================
+   LIGHT · Warm Paper  (default, so no-JS and first paint are calm)
+   "在安静的纸面上，把经历摊开重新看。"
+   ============================================================ */
+:root,
+:root[data-theme="light"] {
+  color-scheme: light;
+
+  --bg-canvas: #f5f1e8;
+  --bg-surface: #fdfbf5;
+  --bg-elevated: #fffcf6;
+  --bg-sunken: #efe9dc;
+
+  --text-primary: #26231e;
+  --text-secondary: #5f5a50;
+  --text-muted: #6f685d;
+
+  --accent-primary: #8a683a;
+  --accent-cta: #7d5e33;
+  --accent-soft: rgba(139, 105, 58, 0.08);
+  --accent-soft-strong: rgba(139, 105, 58, 0.22);
+  --btn-fg: #fffcf6;
+
+  --border-subtle: #e2dacb;
+  --border-hair: #eae3d5;
+  --border-strong: #cfc5b0;
+
+  --relation-line: rgba(140, 106, 74, 0.28);
+  --wave-ring: rgba(139, 105, 58, 0.085);
+  --awareness-glow: radial-gradient(
+    120% 80% at 18% 0%,
+    rgba(139, 105, 58, 0.045),
+    transparent 60%
+  );
+  --reflection-focus: #8a683a;
+
+  --shadow-focus: 0 1px 2px rgba(70, 58, 40, 0.08);
+  --shadow-mobile-nav: 0 -1px 0 var(--border-subtle);
+  --well-shadow: 0.035;
+
+  /* water language: identical geometry to Dark, tone only */
+  --wave-stroke-a: rgba(140, 106, 74, 0.22);
+  --wave-stroke-b: rgba(140, 106, 74, 0.13);
+  --wave-bloom: transparent;
+}
+
+/* ============================================================
+   DARK · Deep Amber
+   "在黑暗中，一些经历慢慢被看见。"
+
+   Body text is warm ivory, NOT amber. Amber is reserved for:
+   active nav, status points, small highlights, relation lines,
+   ripples, border accents and the primary CTA.
+   ============================================================ */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+
+    --bg-canvas: #161512;
+    --bg-surface: #1e1c18;
+    --bg-elevated: #25221d;
+    --bg-sunken: #121110;
+
+    --text-primary: #e9e6e0;
+    --text-secondary: #a8a49b;
+    --text-muted: #87837c;
+
+    --accent-primary: #d4a464;
+    --accent-cta: #b98b4f;
+    --accent-soft: rgba(212, 164, 100, 0.10);
+    --accent-soft-strong: rgba(212, 164, 100, 0.24);
+    --btn-fg: #1a1712;
+
+    --border-subtle: #2c2822;
+    --border-hair: #232019;
+    --border-strong: #3d382f;
+
+    --relation-line: rgba(212, 164, 100, 0.22);
+    --wave-ring: rgba(212, 164, 100, 0.075);
+    --awareness-glow: radial-gradient(
+      120% 80% at 18% 0%,
+      rgba(212, 164, 100, 0.055),
+      transparent 60%
+    );
+    --reflection-focus: #d4a464;
+
+    --shadow-focus: 0 1px 2px rgba(0, 0, 0, 0.30);
+    --shadow-mobile-nav: 0 -1px 0 var(--border-subtle);
+    --well-shadow: 0.22;
+
+    --wave-stroke-a: rgba(212, 164, 100, 0.17);
+    --wave-stroke-b: rgba(212, 164, 100, 0.095);
+    --wave-bloom: rgba(212, 164, 100, 0.05);
+  }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --bg-canvas: #161512;
+  --bg-surface: #1e1c18;
+  --bg-elevated: #25221d;
+  --bg-sunken: #121110;
+
+  --text-primary: #e9e6e0;
+  --text-secondary: #a8a49b;
+  --text-muted: #87837c;
+
+  --accent-primary: #d4a464;
+  --accent-cta: #b98b4f;
+  --accent-soft: rgba(212, 164, 100, 0.10);
+  --accent-soft-strong: rgba(212, 164, 100, 0.24);
+  --btn-fg: #1a1712;
+
+  --border-subtle: #2c2822;
+  --border-hair: #232019;
+  --border-strong: #3d382f;
+
+  --relation-line: rgba(212, 164, 100, 0.22);
+  --wave-ring: rgba(212, 164, 100, 0.075);
+  --awareness-glow: radial-gradient(
+    120% 80% at 18% 0%,
+    rgba(212, 164, 100, 0.055),
+    transparent 60%
+  );
+  --reflection-focus: #d4a464;
+
+  --shadow-focus: 0 1px 2px rgba(0, 0, 0, 0.30);
+  --shadow-mobile-nav: 0 -1px 0 var(--border-subtle);
+  --well-shadow: 0.22;
+
+  --wave-stroke-a: rgba(212, 164, 100, 0.17);
+  --wave-stroke-b: rgba(212, 164, 100, 0.095);
+  --wave-bloom: rgba(212, 164, 100, 0.05);
+}

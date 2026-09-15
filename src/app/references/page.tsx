@@ -1,14 +1,12 @@
-import { DEMO_EXTERNAL_REFERENCES } from '../_components/demo-fixtures';
-
 export default function ReferencesPage() {
   return (
     <main className="route-shell">
-      <nav className="route-trail" aria-label="当前演示路径">
-        <a href="/">Start</a><span aria-hidden="true">→</span><a href="/#awareness">Awareness</a><span aria-hidden="true">→</span><strong>References</strong>
+      <nav className="route-trail" aria-label="当前位置">
+        <a href="/">见渊</a><span aria-hidden="true">→</span><strong>参考资料</strong>
       </nav>
 
       <header className="route-hero">
-        <span className="stage-label">3.0 · References</span>
+        <span className="stage-label">参考资料</span>
         <h1>借一个角度，不借一个定义。</h1>
         <p className="route-lede">
           外部参考帮助你理解更大的语境。它们不会成为你的个人经历，也不会自动进入关于你的观察。
@@ -17,19 +15,12 @@ export default function ReferencesPage() {
 
       <section className="route-workspace reference-workspace" aria-labelledby="reference-workspace-title">
         <div className="panel-heading">
-          <span>External perspectives</span>
-          <h2 id="reference-workspace-title">与这次主题相邻的两种视角</h2>
+          <span>外部参考</span>
+          <h2 id="reference-workspace-title">外部视角会在你主动需要时出现</h2>
         </div>
-        <div className="reference-story-grid">
-          {DEMO_EXTERNAL_REFERENCES.map((reference) => (
-            <article className="reference-card" key={reference.id}>
-              <div className="reference-source"><span className="source-icon">知</span>{reference.source}</div>
-              <h3>{reference.title}</h3>
-              <p>{reference.excerpt}</p>
-              <p className="card-boundary">{reference.perspective}</p>
-              <div className="reference-footer"><span>{reference.meta}</span><span>保留为参考</span></div>
-            </article>
-          ))}
+        <div className="notice home-empty-state">
+          <strong>还没有外部参考。</strong>
+          <p>当你主动选择一个资料来源并导入内容时，参考资料会与个人记录分开保存。</p>
         </div>
 
         <aside className="boundary-panel" aria-labelledby="reference-boundary-title">
@@ -42,8 +33,8 @@ export default function ReferencesPage() {
       </section>
 
       <div className="route-next">
-        <p>看完外部世界的角度，再回到自己的感受：这条可能的观察，对你来说成立吗？</p>
-        <a className="action-link" href="/reflection">继续到 Reflection <span aria-hidden="true">→</span></a>
+        <p>外部参考不是使用见渊的前提。你可以继续记录，或回看已经出现的线索。</p>
+        <a className="action-link" href="/capture">创建一条记录 <span aria-hidden="true">→</span></a>
       </div>
     </main>
   );

@@ -1,0 +1,36 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "见渊",
+  "version": "0.2.0-alpha",
+  "identifier": "com.jianyuan.desktop",
+  "build": {
+    "beforeDevCommand": "npm run dev:renderer",
+    "devUrl": "http://127.0.0.1:1420",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "见渊",
+        "width": 1080,
+        "height": 760,
+        "minWidth": 760,
+        "minHeight": 560
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; connect-src ipc: http://ipc.localhost http://127.0.0.1:*; img-src 'self' asset: http://asset.localhost; style-src 'self' 'unsafe-inline'; script-src 'self'"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "resources": {
+      "../runtime-dist/server.mjs": "runtime-dist/server.mjs",
+      "../runtime-dist/node.exe": "runtime-dist/node.exe"
+    },
+    "targets": [
+      "nsis"
+    ]
+  }
+}

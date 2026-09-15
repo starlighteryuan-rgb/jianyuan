@@ -1,0 +1,1624 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>见渊 Paired Theme Board</title>
+<style>
+/* ============================================================
+   见渊 Phase 10A - Paired Theme Board template
+   NON-PRODUCTION research artifact.
+
+   Dark and Light columns are cloned from the SAME screen
+   templates, so layout / typography / spacing / geometry are
+   identical by construction. Only semantic token values differ.
+   ============================================================ */
+
+/* ---------- shared, theme-independent design system ---------- */
+:root {
+  --font-display: "Noto Serif SC", "Source Han Serif SC", Georgia, "Songti SC", serif;
+  --font-body: "Segoe UI", "Microsoft YaHei", "Noto Sans SC", system-ui, sans-serif;
+  --font-mono: Consolas, "Cascadia Mono", "JetBrains Mono", monospace;
+
+  /* spacing scale (4px base) */
+  --s-1: 4px;  --s-2: 8px;  --s-3: 12px; --s-4: 16px;
+  --s-5: 24px; --s-6: 32px; --s-7: 48px; --s-8: 64px;
+
+  /* geometry */
+  --r-sm: 4px; --r-md: 8px; --r-lg: 12px;
+  --nav-w: 190px;
+  --read-max: 620px;
+
+  /* type scale */
+  --t-eyebrow: 11px; --t-meta: 11.5px; --t-body: 13.5px;
+  --t-lead: 15px; --t-h2: 15px; --t-h1: 25px;
+  --lh-body: 1.75; --lh-h1: 1.3;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  background: #0b0b0a;
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ============================================================
+   BOARD CHROME (the board itself, not the product)
+   ============================================================ */
+.board {
+  width: 2400px;
+  padding: 56px 48px 72px;
+  background: #0b0b0a;
+}
+
+.board-head { margin-bottom: 40px; }
+.board-eyebrow {
+  font-family: var(--font-mono);
+  font-size: 11px; letter-spacing: .18em; text-transform: uppercase;
+  color: #8b8478; margin: 0 0 14px;
+}
+.board-title {
+  font-family: var(--font-display);
+  font-size: 46px; font-weight: 600; letter-spacing: -.01em;
+  color: #f2ece0; margin: 0 0 10px;
+}
+.board-sub {
+  font-size: 15px; line-height: 1.7; color: #a49c8d;
+  margin: 0; max-width: 1100px;
+}
+.board-feel {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 32px;
+  margin-top: 28px; max-width: 1500px;
+}
+.feel-card {
+  border-left: 2px solid #3a342b; padding: 4px 0 4px 20px;
+}
+.feel-card b {
+  display: block; font-family: var(--font-mono); font-size: 11px;
+  letter-spacing: .14em; text-transform: uppercase; color: #8b8478;
+  font-weight: 500; margin-bottom: 8px;
+}
+.feel-card span {
+  font-family: var(--font-display); font-size: 19px; line-height: 1.6;
+  color: #ddd5c6;
+}
+
+/* section label between screen rows */
+.sec-label {
+  display: flex; align-items: baseline; gap: 16px;
+  margin: 52px 0 20px;
+}
+.sec-label h2 {
+  font-family: var(--font-mono); font-size: 12px; font-weight: 500;
+  letter-spacing: .2em; text-transform: uppercase; color: #9d9484; margin: 0;
+}
+.sec-label .sec-note { font-size: 12.5px; color: #6e6759; margin: 0; }
+.sec-label .rule { flex: 1; height: 1px; background: #241f18; }
+
+/* two theme columns */
+.pair {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 40px;
+  align-items: start;
+}
+.col-head {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 12px;
+}
+.col-head .tag {
+  font-family: var(--font-mono); font-size: 11px; letter-spacing: .16em;
+  text-transform: uppercase; color: #9d9484;
+}
+.col-head .name { font-size: 13px; color: #6e6759; }
+
+/* ============================================================
+   PRODUCT MOCK - uses ONLY semantic tokens
+   ============================================================ */
+.app {
+  width: 100%;
+  background: var(--bg-canvas);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: var(--nav-w) minmax(0, 1fr);
+  color: var(--text-primary);
+}
+
+/* ---- title bar (window chrome) ---- */
+.titlebar {
+  grid-column: 1 / -1;
+  height: 34px;
+  display: flex; align-items: center; gap: 8px;
+  padding: 0 14px;
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--bg-surface);
+}
+.dotctl { width: 9px; height: 9px; border-radius: 50%; background: var(--border-strong); }
+.titlebar .win-title {
+  margin-left: 8px; font-size: 11.5px; color: var(--text-muted);
+  letter-spacing: .04em;
+}
+
+/* ---- sidebar navigation ---- */
+.nav {
+  background: var(--bg-surface);
+  border-right: 1px solid var(--border-subtle);
+  padding: 22px 14px 18px;
+  display: flex; flex-direction: column; gap: 26px;
+  min-height: 520px;
+}
+.brand { display: flex; align-items: center; gap: 9px; padding: 0 8px; }
+/* Small Brand Mark: outer ring + inner ring + center point + vertical axis.
+   Optical simplification of the 512px app icon: no glow, no metal, no gradient.
+   Same geometry at 24/28/32px; stroke widths step down for small sizes. */
+.brand-mark {
+  width: 28px; height: 28px;
+  display: grid; place-items: center;
+  color: var(--accent-primary);
+}
+.brand-mark svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.brand-mark .bm-axis { stroke: currentColor; stroke-width: 1.1; opacity: .45; }
+.brand-mark .bm-ring-outer { stroke: currentColor; stroke-width: 1.6; opacity: .9; }
+.brand-mark .bm-ring-inner { stroke: currentColor; stroke-width: 1.1; opacity: .5; }
+.brand-mark .bm-core { fill: currentColor; }
+
+/* size variants keep legibility by thinning the axis first */
+.brand-mark.bm-24 { width: 24px; height: 24px; }
+.brand-mark.bm-24 .bm-axis { opacity: .35; }
+.brand-mark.bm-32 { width: 32px; height: 32px; }
+.brand-name {
+  font-family: var(--font-display); font-size: 15px; font-weight: 600;
+  letter-spacing: .06em; color: var(--text-primary);
+}
+
+.nav-group { display: grid; gap: 3px; }
+.nav-item {
+  display: grid; gap: 3px; width: 100%;
+  padding: 10px 11px;
+  border: 0; border-left: 2px solid transparent;
+  border-radius: 0 var(--r-md) var(--r-md) 0;
+  background: transparent; text-align: left; cursor: pointer;
+  color: var(--text-secondary);
+}
+.nav-item strong { font-size: 13.5px; font-weight: 500; letter-spacing: .02em; }
+.nav-item span { font-size: 11px; line-height: 1.45; color: var(--text-muted); }
+.nav-item.is-active {
+  border-left-color: var(--accent-primary);
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+}
+.nav-item.is-active strong { font-weight: 600; }
+.nav-secondary { margin-top: auto; padding-top: 16px; border-top: 1px solid var(--border-subtle); }
+
+.nav-status {
+  display: grid; gap: 5px; padding: 12px 11px 0;
+  border-top: 1px solid var(--border-subtle);
+}
+.nav-status .k {
+  font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--text-muted); font-family: var(--font-mono);
+}
+.nav-status .v { display: flex; align-items: center; gap: 7px; font-size: 12px; color: var(--text-secondary); }
+.status-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--accent-primary);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+/* ---- main area ---- */
+.main {
+  position: relative;
+  padding: 40px 48px 56px;
+  background: var(--bg-canvas);
+  min-height: 520px;
+  isolation: isolate;
+}
+
+/* The dense repeating-radial-gradient mesh was removed: at any real density it
+   reads as a topographic / parametric grid, which is exactly what 见渊 is not.
+   Water is now expressed by a few large-span arcs, per screen, in .wave-layer. */
+.main > *:not(.wave-layer) { position: relative; z-index: 1; }
+
+/* 记录 and 设置 intentionally carry no background curve. */
+.page-head { max-width: var(--read-max); margin-bottom: 34px; }
+.eyebrow {
+  margin: 0 0 10px; font-family: var(--font-mono); font-size: var(--t-eyebrow);
+  letter-spacing: .16em; text-transform: uppercase; color: var(--text-muted);
+}
+.page-head h1 {
+  margin: 0 0 12px; font-family: var(--font-display);
+  font-size: var(--t-h1); font-weight: 600; line-height: var(--lh-h1);
+  letter-spacing: -.005em; color: var(--text-primary);
+}
+.page-head p {
+  margin: 0; font-size: var(--t-lead); line-height: 1.75; color: var(--text-secondary);
+}
+
+/* generic section inside main */
+.block { max-width: var(--read-max); }
+.block + .block { margin-top: 38px; }
+.block-h {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: 16px; margin-bottom: 16px;
+  padding-bottom: 10px; border-bottom: 1px solid var(--border-subtle);
+}
+.block-h h2 {
+  margin: 0; font-size: var(--t-h2); font-weight: 600; letter-spacing: .01em;
+  color: var(--text-primary);
+}
+.block-h .count {
+  font-family: var(--font-mono); font-size: var(--t-meta); color: var(--text-muted);
+}
+
+/* composer */
+.composer { display: grid; gap: 12px; }
+.composer label {
+  font-size: 12.5px; color: var(--text-secondary); letter-spacing: .01em;
+}
+.composer textarea {
+  width: 100%; min-height: 96px; resize: none;
+  padding: 14px 15px;
+  font-family: var(--font-display); font-size: 15px; line-height: 1.8;
+  color: var(--text-primary);
+  /* The writing surface sits slightly BELOW the page: a recessed paper well,
+     not a white card. Same token in both themes. */
+  background: var(--bg-sunken);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--r-md);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, var(--well-shadow));
+}
+.composer textarea:focus { outline: none; border-color: var(--border-strong); }
+.composer textarea::placeholder { color: var(--text-muted); }
+.composer-actions { display: flex; align-items: center; gap: 12px; }
+.btn {
+  padding: 9px 18px; font-size: 13px; font-weight: 500; letter-spacing: .01em;
+  border-radius: var(--r-md); border: 1px solid transparent; cursor: pointer;
+  /* CTA uses its own, slightly darker token so it reads as clickable
+     without out-shining the user's own text. */
+  background: var(--accent-cta); color: var(--btn-fg);
+}
+.btn:hover { background: var(--accent-primary); }
+.btn:active { background: var(--accent-cta); }
+.btn:focus-visible { outline: 2px solid var(--accent-primary); outline-offset: 2px; }
+
+.btn.ghost {
+  background: transparent; color: var(--text-secondary);
+  border-color: var(--border-subtle);
+}
+.btn.ghost:hover { border-color: var(--border-strong); color: var(--text-primary); background: transparent; }
+.btn.ghost:focus-visible { outline: 2px solid var(--border-strong); outline-offset: 2px; }
+
+/* Destructive / dismissive AI actions stay quieter than the user's own actions. */
+.btn.quiet-ai {
+  background: transparent; color: var(--text-muted);
+  border-color: var(--border-subtle); font-weight: 400;
+}
+.btn.quiet-ai:hover { color: var(--text-secondary); border-color: var(--border-strong); }
+.composer-hint { font-size: 11.5px; line-height: 1.6; color: var(--text-muted); opacity: .85; }
+
+/* search row */
+.search {
+  display: flex; gap: 10px; align-items: center;
+}
+.search input {
+  flex: 1; padding: 9px 13px; font-size: 13px;
+  color: var(--text-primary); background: var(--bg-sunken);
+  border: 1px solid var(--border-subtle); border-radius: var(--r-md);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, var(--well-shadow));
+}
+.search input:focus { outline: none; border-color: var(--border-strong); }
+.search input::placeholder { color: var(--text-muted); }
+
+/* ---- record timeline: 点 = 一段经历 ---- */
+.timeline { display: grid; }
+.rec {
+  display: grid; grid-template-columns: 22px minmax(0, 1fr);
+  gap: 14px; padding: 15px 0;
+  border-bottom: 1px solid var(--border-hair);
+}
+.rec:last-child { border-bottom: 0; }
+.rec-rail { position: relative; display: flex; justify-content: center; padding-top: 6px; }
+.rec-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--text-muted);
+  z-index: 1;
+}
+.rec.is-seen .rec-dot {
+  background: var(--accent-primary);
+  /* the ring itself is .rec-ring; the dot only needs to separate from the rail */
+  box-shadow: 0 0 0 1px var(--bg-canvas);
+}
+.rec.is-stable .rec-dot {
+  background: var(--accent-primary);
+  box-shadow: 0 0 0 2px var(--bg-canvas), 0 0 0 3.5px var(--accent-primary);
+}
+.rec-rail::before {
+  content: ""; position: absolute; top: -15px; bottom: -15px; left: 50%;
+  width: 1px; background: var(--border-hair);
+}
+.rec:first-child .rec-rail::before { top: 6px; }
+.rec:last-child .rec-rail::before { bottom: auto; height: 16px; }
+
+.rec-body { min-width: 0; }
+.rec-text {
+  margin: 0 0 7px; font-family: var(--font-display);
+  font-size: 14.5px; line-height: 1.8; color: var(--text-primary);
+}
+.rec-meta {
+  display: flex; align-items: center; gap: 10px;
+  font-family: var(--font-mono); font-size: var(--t-meta); color: var(--text-muted);
+}
+.rec-meta .sep { color: var(--border-strong); }
+.rec-tag {
+  font-family: var(--font-body); font-size: 10.5px; letter-spacing: .06em;
+  padding: 2px 7px; border-radius: 999px;
+  border: 1px solid var(--accent-soft-strong);
+  color: var(--accent-primary);
+}
+
+/* ---- observation card: AI 临时观察，视觉权重低于用户文字 ---- */
+.obs {
+  position: relative;
+  padding: 22px 26px 20px;
+  /* Observation sits on the recessed surface, one step below user content.
+     One corner settles further than the rest: a contour that reads as an arc
+     rather than as a box, without becoming decorative. */
+  background: var(--bg-sunken);
+  border: 1px solid var(--border-hair);
+  border-radius: var(--r-lg) var(--r-lg) 26px var(--r-lg);
+  max-width: var(--read-max);
+}
+.obs::before {
+  content: ""; position: absolute; inset: -1px;
+  border-radius: var(--r-lg) var(--r-lg) 26px var(--r-lg);
+  background: var(--awareness-glow);
+  pointer-events: none; opacity: var(--glow-opacity);
+}
+.obs > * { position: relative; }
+.obs-head { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+.ring {
+  width: 13px; height: 13px; border-radius: 50%;
+  border: 1px solid var(--accent-primary); opacity: .38;
+  position: relative;
+}
+.ring::after {
+  content: ""; position: absolute; inset: 3.5px; border-radius: 50%;
+  border: 1px solid var(--accent-primary); opacity: .42;
+}
+.obs-kind {
+  font-family: var(--font-mono); font-size: 10px;
+  letter-spacing: .13em; text-transform: uppercase; color: var(--text-muted);
+  opacity: .8;
+}
+.obs-temp {
+  margin-left: auto; font-size: 10.5px; color: var(--text-muted);
+  padding: 1px 7px; border-radius: 999px; border: 1px solid var(--border-hair);
+  opacity: .85;
+}
+.obs h3 {
+  margin: 4px 0 6px; font-family: var(--font-body);
+  font-size: 14px; font-weight: 500; color: var(--text-secondary);
+  letter-spacing: .01em;
+}
+.obs-note {
+  margin: 0 0 20px; font-size: 12.5px; line-height: 1.7; color: var(--text-muted);
+}
+.obs-part { padding: 14px 0; border-top: 1px solid var(--border-hair); }
+.obs-part h4 {
+  margin: 0 0 9px; font-family: var(--font-mono); font-size: 10px;
+  letter-spacing: .12em; text-transform: uppercase; font-weight: 400;
+  color: var(--text-muted); opacity: .85;
+}
+.obs-part p { margin: 0; font-size: 13px; line-height: 1.8; color: var(--text-secondary); }
+.quote {
+  margin: 0; padding: 3px 0 3px 14px;
+  border-left: 1px solid var(--border-strong);
+  font-family: var(--font-display); font-size: 14px; line-height: 1.8;
+  color: var(--text-primary);
+}
+.quote + .quote { margin-top: 10px; }
+.obs-question {
+  margin: 0; padding: 11px 14px;
+  background: var(--bg-surface); border-radius: var(--r-md);
+  border-left: 2px solid var(--border-strong);
+  font-family: var(--font-display); font-size: 13.5px; line-height: 1.75;
+  color: var(--text-secondary);
+}
+.obs-cta { margin-top: 20px; display: flex; gap: 10px; }
+
+/* ---- user reflection: 用户原话 = 视觉主体，衬线，最大 ---- */
+.refl-quote {
+  margin: 0 0 14px;
+  font-family: var(--font-display); font-size: 21px; line-height: 1.72;
+  font-weight: 500; letter-spacing: -.005em;
+  color: var(--text-primary);
+}
+.refl-src {
+  display: grid; gap: 10px; padding: 14px 0 0;
+  border-top: 1px solid var(--border-hair);
+}
+.refl-src .k {
+  font-family: var(--font-mono); font-size: var(--t-eyebrow); letter-spacing: .13em;
+  text-transform: uppercase; color: var(--text-muted);
+}
+.refl-src .v {
+  font-size: 12.5px; line-height: 1.75; color: var(--text-secondary);
+}
+
+/* reflection focus state: AI recedes, user text leads */
+.focus-stack { display: grid; gap: 22px; max-width: var(--read-max); }
+.focus-ai {
+  opacity: var(--ai-recede);
+  padding: 15px 18px;
+  background: var(--bg-sunken);
+  border: 1px solid var(--border-hair);
+  border-left: 2px solid var(--border-subtle);
+  border-radius: var(--r-md);
+}
+.focus-ai .lbl {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 8px;
+  font-family: var(--font-mono); font-size: var(--t-eyebrow);
+  letter-spacing: .13em; text-transform: uppercase; color: var(--text-muted);
+}
+.focus-ai p { margin: 0; font-size: 12.5px; line-height: 1.75; color: var(--text-secondary); }
+.focus-user {
+  padding: 24px 26px;
+  /* User reflection is the only raised, lit surface on this screen.
+     Its settling corner mirrors the observation card, so the two read as
+     one family while the user surface stays the brighter of the pair. */
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-strong);
+  border-left: 2px solid var(--reflection-focus);
+  border-radius: var(--r-md) 20px var(--r-md) var(--r-md);
+  box-shadow: var(--shadow-focus);
+}
+.focus-user .lbl {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 12px;
+  font-family: var(--font-mono); font-size: var(--t-eyebrow);
+  letter-spacing: .13em; text-transform: uppercase; color: var(--accent-primary);
+}
+.focus-user-text {
+  margin: 0; min-height: 118px;
+  font-family: var(--font-display); font-size: 17px; line-height: 1.85;
+  color: var(--text-primary);
+}
+.focus-user .caret {
+  display: inline-block; width: 1.5px; height: 19px; vertical-align: -3px;
+  background: var(--reflection-focus); margin-left: 2px;
+}
+.focus-foot {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 14px; margin-top: 16px; padding-top: 14px;
+  border-top: 1px solid var(--border-hair);
+}
+.focus-foot .note { font-size: 11.5px; color: var(--text-muted); }
+
+/* ---- exploration: 稳定轨道 + 轨迹 + provenance ---- */
+.conn {
+  position: relative;
+  display: grid; grid-template-columns: 34px minmax(0,1fr);
+  gap: 16px; padding: 20px 0;
+  border-bottom: 1px solid var(--border-hair);
+}
+.conn:last-child { border-bottom: 0; }
+.conn-rail { position: relative; display: flex; justify-content: center; padding-top: 3px; }
+.orbit {
+  width: 19px; height: 19px; border-radius: 50%;
+  border: 1px solid var(--relation-line);
+  display: grid; place-items: center; z-index: 1;
+  background: var(--bg-canvas);
+  /* stable orbit: a second, fainter ring marks a relation the user has taken part in */
+  box-shadow: 0 0 0 4px var(--bg-canvas), 0 0 0 5px var(--wave-ring);
+}
+.orbit i { width: 6px; height: 6px; border-radius: 50%; background: var(--accent-primary); }
+/* rail is now the .rail-curve SVG: a very slight S instead of a hard rule */
+.conn:first-child .conn-rail::before { top: 3px; }
+.conn:last-child .conn-rail::before { bottom: auto; height: 22px; }
+.conn-body { min-width: 0; }
+.conn-title {
+  margin: 0 0 6px; font-family: var(--font-display);
+  font-size: 16px; font-weight: 500; line-height: 1.55; color: var(--text-primary);
+}
+.conn-ev { margin: 0 0 12px; font-size: 12.5px; line-height: 1.8; color: var(--text-secondary); }
+.conn-participation {
+  display: inline-flex; align-items: center; gap: 6px;
+  margin-bottom: 10px; font-family: var(--font-mono); font-size: var(--t-meta);
+  color: var(--text-muted); letter-spacing: .04em;
+}
+.conn-participation i {
+  width: 4px; height: 4px; border-radius: 50%; background: var(--accent-primary); opacity: .7;
+}
+.prov {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 7px 14px;
+  font-family: var(--font-mono); font-size: var(--t-meta); color: var(--text-muted);
+}
+.prov .chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 3px 9px; border-radius: 999px;
+  border: 1px solid var(--border-subtle); background: var(--bg-surface);
+}
+.prov .chip i { width: 4px; height: 4px; border-radius: 50%; background: var(--text-muted); }
+.span-line {
+  display: flex; align-items: center; gap: 9px; margin-top: 11px;
+  font-family: var(--font-mono); font-size: var(--t-meta); color: var(--text-muted);
+}
+/* A shallow downward sag: time continuing, then settling inward.
+   Drawn with a border arc so it stays a curve, not a straight rule. */
+/* superseded by .span-curve (SVG) so the sag is a real smooth curve */
+
+/* ---- settings (compact, functional) ---- */
+.set-row {
+  display: grid; grid-template-columns: 128px minmax(0,1fr); gap: 18px;
+  padding: 13px 0; border-bottom: 1px solid var(--border-hair);
+  align-items: center;
+}
+.set-row:last-child { border-bottom: 0; }
+.set-row .k { font-size: 12.5px; color: var(--text-secondary); }
+.set-row .v { font-size: 12.5px; color: var(--text-primary); }
+.seg {
+  display: inline-flex; padding: 2px; gap: 2px;
+  background: var(--bg-surface); border: 1px solid var(--border-subtle);
+  border-radius: var(--r-md);
+}
+.seg button {
+  padding: 6px 14px; font-size: 12px; border: 0; border-radius: 6px;
+  background: transparent; color: var(--text-secondary); cursor: pointer;
+}
+.seg button.on {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  font-weight: 600;
+  /* Selected state must stay readable in BOTH themes. Surface and elevated are
+     nearly identical in the light tokens, so the ring carries the meaning. */
+  box-shadow: inset 0 0 0 1px var(--border-strong);
+}
+.kv { font-family: var(--font-mono); font-size: 11.5px; color: var(--text-muted); }
+
+/* ============================================================
+   SPEC STRIP (typography / tokens / north-star marks)
+   ============================================================ */
+.spec {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 40px;
+  margin-top: 8px;
+}
+.spec-box {
+  border: 1px solid #241f18; border-radius: var(--r-lg);
+  padding: 26px 28px; background: #100f0d;
+}
+.spec-box h3 {
+  margin: 0 0 18px; font-family: var(--font-mono); font-size: 11px;
+  letter-spacing: .18em; text-transform: uppercase; color: #9d9484; font-weight: 500;
+}
+.type-row { display: grid; gap: 4px; padding: 11px 0; border-bottom: 1px solid #1d1913; }
+.type-row:last-child { border-bottom: 0; }
+.type-row .role { font-family: var(--font-mono); font-size: 10.5px; letter-spacing: .1em;
+  text-transform: uppercase; color: #6e6759; }
+.type-row .sample-serif { font-family: var(--font-display); color: #ddd5c6; }
+.type-row .sample-sans { font-family: var(--font-body); color: #ddd5c6; }
+.type-row .sample-mono { font-family: var(--font-mono); color: #ddd5c6; }
+
+.swatches { display: grid; grid-template-columns: repeat(2, 1fr); gap: 9px 18px; }
+.sw { display: grid; grid-template-columns: 26px minmax(0,1fr); gap: 10px; align-items: center; }
+.sw i { width: 26px; height: 26px; border-radius: 5px; border: 1px solid #2a251d; }
+.sw .n { font-family: var(--font-mono); font-size: 10.5px; color: #8b8478; display: block; }
+.sw .hex { font-family: var(--font-mono); font-size: 11px; color: #c4bcae; display: block; }
+
+.legend { display: grid; gap: 12px; }
+.lg { display: grid; grid-template-columns: 46px minmax(0,1fr); gap: 14px; align-items: center; }
+.lg-art { display: grid; place-items: center; height: 30px; }
+.lg p { margin: 0; font-size: 12.5px; line-height: 1.6; color: #a49c8d; }
+.lg b { color: #ddd5c6; font-weight: 500; }
+
+/* ---- wave language detail board ---- */
+.wave-board {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 40px;
+}
+.wave-stage {
+  position: relative; overflow: hidden;
+  border: 1px solid #241f18; border-radius: 12px;
+  background: #161512;
+  min-height: 230px;
+  padding: 26px 28px;
+}
+.wave-stage.paper { background: #f5f1e8; border-color: #ddd5c4; }
+/* Same sparse, large-span arcs the real screens use: two discrete rings per
+   origin, wide spacing, low contrast. Never a repeating mesh. */
+.wave-stage::before {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background-image:
+    radial-gradient(circle at 86% -22%, transparent 0 132px, rgba(212,164,100,0.085) 132px 133px, transparent 133px),
+    radial-gradient(circle at 86% -22%, transparent 0 208px, rgba(212,164,100,0.05) 208px 209px, transparent 209px),
+    radial-gradient(circle at -8% 122%, transparent 0 168px, rgba(212,164,100,0.06) 168px 169px, transparent 169px);
+}
+.wave-stage.paper::before {
+  background-image:
+    radial-gradient(circle at 86% -22%, transparent 0 132px, rgba(140,106,74,0.10) 132px 133px, transparent 133px),
+    radial-gradient(circle at 86% -22%, transparent 0 208px, rgba(140,106,74,0.06) 208px 209px, transparent 209px),
+    radial-gradient(circle at -8% 122%, transparent 0 168px, rgba(140,106,74,0.07) 168px 169px, transparent 169px);
+}
+.wave-stage > * { position: relative; }
+.wave-stage h4 {
+  margin: 0 0 4px; font-family: var(--font-mono); font-size: 11px;
+  letter-spacing: .18em; text-transform: uppercase; color: #9d9484; font-weight: 500;
+}
+.wave-stage.paper h4 { color: #8b7f68; }
+.wave-stage p {
+  margin: 0 0 20px; font-size: 12.5px; line-height: 1.7; color: #7d7568; max-width: 60ch;
+}
+.wave-stage.paper p { color: #7a7061; }
+
+.wave-row { display: flex; align-items: center; gap: 22px; padding: 13px 0; border-top: 1px solid #241f18; }
+.wave-stage.paper .wave-row { border-top-color: #e3dbca; }
+.wave-row:first-of-type { border-top: 0; }
+.wave-art { width: 92px; height: 44px; flex: none; display: grid; place-items: center; }
+.wave-row .txt { display: grid; gap: 3px; }
+.wave-row b { font-size: 13px; font-weight: 600; color: #ddd5c6; letter-spacing: .02em; }
+.wave-stage.paper .wave-row b { color: #3a342a; }
+.wave-row span.txt > span { font-size: 12px; color: #7d7568; line-height: 1.6; }
+.wave-stage.paper .wave-row span.txt > span { color: #7a7061; }
+
+.motion-intent {
+  margin-top: 44px; border: 1px solid #241f18; border-radius: 12px;
+  background: #100f0d; padding: 28px 30px;
+}
+.motion-intent h3 {
+  margin: 0 0 6px; font-family: var(--font-mono); font-size: 11px;
+  letter-spacing: .18em; text-transform: uppercase; color: #9d9484; font-weight: 500;
+}
+.motion-intent .mi-note { margin: 0 0 22px; font-size: 12.5px; color: #7d7568; line-height: 1.7; }
+.mi-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0 40px; }
+.mi { padding: 15px 0; border-top: 1px solid #1d1913; }
+.mi .k { font-family: var(--font-mono); font-size: 10.5px; letter-spacing: .14em;
+  text-transform: uppercase; color: #6e6759; display: block; margin-bottom: 7px; }
+.mi .feel { font-family: var(--font-display); font-size: 15px; color: #ddd5c6; display: block; margin-bottom: 6px; }
+.mi .spec { font-size: 12px; color: #8b8478; line-height: 1.75; display: block; }
+
+/* ---- 渊 water language: sparse large-span arcs, not a mesh ---- */
+.wave-layer {
+  position: absolute; inset: 0;
+  z-index: 0; pointer-events: none;
+  overflow: hidden;
+}
+.wave-svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+
+/* vector-effect keeps hairline weight identical in both themes and at any size */
+.wave-svg path {
+  fill: none;
+  vector-effect: non-scaling-stroke;
+}
+.wave-a { stroke: var(--wave-stroke-a); stroke-width: 1.15; }
+.wave-b { stroke: var(--wave-stroke-b); stroke-width: 1; }
+
+/* Ripples are real circles, sized in px so no viewBox scaling can flatten them.
+   Both share one centre, so they read as one ripple settling outward. */
+.wave-ring {
+  position: absolute;
+  border-radius: 50%;
+  border: 1px solid var(--wave-stroke-a);
+  pointer-events: none;
+}
+.wave-ring.is-outer { border-color: var(--wave-stroke-b); }
+
+/* Dark may carry the faintest bloom; Light relies on tone difference only. */
+[data-theme="dark"] .wave-a,
+[data-theme="dark"] .wave-ring { filter: drop-shadow(0 0 6px var(--wave-bloom)); }
+[data-theme="light"] .wave-a,
+[data-theme="light"] .wave-ring { filter: none; }
+
+/* Dim the arcs across the reading column so long-form text stays calm, but never
+   erase them: the convergence point is the meaning, so it must stay perceptible.
+   记录 carries no arc at all, so it needs no mask. */
+.main[data-wave="reflection"] .wave-layer {
+  mask-image: linear-gradient(to right, rgba(0,0,0,0.32) 0%, rgba(0,0,0,0.5) 46%, black 78%);
+}
+.main[data-wave="exploration"] .wave-layer {
+  mask-image: linear-gradient(to bottom, black 0%, black 72%, transparent 100%);
+}
+
+/* 探索: rail between long-term connections, a very slight S instead of a rule */
+.rail-curve {
+  position: absolute; top: -20px; bottom: -20px; left: 50%;
+  width: 24px; margin-left: -12px;
+  pointer-events: none;
+}
+.rail-curve path {
+  fill: none; stroke: var(--relation-line); stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+.conn:first-child .rail-curve { top: 3px; }
+.conn:last-child .rail-curve { bottom: auto; height: 22px; }
+
+/* 探索: time span as a smooth sagging curve */
+.span-curve { width: 100%; max-width: 150px; height: 12px; display: block; }
+.span-curve path {
+  fill: none; stroke: var(--relation-line); stroke-width: 1.2;
+  vector-effect: non-scaling-stroke;
+}
+
+/* 记录: a settled ring on a record that has been looked back at */
+.rec-ring {
+  position: absolute; top: 6px; left: 50%;
+  width: 22px; height: 22px; margin-left: -11px;
+  border-radius: 50%;
+  border: 1px solid var(--accent-soft-strong);
+  opacity: .75;
+  pointer-events: none;
+}
+
+.board-foot {
+
+
+  margin-top: 48px; padding-top: 24px; border-top: 1px solid #1d1913;
+  display: flex; gap: 28px; align-items: baseline; flex-wrap: wrap;
+}
+.board-foot span { font-family: var(--font-mono); font-size: 11px; color: #6e6759; letter-spacing: .06em; }
+</style>
+</head>
+<body>
+<div class="board" id="board"></div>
+
+<script>
+/* ============================================================
+   TOKEN SETS - the only thing that differs between pairs
+   and between Dark / Light inside a pair.
+   ============================================================ */
+const PAIRS = {
+  A: {
+    name: 'Pair A',
+    cn: 'Deep Amber / Warm Paper',
+    cnNote: '最接近原有概念视觉。暖琥珀作为唯一强调色，光从深色里浮现；浅色是同一束光照在纸上。',
+    dark: {
+      label: 'Dark · Deep Amber',
+      feel: '在黑暗中，一些经历慢慢被看见。',
+      tokens: {
+        '--bg-canvas': '#161512',
+        '--bg-surface': '#1e1c18',
+        '--bg-elevated': '#25221d',
+        '--bg-sunken': '#121110',
+        '--well-shadow': '0.22',
+        '--wave-ring': 'rgba(212,164,100,0.075)',
+        '--wave-line': 'rgba(212,164,100,0.10)',
+        '--wave-stroke-a': 'rgba(212,164,100,0.17)',
+        '--wave-stroke-b': 'rgba(212,164,100,0.095)',
+        '--wave-bloom': 'rgba(212,164,100,0.05)',
+        '--text-primary': '#e9e6e0',
+        '--text-secondary': '#a8a49b',
+        '--text-muted': '#87837c',
+        '--accent-primary': '#d4a464',
+        '--accent-cta': '#b98b4f',
+        '--accent-soft': 'rgba(212,164,100,0.10)',
+        '--accent-soft-strong': 'rgba(212,164,100,0.24)',
+        '--border-subtle': '#2c2822',
+        '--border-hair': '#232019',
+        '--border-strong': '#3d382f',
+        '--relation-line': 'rgba(212,164,100,0.22)',
+        '--awareness-glow': 'radial-gradient(120% 80% at 18% 0%, rgba(212,164,100,0.055), transparent 60%)',
+        '--reflection-focus': '#d4a464',
+        '--btn-fg': '#1a1712',
+        '--shadow-focus': '0 1px 2px rgba(0,0,0,0.30)',
+        '--glow-opacity': '1',
+      },
+    },
+    light: {
+      label: 'Light · Warm Paper',
+      feel: '在安静的纸面上，把经历摊开重新看。',
+      tokens: {
+        '--bg-canvas': '#f5f1e8',
+        '--bg-surface': '#fdfbf5',
+        '--bg-elevated': '#fffcf6',
+        '--bg-sunken': '#efe9dc',
+        '--well-shadow': '0.035',
+        '--wave-ring': 'rgba(139,105,58,0.085)',
+        '--wave-line': 'rgba(139,105,58,0.11)',
+        '--wave-stroke-a': 'rgba(140,106,74,0.22)',
+        '--wave-stroke-b': 'rgba(140,106,74,0.13)',
+        '--wave-bloom': 'transparent',
+        '--text-primary': '#26231e',
+        '--text-secondary': '#5f5a50',
+        '--text-muted': '#6f685d',
+        '--accent-primary': '#8a683a',
+        '--accent-cta': '#7d5e33',
+        '--accent-soft': 'rgba(139,105,58,0.08)',
+        '--accent-soft-strong': 'rgba(139,105,58,0.22)',
+        '--border-subtle': '#e2dacb',
+        '--border-hair': '#eae3d5',
+        '--border-strong': '#cfc5b0',
+        '--relation-line': 'rgba(140,106,74,0.28)',
+        '--awareness-glow': 'radial-gradient(120% 80% at 18% 0%, rgba(139,105,58,0.045), transparent 58%)',
+        '--reflection-focus': '#8b693a',
+        '--btn-fg': '#fffcf6',
+        '--shadow-focus': '0 1px 2px rgba(70,58,40,0.08)',
+        '--glow-opacity': '1',
+      },
+    },
+  },
+
+  B: {
+    name: 'Pair B',
+    cn: 'Mineral Night / Mineral Day',
+    note: '',
+    cnNote: '最克制的一对。表面偏中性矿物灰，几乎不用光晕，层级只靠明度台阶；琥珀退成很小的点与线。',
+    dark: {
+      label: 'Dark · Mineral Night',
+      feel: '灯关掉以后，石头还在那里。',
+      tokens: {
+        '--bg-canvas': '#151514',
+        '--bg-surface': '#1c1c1a',
+        '--bg-elevated': '#232321',
+        '--bg-sunken': '#121211',
+        '--well-shadow': '0.20',
+        '--wave-ring': 'rgba(194,162,118,0.055)',
+        '--wave-line': 'rgba(194,162,118,0.08)',
+        '--wave-stroke-a': 'rgba(194,162,118,0.14)',
+        '--wave-stroke-b': 'rgba(194,162,118,0.08)',
+        '--wave-bloom': 'rgba(194,162,118,0.04)',
+        '--text-primary': '#e9e7e1',
+        '--text-secondary': '#a4a19a',
+        '--text-muted': '#86837b',
+        '--accent-primary': '#c2a276',
+        '--accent-cta': '#9d8256',
+        '--accent-soft': 'rgba(194,162,118,0.10)',
+        '--accent-soft-strong': 'rgba(194,162,118,0.24)',
+        '--border-subtle': '#2a2a27',
+        '--border-hair': '#212120',
+        '--border-strong': '#3a3a36',
+        '--relation-line': 'rgba(194,162,118,0.20)',
+        '--awareness-glow': 'radial-gradient(120% 80% at 18% 0%, rgba(194,162,118,0.045), transparent 58%)',
+        '--reflection-focus': '#c2a276',
+        '--btn-fg': '#16150f',
+        '--shadow-focus': '0 1px 2px rgba(0,0,0,0.28)',
+        '--glow-opacity': '1',
+      },
+    },
+    light: {
+      label: 'Light · Mineral Day',
+      feel: '白天的桌面，东西摊开，各在其位。',
+      tokens: {
+        '--bg-canvas': '#f3f2ee',
+        '--bg-surface': '#fbfaf7',
+        '--bg-elevated': '#fdfcfa',
+        '--bg-sunken': '#eae9e3',
+        '--well-shadow': '0.03',
+        '--wave-ring': 'rgba(142,115,72,0.07)',
+        '--wave-line': 'rgba(142,115,72,0.09)',
+        '--wave-stroke-a': 'rgba(120,100,70,0.19)',
+        '--wave-stroke-b': 'rgba(120,100,70,0.11)',
+        '--wave-bloom': 'transparent',
+        '--text-primary': '#222220',
+        '--text-secondary': '#5b5a55',
+        '--text-muted': '#6b6964',
+        '--accent-primary': '#846b43',
+        '--accent-cta': '#75603c',
+        '--accent-soft': 'rgba(132,107,67,0.08)',
+        '--accent-soft-strong': 'rgba(132,107,67,0.24)',
+        '--border-subtle': '#e1dfd8',
+        '--border-hair': '#e9e7e1',
+        '--border-strong': '#cfccc3',
+        '--relation-line': 'rgba(120,100,70,0.26)',
+        '--awareness-glow': 'radial-gradient(120% 80% at 18% 0%, rgba(132,107,67,0.05), transparent 58%)',
+        '--reflection-focus': '#846b43',
+        '--btn-fg': '#fdfcfa',
+        '--shadow-focus': '0 1px 2px rgba(50,48,42,0.06)',
+        '--glow-opacity': '1',
+      },
+    },
+  },
+
+  C: {
+    name: 'Pair C',
+    cn: 'Ember Night / Linen Day',
+    cnNote: '最暖、最有机的一对。表面带余烬般的暖棕，铜色成分更高；浅色是亚麻纸。风险是最容易滑向 gold luxury。',
+    dark: {
+      label: 'Dark · Ember Night',
+      feel: '炉火压下去以后，房间里还有余温。',
+      tokens: {
+        '--bg-canvas': '#1a1512',
+        '--bg-surface': '#221b16',
+        '--bg-elevated': '#2a2119',
+        '--bg-sunken': '#161210',
+        '--well-shadow': '0.24',
+        '--wave-ring': 'rgba(214,160,106,0.085)',
+        '--wave-line': 'rgba(214,160,106,0.11)',
+        '--wave-stroke-a': 'rgba(214,160,106,0.18)',
+        '--wave-stroke-b': 'rgba(214,160,106,0.10)',
+        '--wave-bloom': 'rgba(214,160,106,0.05)',
+        '--text-primary': '#f1e7d9',
+        '--text-secondary': '#b4a28a',
+        '--text-muted': '#92816d',
+        '--accent-primary': '#d6a06a',
+        '--accent-cta': '#b4814f',
+        '--accent-soft': 'rgba(214,160,106,0.14)',
+        '--accent-soft-strong': 'rgba(214,160,106,0.32)',
+        '--border-subtle': '#332820',
+        '--border-hair': '#2a211a',
+        '--border-strong': '#463728',
+        '--relation-line': 'rgba(214,160,106,0.28)',
+        '--awareness-glow': 'radial-gradient(120% 80% at 18% 0%, rgba(214,160,106,0.12), transparent 64%)',
+        '--reflection-focus': '#d6a06a',
+        '--btn-fg': '#1d1610',
+        '--shadow-focus': '0 1px 2px rgba(0,0,0,0.32)',
+        '--glow-opacity': '1',
+      },
+    },
+    light: {
+      label: 'Light · Linen Day',
+      feel: '亚麻布上，把经历一件件摊平。',
+      tokens: {
+        '--bg-canvas': '#f5eee2',
+        '--bg-surface': '#fdf8f0',
+        '--bg-elevated': '#fffcf6',
+        '--bg-sunken': '#eee4d4',
+        '--well-shadow': '0.04',
+        '--wave-ring': 'rgba(162,112,60,0.09)',
+        '--wave-line': 'rgba(162,112,60,0.12)',
+        '--wave-stroke-a': 'rgba(150,105,60,0.23)',
+        '--wave-stroke-b': 'rgba(150,105,60,0.14)',
+        '--wave-bloom': 'transparent',
+        '--text-primary': '#2e2519',
+        '--text-secondary': '#6b5c48',
+        '--text-muted': '#726452',
+        '--accent-primary': '#8f6335',
+        '--accent-cta': '#7f5730',
+        '--accent-soft': 'rgba(143,99,53,0.10)',
+        '--accent-soft-strong': 'rgba(143,99,53,0.28)',
+        '--border-subtle': '#e6dbc7',
+        '--border-hair': '#efe6d6',
+        '--border-strong': '#d2c2a8',
+        '--relation-line': 'rgba(150,105,60,0.30)',
+        '--awareness-glow': 'radial-gradient(120% 80% at 18% 0%, rgba(143,99,53,0.08), transparent 60%)',
+        '--reflection-focus': '#8f6335',
+        '--btn-fg': '#fffbf4',
+        '--shadow-focus': '0 1px 2px rgba(88,66,38,0.08)',
+        '--glow-opacity': '1',
+      },
+    },
+  },
+};
+
+/* ============================================================
+   CONTENT - realistic Phase 9 semantics, no lorem ipsum
+   ============================================================ */
+const NAV = [
+  { id: 'records', label: '记录', desc: '我经历了什么' },
+  { id: 'awareness', label: '觉察', desc: '有什么值得重新观察' },
+  { id: 'reflection', label: '理解', desc: '我如何理解这些经历' },
+  { id: 'exploration', label: '探索', desc: '长期来看值得关注什么' },
+];
+
+const RECORDS = [
+  { text: '周三晚上和母亲通电话，她说最近睡得不太好，但让我别担心。', time: '09-12 21:40', seen: false },
+  { text: '今天把那份拖了两个月的报告交了。交完坐在工位上，反而什么感觉都没有。', time: '09-10 18:05', seen: true },
+  { text: '在楼下便利店遇到以前的同事，聊了十分钟就各自走了，谁也没提以后再见。', time: '09-08 12:30', seen: false },
+  { text: '连续三天很早就醒，醒了以后就一直想着工作上还没做完的事。', time: '09-05 05:20', seen: true },
+];
+
+const PAGE_COPY = {
+  records: {
+    title: '先留下自己的经历。',
+    desc: '记录属于事实层。先保存你愿意留下的原话，再决定是否要回看。',
+  },
+  awareness: {
+    title: '回看一些可能的联系。',
+    desc: 'AI 只提供临时观察。相关记录和不确定性会留在这里，是否有意义由你决定。',
+  },
+  reflection: {
+    title: '把你的理解留在这里。',
+    desc: '这里属于你写下的理解。AI 的观察只是背景，不会替你定义经历。',
+  },
+  exploration: {
+    title: '探索已经形成的长期联系。',
+    desc: '只回看经过你参与后形成的联系，不生成关于你的画像或结论。',
+  },
+};
+
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+function sidebar(active) {
+  const items = NAV.map((n) => `
+    <button class="nav-item ${n.id === active ? 'is-active' : ''}" type="button">
+      <strong>${esc(n.label)}</strong><span>${esc(n.desc)}</span>
+    </button>`).join('');
+  return `
+  <aside class="nav">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 32 32" fill="none">
+        <line class="bm-axis" x1="16" y1="1.5" x2="16" y2="30.5" />
+        <circle class="bm-ring-outer" cx="16" cy="16" r="9.2" />
+        <circle class="bm-ring-inner" cx="16" cy="16" r="4.6" />
+        <circle class="bm-core" cx="16" cy="16" r="2.1" />
+      </svg></span>
+      <span class="brand-name">见渊</span>
+    </div>
+    <div class="nav-group">${items}</div>
+    <div class="nav-group nav-secondary">
+      <button class="nav-item ${active === 'settings' ? 'is-active' : ''}" type="button">
+        <strong>设置</strong><span>服务、数据与隐私</span>
+      </button>
+    </div>
+    <div class="nav-status">
+      <span class="k">AI 服务</span>
+      <span class="v"><i class="status-dot"></i>已连接</span>
+    </div>
+  </aside>`;
+}
+
+function pageHead(active) {
+  const c = PAGE_COPY[active] ?? PAGE_COPY.records;
+  const label = (NAV.find((n) => n.id === active) ?? {}).label ?? '记录';
+  return `
+  <header class="page-head">
+    <p class="eyebrow">见渊 · ${esc(label)}</p>
+    <h1>${esc(c.title)}</h1>
+    <p>${esc(c.desc)}</p>
+  </header>`;
+}
+
+/* ---- Screen 1: 记录 ---- */
+function screenRecords() {
+  const rows = RECORDS.map((r) => `
+    <div class="rec ${r.seen ? 'is-seen' : ''}">
+      <div class="rec-rail"><span class="rec-dot"></span>${r.seen ? '<span class="rec-ring"></span>' : ''}</div>
+      <div class="rec-body">
+        <p class="rec-text">${esc(r.text)}</p>
+        <div class="rec-meta">
+          <span>2026-${esc(r.time)}</span>
+          ${r.seen ? '<span class="sep">·</span><span class="rec-tag">已被回看</span>' : ''}
+        </div>
+      </div>
+    </div>`).join('');
+  return `
+  <div class="main" data-wave="records">
+    ${pageHead('records')}
+    <div class="block">
+      <div class="block-h"><h2>写下此刻</h2><span class="count">仅保存在本机</span></div>
+      <div class="composer">
+        <label for="rc">你想为以后留下什么？</label>
+        <textarea id="rc" placeholder="写下此刻值得保留的话。"></textarea>
+        <div class="composer-actions">
+          <button class="btn" type="button">保存记录</button>
+          <span class="composer-hint">保存不会启动 AI，也不会被觉察内容打断。</span>
+        </div>
+      </div>
+    </div>
+    <div class="block">
+      <div class="block-h"><h2>历史与搜索</h2><span class="count">${RECORDS.length} 条</span></div>
+      <div class="search" style="margin-bottom:20px">
+        <input type="text" placeholder="搜索原话">
+        <button class="btn ghost" type="button">搜索</button>
+      </div>
+      <div class="timeline">${rows}</div>
+    </div>
+  </div>`;
+}
+
+/* ---- Observation card (shared by 觉察 + detail) ---- */
+function observationCard(compact) {
+  return `
+  <article class="obs">
+    <div class="obs-head">
+      <span class="ring"></span>
+      <span class="obs-kind">AI 观察到的一种可能联系</span>
+      <span class="obs-temp">临时观察</span>
+    </div>
+    <h3>交付前后的状态</h3>
+    <p class="obs-note">这只是一次临时观察；是否对你有意义，由你的理解决定。</p>
+
+    <div class="obs-part">
+      <h4>相关记录</h4>
+      <blockquote class="quote">今天把那份拖了两个月的报告交了。交完坐在工位上，反而什么感觉都没有。</blockquote>
+      <blockquote class="quote">连续三天很早就醒，醒了以后就一直想着工作上还没做完的事。</blockquote>
+    </div>
+
+    <div class="obs-part">
+      <h4>AI 注意到</h4>
+      <p>这两次都发生在需要向别人交付东西的前后，而且都留下了「没什么感觉」的描述。</p>
+    </div>
+
+    <div class="obs-part">
+      <h4>一种可能解释</h4>
+      <p>一种可能是，这些记录在「交付前后的状态」上呈现了相似的安排。</p>
+    </div>
+
+    <div class="obs-part">
+      <h4>AI 也不确定</h4>
+      <p>我无法判断这是长期模式，还是这几次经历恰好相似。</p>
+    </div>
+
+    <div class="obs-part">
+      <h4>一个可以继续思考的问题</h4>
+      <p class="obs-question">如果那两天不必交付任何东西，你会怎么安排？</p>
+    </div>
+
+    ${compact ? '' : `
+    <div class="obs-cta">
+      <button class="btn" type="button">写下我的理解</button>
+      <button class="btn quiet-ai" type="button">这不是我的体验</button>
+    </div>`}
+  </article>`;
+}
+
+/* ---- Screen 2: 觉察 ---- */
+function screenAwareness() {
+  return `
+  <div class="main" data-wave="awareness">
+    ${waveLayer('awareness')}
+    ${pageHead('awareness')}
+    <div class="block">
+      <div class="block-h"><h2>观察与回看</h2><span class="count">1 条临时观察</span></div>
+      ${observationCard(false)}
+    </div>
+  </div>`;
+}
+
+/* ---- Screen 3: 理解 ---- */
+function screenReflection() {
+  const item = (q, src, time) => `
+    <div class="block" style="margin-top:0">
+      <p class="refl-quote">${esc(q)}</p>
+      <div class="refl-src">
+        <span class="k">来源记录 · 2026-${esc(time)}</span>
+        <span class="v">${esc(src)}</span>
+      </div>
+    </div>`;
+  return `
+  <div class="main" data-wave="reflection">
+    ${waveLayer('reflection')}
+    ${pageHead('reflection')}
+    <div class="block">
+      <div class="block-h"><h2>你的理解</h2><span class="count">2 条</span></div>
+      <div style="display:grid;gap:30px">
+        ${item('不是报告本身让我累，是交完之后没有人接住我。',
+               '今天把那份拖了两个月的报告交了。交完坐在工位上，反而什么感觉都没有。', '09-10 19:20')}
+        ${item('早醒不是因为有事情要做，是因为没有人可以商量。',
+               '连续三天很早就醒，醒了以后就一直想着工作上还没做完的事。', '09-05 07:02')}
+      </div>
+    </div>
+  </div>`;
+}
+
+/* ---- Screen 4: 探索 ---- */
+function screenExploration() {
+  const conn = (title, ev, chips, span) => `
+    <div class="conn">
+      <div class="conn-rail">${RAIL_CURVE}<span class="orbit"><i></i></span></div>
+      <div class="conn-body">
+        <h3 class="conn-title">${esc(title)}</h3>
+        <span class="conn-participation"><i></i>经你参与后形成</span>
+        <p class="conn-ev">${esc(ev)}</p>
+        <div class="prov">
+          ${chips.map((c) => `<span class="chip"><i></i>${esc(c)}</span>`).join('')}
+        </div>
+        <div class="span-line"><span>${esc(span.from)}</span>${SPAN_CURVE}<span>${esc(span.to)}</span></div>
+      </div>
+    </div>`;
+  return `
+  <div class="main" data-wave="exploration">
+    ${waveLayer('exploration')}
+    ${pageHead('exploration')}
+    <div class="block">
+      <div class="block-h"><h2>长期联系</h2><span class="count">经你参与后形成</span></div>
+      ${conn('交付之后的空档',
+             '三次记录都指向同一个位置：事情做完以后，没有人接住那段时间。你的两次理解都留在这里。',
+             ['来源记录 3', '我的理解 2'], { from: '2026-08-21', to: '2026-09-10' })}
+      ${conn('早醒与独自决定',
+             '清晨醒来的两次，都发生在需要独自做决定、且没有商量对象的阶段。',
+             ['来源记录 2', '我的理解 1'], { from: '2026-09-02', to: '2026-09-05' })}
+    </div>
+  </div>`;
+}
+
+/* ---- Screen 5: 设置（compact） ---- */
+function screenSettings() {
+  const row = (k, v) => `<div class="set-row"><span class="k">${esc(k)}</span><span class="v">${v}</span></div>`;
+  return `
+  <div class="main" data-wave="settings">
+    <header class="page-head">
+      <p class="eyebrow">见渊 · 设置</p>
+      <h1>管理服务、数据与边界。</h1>
+      <p>AI 服务、凭据和本地数据控制都在这里，日常记录不会被打断。</p>
+    </header>
+    <div class="block">
+      <div class="block-h"><h2>外观</h2><span class="count">Appearance</span></div>
+      ${row('主题', `<span class="seg" data-seg="theme"><button type="button" data-value="system">跟随系统</button><button type="button" data-value="light">浅色</button><button type="button" data-value="dark">深色</button></span>`)}
+      ${row('动效', `<span class="seg"><button class="on" type="button">跟随系统</button><button type="button">减弱</button></span>`)}
+    </div>
+    <div class="block">
+      <div class="block-h"><h2>AI 服务</h2><span class="count">仅用于觉察</span></div>
+      ${row('服务', '<span class="kv">openai-compatible · 已连接</span>')}
+      ${row('凭据', '<span class="kv">Windows Credential Manager · 已存入</span>')}
+      ${row('模型', '<span class="kv">手动指定 · 支持列表获取</span>')}
+    </div>
+    <div class="block">
+      <div class="block-h"><h2>数据与隐私</h2><span class="count">Local-first</span></div>
+      ${row('数据目录', '<span class="kv">%LOCALAPPDATA%\\com.jianyuan.desktop</span>')}
+      ${row('备份 / 恢复', '<span class="v">导出为明文 JSON，不代表加密备份</span>')}
+      ${row('运行诊断', '<span class="kv">runtime-diagnostics.log · 已启用</span>')}
+    </div>
+  </div>`;
+}
+
+/* ---- Screen 6: Reflection Focus State ---- */
+function screenReflectionFocus() {
+  return `
+  <div class="main">
+    <header class="page-head">
+      <p class="eyebrow">状态 · Reflection Focus</p>
+      <h1>你开始写的时候，AI 退到后面。</h1>
+      <p>同一次觉察里，AI 观察降低视觉权重，你的文字成为页面主体。</p>
+    </header>
+    <div class="focus-stack" style="--ai-recede:0.42">
+      <div class="focus-ai">
+        <div class="lbl"><span class="ring" style="width:12px;height:12px"></span>AI 观察 · 临时</div>
+        <p>这两次都发生在需要向别人交付东西的前后。我无法判断这是长期模式，还是这几次经历恰好相似。</p>
+      </div>
+      <div class="focus-user">
+        <div class="lbl">我的理解 · 正在写</div>
+        <p class="focus-user-text">不是报告本身让我累，是交完之后没有人接住我。我一直以为那是拖延的问题，其实是我把「做完」当成了会被看见的时刻<span class="caret" aria-hidden="true"></span></p>
+        <div class="focus-foot">
+          <span class="note">只有你的话会成为长期数据。快捷选择本身不会。</span>
+          <button class="btn" type="button">保存我的理解</button>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+/* ============================================================
+   RENDER
+   ============================================================ */
+function appShell(active, mainHtml) {
+  return `
+  <div class="app">
+    <div class="titlebar">
+      <span class="dotctl"></span><span class="dotctl"></span><span class="dotctl"></span>
+      <span class="win-title">见渊</span>
+    </div>
+    ${sidebar(active)}
+    ${mainHtml}
+  </div>`;
+}
+
+const SCREENS = [
+  { key: 'records', label: '01 · Navigation + Record / 记录', note: '侧栏导航、记录撰写、时间线与搜索。主区没有 AI 服务 banner。', build: () => appShell('records', screenRecords()) },
+  { key: 'awareness', label: '02 · Awareness / 觉察', note: '主动回看后出现的临时观察卡，视觉权重低于用户文字。', build: () => appShell('awareness', screenAwareness()) },
+  { key: 'reflection', label: '03 · Understanding / 理解', note: '用户原话是主体（衬线、更大），来源记录降为次级信息。', build: () => appShell('reflection', screenReflection()) },
+  { key: 'exploration', label: '04 · Exploration / 探索', note: '稳定轨道 + 轨迹线 + provenance + 时间跨度。不是知识图谱。', build: () => appShell('exploration', screenExploration()) },
+  { key: 'settings', label: '05 · Settings / 设置', note: '外观（System / Light / Dark）、AI 服务、数据与隐私、运行诊断。允许更偏功能型。', build: () => appShell('settings', screenSettings()) },
+];
+
+// Dark and Light columns are cloned from one template. The settings screen has an
+// Appearance segmented control, so mark it to match the column it renders in.
+// Otherwise both columns claim the same selection and the board misleads review.
+function syncThemeSeg(root, side) {
+  const seg = root.querySelector('[data-seg="theme"]');
+  if (!seg) return;
+  for (const btn of seg.querySelectorAll('button')) {
+    btn.classList.toggle('on', btn.dataset.value === side);
+  }
+}
+
+// ---- 渊 water language: sparse, large-span arcs that carry meaning ----
+// Exactly the same geometry in Light and Dark; only the stroke tokens differ.
+// 记录 and 设置 deliberately carry no background curve at all.
+const WAVE_SVG = {
+  // 觉察: two concentric rings settling outward from where the observation
+  // surfaced - "these records surfaced into something worth revisiting".
+  // Shared centre (-140+300, -160+300) == (-270+430, -290+430) == (160, 140).
+  awareness:
+    '<span class="wave-ring" style="left:-140px;top:-160px;width:600px;height:600px"></span>' +
+    '<span class="wave-ring is-outer" style="left:-270px;top:-290px;width:860px;height:860px"></span>',
+  // 理解: two curves that start apart and converge downward into the reading column -
+  // AI observation sinking into the user's own reflection
+  reflection:
+    '<svg class="wave-svg" viewBox="0 0 1000 600" preserveAspectRatio="none" aria-hidden="true">' +
+      '<path class="wave-a" d="M120 -20 C 300 160, 330 380, 215 620"/>' +
+      '<path class="wave-b" d="M700 -20 C 560 180, 420 380, 265 620"/>' +
+    '</svg>',
+  // 探索: two long shallow flows across the page - experience continuing and
+  // meeting over time. No graph, no nodes.
+  exploration:
+    '<svg class="wave-svg" viewBox="0 0 1000 600" preserveAspectRatio="none" aria-hidden="true">' +
+      '<path class="wave-a" d="M-40 150 C 240 90, 620 230, 1040 140"/>' +
+      '<path class="wave-b" d="M-40 470 C 300 545, 660 400, 1040 480"/>' +
+    '</svg>',
+};
+
+function waveLayer(screen) {
+  const svg = WAVE_SVG[screen];
+  if (!svg) return '';
+  return '<div class="wave-layer" data-wave-layer="' + screen + '">' + svg + '</div>';
+}
+
+// 探索: the time span between two records, drawn as a smooth sagging curve
+const SPAN_CURVE =
+  '<svg class="span-curve" viewBox="0 0 150 12" preserveAspectRatio="none" aria-hidden="true">' +
+    '<path d="M0 3 Q 75 11 150 3"/>' +
+  '</svg>';
+
+// 探索: the rail between long-term connections, a very slight S instead of a rule
+const RAIL_CURVE =
+  '<svg class="rail-curve" viewBox="0 0 24 100" preserveAspectRatio="none" aria-hidden="true">' +
+    '<path d="M12 0 C 21.2 32, 2.8 68, 12 100"/>' +
+  '</svg>';
+
+const params = new URLSearchParams(location.search);
+const pairKey = (params.get('pair') || 'A').toUpperCase();
+const pair = PAIRS[pairKey] || PAIRS.A;
+
+function applyTokens(el, tokens) {
+  for (const [k, v] of Object.entries(tokens)) el.style.setProperty(k, v);
+}
+
+function themeColumn(side) {
+  const cfg = pair[side];
+  const wrap = document.createElement('div');
+  wrap.className = 'col';
+  wrap.dataset.theme = side;
+  applyTokens(wrap, cfg.tokens);
+  wrap.innerHTML = `
+    <div class="col-head">
+      <span class="tag">${side === 'dark' ? 'Dark' : 'Light'}</span>
+      <span class="name">${esc(cfg.label)}</span>
+    </div>`;
+  return { wrap, cfg };
+}
+
+const board = document.getElementById('board');
+
+/* header */
+const head = document.createElement('div');
+head.className = 'board-head';
+head.innerHTML = `
+  <p class="board-eyebrow">见渊 · Phase 10.1 · Static Visual Refinement · Pair A Deep Amber / Warm Paper · Non-production</p>
+  <h1 class="board-title">${esc(pair.name)} · ${esc(pair.cn)}</h1>
+  <p class="board-sub">${esc(pair.cnNote)}</p>
+  <div class="board-feel">
+    <div class="feel-card"><b>${esc(pair.dark.label)}</b><span>${esc(pair.dark.feel)}</span></div>
+    <div class="feel-card"><b>${esc(pair.light.label)}</b><span>${esc(pair.light.feel)}</span></div>
+  </div>`;
+board.appendChild(head);
+
+/* screens: dark | light from the same markup */
+for (const s of SCREENS) {
+  const label = document.createElement('div');
+  label.className = 'sec-label';
+  label.innerHTML = `<h2>${esc(s.label)}</h2><p class="sec-note">${esc(s.note)}</p><span class="rule"></span>`;
+  board.appendChild(label);
+
+  const row = document.createElement('div');
+  row.className = 'pair';
+  const markup = s.build();
+  for (const side of ['dark', 'light']) {
+    const { wrap } = themeColumn(side);
+    const holder = document.createElement('div');
+    holder.innerHTML = markup;
+    const shell = holder.firstElementChild;
+    syncThemeSeg(shell, side);
+    wrap.appendChild(shell);
+    row.appendChild(wrap);
+  }
+  board.appendChild(row);
+}
+
+/* detail row: observation card + reflection focus state, full size */
+{
+  const label = document.createElement('div');
+  label.className = 'sec-label';
+  label.innerHTML = `<h2>06 · Observation Card &nbsp;/&nbsp; 07 · Reflection Focus State</h2><p class="sec-note">这两个状态决定 AI 与用户文字之间的视觉权重，单独放大评审。</p><span class="rule"></span>`;
+  board.appendChild(label);
+
+  const row = document.createElement('div');
+  row.className = 'pair';
+  for (const side of ['dark', 'light']) {
+    const { wrap, cfg } = themeColumn(side);
+    applyTokens(wrap, { '--glow-opacity': '1' });
+    wrap.innerHTML += `
+      <div style="display:grid;gap:26px">
+        <div>${observationCard(false)}</div>
+        <div class="focus-stack" style="--ai-recede:0.42">
+          <div class="focus-ai">
+            <div class="lbl"><span class="ring" style="width:12px;height:12px"></span>AI 观察 · 临时</div>
+            <p>这两次都发生在需要向别人交付东西的前后。我无法判断这是长期模式，还是这几次经历恰好相似。</p>
+          </div>
+          <div class="focus-user">
+            <div class="lbl">我的理解 · 正在写</div>
+            <p class="focus-user-text">不是报告本身让我累，是交完之后没有人接住我。我一直以为那是拖延的问题，其实是我把「做完」当成了会被看见的时刻<span class="caret" aria-hidden="true"></span></p>
+            <div class="focus-foot">
+              <span class="note">只有你的话会成为长期数据。</span>
+              <button class="btn" type="button">保存我的理解</button>
+            </div>
+          </div>
+        </div>
+      </div>`;
+    row.appendChild(wrap);
+  }
+  board.appendChild(row);
+}
+
+/* spec strip */
+{
+  const label = document.createElement('div');
+  label.className = 'sec-label';
+  label.innerHTML = `<h2>08 · Typography / Tokens / North-Star Marks</h2><p class="sec-note">三组 Pair 共用同一 typography 与 geometry，只有 token 取值不同。</p><span class="rule"></span>`;
+  board.appendChild(label);
+
+  const spec = document.createElement('div');
+  spec.className = 'spec';
+
+  /* typography */
+  const tb = document.createElement('div');
+  tb.className = 'spec-box';
+  tb.innerHTML = `
+    <h3>Typography（三组共用）</h3>
+    <div class="type-row"><span class="role">Display / 用户原话 · Noto Serif SC</span>
+      <span class="sample-serif" style="font-size:25px;font-weight:600;line-height:1.3">把你的理解留在这里。</span></div>
+    <div class="type-row"><span class="role">用户原话主体 · Serif 21/1.72</span>
+      <span class="sample-serif" style="font-size:21px;font-weight:500;line-height:1.72">不是报告本身让我累，是交完之后没有人接住我。</span></div>
+    <div class="type-row"><span class="role">记录正文 · Serif 14.5/1.8</span>
+      <span class="sample-serif" style="font-size:14.5px;line-height:1.8">今天把那份拖了两个月的报告交了。</span></div>
+    <div class="type-row"><span class="role">UI / AI 文案 · Segoe UI + Microsoft YaHei 13.5/1.75</span>
+      <span class="sample-sans" style="font-size:13.5px;line-height:1.75">这只是一次临时观察；是否对你有意义，由你的理解决定。</span></div>
+    <div class="type-row"><span class="role">Nav / 按钮 · Sans 13.5 medium</span>
+      <span class="sample-sans" style="font-size:13.5px;font-weight:500">记录 · 觉察 · 理解 · 探索 · 设置</span></div>
+    <div class="type-row"><span class="role">Meta / 时间 · Consolas 11.5</span>
+      <span class="sample-mono" style="font-size:11.5px">2026-09-10 18:05 · 已被回看 · 来源记录 3</span></div>`;
+  spec.appendChild(tb);
+
+  /* tokens + legend */
+  const tk = document.createElement('div');
+  tk.className = 'spec-box';
+  const swatchNames = [
+    ['--bg-canvas', 'bg-canvas'], ['--bg-surface', 'bg-surface'], ['--bg-elevated', 'bg-elevated'],
+    ['--text-primary', 'text-primary'], ['--text-secondary', 'text-secondary'], ['--text-muted', 'text-muted'],
+    ['--accent-primary', 'accent-primary'], ['--accent-cta', 'accent-cta'],
+    ['--bg-sunken', 'bg-sunken'], ['--border-subtle', 'border-subtle'],
+    ['--relation-line', 'relation-line'], ['--reflection-focus', 'reflection-focus'],
+  ];
+  const buildSwatches = (side) => {
+    const probe = document.createElement('div');
+    applyTokens(probe, pair[side].tokens);
+    document.body.appendChild(probe);
+    const cs = getComputedStyle(probe);
+    const html = swatchNames.map(([tok, name]) => {
+      let val = cs.getPropertyValue(tok).trim();
+      if (tok === '--relation-line') val = pair[side].tokens[tok];
+      const display = val.length > 30 ? val.slice(0, 30) + '…' : val;
+      return `<div class="sw"><i style="background:${val}"></i><span><span class="n">${name} · ${side}</span><span class="hex">${esc(display)}</span></span></div>`;
+    }).join('');
+    probe.remove();
+    return html;
+  };
+  tk.innerHTML = `
+    <h3>Semantic tokens · Dark</h3>
+    <div class="swatches">${buildSwatches('dark')}</div>
+    <h3 style="margin-top:26px">Semantic tokens · Light</h3>
+    <div class="swatches">${buildSwatches('light')}</div>`;
+  spec.appendChild(tk);
+
+  board.appendChild(spec);
+
+  /* north star legend */
+  const lgLabel = document.createElement('div');
+  lgLabel.className = 'sec-label';
+  lgLabel.innerHTML = `<h2>09 · North-Star Marks in Daily UI</h2><p class="sec-note">概念视觉的语言如何降级成日常界面里的记号。</p><span class="rule"></span>`;
+  board.appendChild(lgLabel);
+
+  const lg = document.createElement('div');
+  lg.className = 'spec-box';
+  lg.innerHTML = `
+    <div class="legend">
+      <div class="lg"><span class="lg-art"><i style="display:block;width:7px;height:7px;border-radius:50%;background:#a49c8d"></i></span>
+        <p><b>点 = 一段经历。</b>时间线左侧的小圆点。被回看过的记录点亮为琥珀色。</p></div>
+      <div class="lg"><span class="lg-art"><i style="display:block;width:13px;height:13px;border-radius:50%;border:1px solid #d4a464;box-shadow:0 0 0 4px rgba(212,164,100,0.13)"></i></span>
+        <p><b>微光 = 某件事被注意到。</b>只出现在「已被回看」的记录和觉察状态，不做大面积辉光。</p></div>
+      <div class="lg"><span class="lg-art"><i style="display:block;width:15px;height:15px;border-radius:50%;border:1px solid rgba(212,164,100,0.55);position:relative"></i></span>
+        <p><b>圆 / 涟漪 = 一次回看。</b>觉察卡左上角的双环记号，静态、极弱。</p></div>
+      <div class="lg"><span class="lg-art"><i style="display:block;width:2px;height:22px;background:rgba(212,164,100,0.30)"></i></span>
+        <p><b>轨迹 = 记录之间的可能联系。</b>探索页的时间轴与 provenance 连接线。</p></div>
+      <div class="lg"><span class="lg-art"><i style="display:block;width:17px;height:17px;border-radius:50%;border:1px solid #d4a464;display:grid;place-items:center"><b style="display:block;width:6px;height:6px;border-radius:50%;background:#d4a464"></b></i></span>
+        <p><b>稳定轨道 = 用户参与后形成的长期理解。</b>探索页的圆环锚点，静止不漂浮。</p></div>
+      <div class="lg"><span class="lg-art" style="font-family:var(--font-display);font-size:17px;color:#ddd5c6">我</span>
+        <p><b>人位于意义中心。</b>用户原话用衬线、最大字号；AI 文案用无衬线、次级颜色、更小字号。</p></div>
+    </div>`;
+  board.appendChild(lg);
+}
+
+/* ---- wave language detail board ---- */
+{
+  const label = document.createElement('div');
+  label.className = 'sec-label';
+  label.innerHTML = '<h2>10 · 波动语言 点 / 圈 / 线 / 曲线</h2><p class="sec-note">「渊」的水意象被抽象为四个记号，不是拟物水面。Dark 允许极轻微 glow，Light 只靠色温与对比。</p><span class="rule"></span>';
+  board.appendChild(label);
+
+  const stage = (isPaper) => {
+    const ink = isPaper ? '#8b693a' : '#d4a464';
+    const soft = isPaper ? 'rgba(139,105,58,0.14)' : 'rgba(212,164,100,0.16)';
+    const hair = isPaper ? '#cfc5b0' : '#3d382f';
+    return [
+      '<div class="wave-stage ' + (isPaper ? 'paper' : '') + '">',
+      '  <h4>' + (isPaper ? 'Light · Warm Paper' : 'Dark · Deep Amber') + '</h4>',
+      '  <p>同一套图形语言，只换介质：每页最多两三道大跨度低对比弧线，不用密集网格。没有蓝色海浪、没有液体特效、没有水纹贴图。</p>',
+      '  <div class="wave-row">',
+      '    <span class="wave-art"><svg width="40" height="40" viewBox="0 0 40 40"><circle cx="20" cy="20" r="4.5" fill="' + ink + '"/></svg></span>',
+      '    <span class="txt"><b>点 · 一段经历</b><span>时间线左侧 7px 实心圆。未回看时为 muted 色，不发光。</span></span>',
+      '  </div>',
+      '  <div class="wave-row">',
+      '    <span class="wave-art"><svg width="44" height="44" viewBox="0 0 44 44">',
+      '      <circle cx="22" cy="22" r="4" fill="' + ink + '"/>',
+      '      <circle cx="22" cy="22" r="10" fill="none" stroke="' + ink + '" stroke-width="1.2" opacity=".7"/>',
+      '      <circle cx="22" cy="22" r="17" fill="none" stroke="' + ink + '" stroke-width="1" opacity=".34"/>',
+      '    </svg></span>',
+      '    <span class="txt"><b>圈 · 一次回看</b><span>涟漪已定形，不流动。觉察卡双环记号与「已被回看」记录共用。</span></span>',
+      '  </div>',
+      '  <div class="wave-row">',
+      '    <span class="wave-art"><svg width="70" height="40" viewBox="0 0 70 40">',
+      '      <line x1="35" y1="4" x2="35" y2="36" stroke="' + hair + '" stroke-width="1"/>',
+      '      <circle cx="35" cy="12" r="3.6" fill="' + ink + '" opacity=".55"/>',
+      '      <circle cx="35" cy="28" r="3.6" fill="' + ink + '"/>',
+      '    </svg></span>',
+      '    <span class="txt"><b>线 · 时间中的延续</b><span>时间轴与 provenance 连接线。1px，低对比，不做装饰曲线。</span></span>',
+      '  </div>',
+      '  <div class="wave-row">',
+      '    <span class="wave-art"><svg width="86" height="40" viewBox="0 0 86 40">',
+      '      <path d="M4 12 Q 43 30 82 12" fill="none" stroke="' + ink + '" stroke-width="1.3" opacity=".8"/>',
+      '      <circle cx="4" cy="12" r="3.2" fill="' + ink + '" opacity=".5"/>',
+      '      <circle cx="82" cy="12" r="3.2" fill="' + ink + '" opacity=".5"/>',
+      '    </svg></span>',
+      '    <span class="txt"><b>曲线 · 向内沉降</b><span>探索页时间跨度的下凹弧；卡片一角收得更深（26px）。</span></span>',
+      '  </div>',
+      '  <div class="wave-row">',
+      '    <span class="wave-art"><svg width="92" height="44" viewBox="0 0 92 44">',
+      '      <rect x="4" y="6" width="84" height="32" rx="8" fill="' + soft + '" stroke="' + hair + '" stroke-width="1"/>',
+      '      <path d="M4 30 Q 40 44 88 30" fill="none" stroke="' + ink + '" stroke-width="1" opacity=".3"/>',
+      '    </svg></span>',
+      '    <span class="txt"><b>轮廓 · 柔和边界</b><span>Observation / Reflection 卡片不再是均匀方盒，但仍克制，不做波浪边。</span></span>',
+      '  </div>',
+      '</div>',
+    ].join('\n');
+  };
+
+  const wave = document.createElement('div');
+  wave.className = 'wave-board';
+  wave.innerHTML = stage(false) + stage(true);
+  board.appendChild(wave);
+
+  const mi = document.createElement('div');
+  mi.className = 'motion-intent';
+  mi.innerHTML = [
+    '<h3>Motion Intent · 仅记录，本轮不实现</h3>',
+    '<p class="mi-note">以下四项是波动语言对应的动效意图。静态视觉评审期间不实现任何动画；等 Theme Pair 与页面结构确认后，再进 Motion Lab 做 A/B/C variant 比较。</p>',
+    '<div class="mi-grid">',
+    '  <div class="mi"><span class="k">保存记录</span>',
+    '    <span class="feel">一圈涟漪定形，然后安静下沉</span>',
+    '    <span class="spec">新记录点一次性 ring 扩散（scale 1→1.9, opacity .34→0）；文字 y +6→0, 420ms, ease-out。不重复、不循环。</span></div>',
+    '  <div class="mi"><span class="k">Observation 出现</span>',
+    '    <span class="feel">平静浮现，不是弹出</span>',
+    '    <span class="spec">卡片 opacity 0→1 与 y +10→0，520ms；内部段落 stagger 70ms，总时长不超过 900ms。无 scale 弹性。</span></div>',
+    '  <div class="mi"><span class="k">页面切换</span>',
+    '    <span class="feel">在同一个空间里逐渐向内走</span>',
+    '    <span class="spec">crossfade 240ms + 方向性 drift 6px（向内页面向内，返回时向外）。背景涟漪层保持不动，建立连续感。</span></div>',
+    '  <div class="mi"><span class="k">hover / focus</span>',
+    '    <span class="feel">边界细微扩散</span>',
+    '    <span class="spec">border-color 与 ring 半径 160ms 过渡；不用 spring，不用 bounce，不用 scale 跳变。</span></div>',
+    '</div>',
+    '<p class="mi-note" style="margin:20px 0 0">全部动效遵守 prefers-reduced-motion：只保留 opacity fade（120–200ms），禁用位移、stagger 与一次性 ripple。</p>',
+  ].join('\n');
+  board.appendChild(mi);
+}
+
+
+/* footer */
+const foot = document.createElement('div');
+foot.className = 'board-foot';
+foot.innerHTML = `
+  <span>PHASE 10.1 · VISUAL REFINEMENT · STATIC ONLY · NO MOTION</span>
+  <span>PAIR ${esc(pairKey)}</span>
+  <span>DARK + LIGHT RENDERED FROM ONE DOM TEMPLATE</span>
+  <span>PHASE 9 IA FROZEN: 记录 → 觉察 → 理解 → 探索 → 设置</span>
+  <span>NON-PRODUCTION · apps/desktop/visual-lab</span>`;
+board.appendChild(foot);
+
+window.__BOARD_READY__ = true;
+</script>
+</body>
+</html>

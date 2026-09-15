@@ -1,0 +1,83 @@
+/* ---- wave language detail board ---- */
+{
+  const label = document.createElement('div');
+  label.className = 'sec-label';
+  label.innerHTML = '<h2>10 · 波动语言 点 / 圈 / 线 / 曲线</h2><p class="sec-note">「渊」的水意象被抽象为四个记号，不是拟物水面。Dark 允许极轻微 glow，Light 只靠色温与对比。</p><span class="rule"></span>';
+  board.appendChild(label);
+
+  const stage = (isPaper) => {
+    const ink = isPaper ? '#8b693a' : '#d4a464';
+    const soft = isPaper ? 'rgba(139,105,58,0.14)' : 'rgba(212,164,100,0.16)';
+    const hair = isPaper ? '#cfc5b0' : '#3d382f';
+    return [
+      '<div class="wave-stage ' + (isPaper ? 'paper' : '') + '">',
+      '  <h4>' + (isPaper ? 'Light · Warm Paper' : 'Dark · Deep Amber') + '</h4>',
+      '  <p>同一套图形语言，只换介质。没有蓝色海浪、没有液体特效、没有水纹贴图。</p>',
+      '  <div class="wave-row">',
+      '    <span class="wave-art"><svg width="40" height="40" viewBox="0 0 40 40"><circle cx="20" cy="20" r="4.5" fill="' + ink + '"/></svg></span>',
+      '    <span class="txt"><b>点 · 一段经历</b><span>时间线左侧 7px 实心圆。未回看时为 muted 色，不发光。</span></span>',
+      '  </div>',
+      '  <div class="wave-row">',
+      '    <span class="wave-art"><svg width="44" height="44" viewBox="0 0 44 44">',
+      '      <circle cx="22" cy="22" r="4" fill="' + ink + '"/>',
+      '      <circle cx="22" cy="22" r="10" fill="none" stroke="' + ink + '" stroke-width="1.2" opacity=".7"/>',
+      '      <circle cx="22" cy="22" r="17" fill="none" stroke="' + ink + '" stroke-width="1" opacity=".34"/>',
+      '    </svg></span>',
+      '    <span class="txt"><b>圈 · 一次回看</b><span>涟漪已定形，不流动。觉察卡双环记号与「已被回看」记录共用。</span></span>',
+      '  </div>',
+      '  <div class="wave-row">',
+      '    <span class="wave-art"><svg width="70" height="40" viewBox="0 0 70 40">',
+      '      <line x1="35" y1="4" x2="35" y2="36" stroke="' + hair + '" stroke-width="1"/>',
+      '      <circle cx="35" cy="12" r="3.6" fill="' + ink + '" opacity=".55"/>',
+      '      <circle cx="35" cy="28" r="3.6" fill="' + ink + '"/>',
+      '    </svg></span>',
+      '    <span class="txt"><b>线 · 时间中的延续</b><span>时间轴与 provenance 连接线。1px，低对比，不做装饰曲线。</span></span>',
+      '  </div>',
+      '  <div class="wave-row">',
+      '    <span class="wave-art"><svg width="86" height="40" viewBox="0 0 86 40">',
+      '      <path d="M4 12 Q 43 30 82 12" fill="none" stroke="' + ink + '" stroke-width="1.3" opacity=".8"/>',
+      '      <circle cx="4" cy="12" r="3.2" fill="' + ink + '" opacity=".5"/>',
+      '      <circle cx="82" cy="12" r="3.2" fill="' + ink + '" opacity=".5"/>',
+      '    </svg></span>',
+      '    <span class="txt"><b>曲线 · 向内沉降</b><span>探索页时间跨度的下凹弧；卡片一角收得更深（26px）。</span></span>',
+      '  </div>',
+      '  <div class="wave-row">',
+      '    <span class="wave-art"><svg width="92" height="44" viewBox="0 0 92 44">',
+      '      <rect x="4" y="6" width="84" height="32" rx="8" fill="' + soft + '" stroke="' + hair + '" stroke-width="1"/>',
+      '      <path d="M4 30 Q 40 44 88 30" fill="none" stroke="' + ink + '" stroke-width="1" opacity=".3"/>',
+      '    </svg></span>',
+      '    <span class="txt"><b>轮廓 · 柔和边界</b><span>Observation / Reflection 卡片不再是均匀方盒，但仍克制，不做波浪边。</span></span>',
+      '  </div>',
+      '</div>',
+    ].join('\n');
+  };
+
+  const wave = document.createElement('div');
+  wave.className = 'wave-board';
+  wave.innerHTML = stage(false) + stage(true);
+  board.appendChild(wave);
+
+  const mi = document.createElement('div');
+  mi.className = 'motion-intent';
+  mi.innerHTML = [
+    '<h3>Motion Intent · 仅记录，本轮不实现</h3>',
+    '<p class="mi-note">以下四项是波动语言对应的动效意图。静态视觉评审期间不实现任何动画；等 Theme Pair 与页面结构确认后，再进 Motion Lab 做 A/B/C variant 比较。</p>',
+    '<div class="mi-grid">',
+    '  <div class="mi"><span class="k">保存记录</span>',
+    '    <span class="feel">一圈涟漪定形，然后安静下沉</span>',
+    '    <span class="spec">新记录点一次性 ring 扩散（scale 1→1.9, opacity .34→0）；文字 y +6→0, 420ms, ease-out。不重复、不循环。</span></div>',
+    '  <div class="mi"><span class="k">Observation 出现</span>',
+    '    <span class="feel">平静浮现，不是弹出</span>',
+    '    <span class="spec">卡片 opacity 0→1 与 y +10→0，520ms；内部段落 stagger 70ms，总时长不超过 900ms。无 scale 弹性。</span></div>',
+    '  <div class="mi"><span class="k">页面切换</span>',
+    '    <span class="feel">在同一个空间里逐渐向内走</span>',
+    '    <span class="spec">crossfade 240ms + 方向性 drift 6px（向内页面向内，返回时向外）。背景涟漪层保持不动，建立连续感。</span></div>',
+    '  <div class="mi"><span class="k">hover / focus</span>',
+    '    <span class="feel">边界细微扩散</span>',
+    '    <span class="spec">border-color 与 ring 半径 160ms 过渡；不用 spring，不用 bounce，不用 scale 跳变。</span></div>',
+    '</div>',
+    '<p class="mi-note" style="margin:20px 0 0">全部动效遵守 prefers-reduced-motion：只保留 opacity fade（120–200ms），禁用位移、stagger 与一次性 ripple。</p>',
+  ].join('\n');
+  board.appendChild(mi);
+}
+

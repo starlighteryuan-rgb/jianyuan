@@ -1,0 +1,21 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "allowJs": false,
+    "baseUrl": ".",
+    "incremental": false,
+    "lib": ["ES2022"],
+    "noEmit": true,
+    "paths": {},
+    "types": ["node", "vitest/globals"]
+  },
+  "include": [
+    "./application/**/*.ts",
+    "./contracts/**/*.ts",
+    "./domain/**/*.ts",
+    "./events/**/*.ts",
+    "./tests/**/*.ts",
+    "./index.ts",
+    "./vitest.config.ts"
+  ]
+}

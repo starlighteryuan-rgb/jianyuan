@@ -1,6 +1,13 @@
 'use server';
 
-import { getServices } from '@/server/container';
+import { revalidatePath } from 'next/cache';
+
+import {
+  suggestRelationsAfterCapture,
+  type RelationSuggestionExperience,
+} from '@/server/ai-core-experience';
+import { getCoreComposition } from '@/server/capture-composition-root';
+import { executeCapture } from '@/server/capture-use-case';
 
 const SUBMISSION_ID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -34,6 +41,11 @@ export type CaptureActionState =
  * semantics, epistemic role, directive subject, and root-source status are
  * fixed here so untrusted form fields cannot choose domain meaning. Every
  * storage and evidence-identity decision remains behind IngestionService.
+ *
+ * This action returns as soon as persistence is confirmed. The AI relation
+ * suggestion is a separate action because awaiting it here would keep the
+ * form locked for the whole provider round trip, and a slow or unreachable
+ * provider must not block the user's ability to keep recording.
  */
 export async function submitCapture(
   _previousState: CaptureActionState,
@@ -47,7 +59,7 @@ export async function submitCapture(
     return {
       status: 'error',
       code: 'invalid_input',
-      message: 'Capture input must be text.',
+      message: '记录内容必须是文字。',
     };
   }
 
@@ -57,7 +69,7 @@ export async function submitCapture(
     return {
       status: 'error',
       code: 'empty_input',
-      message: 'Enter something before capturing it.',
+      message: '请先写下一点内容。',
     };
   }
 
@@ -70,7 +82,7 @@ export async function submitCapture(
     return {
       status: 'error',
       code: 'invalid_input',
-      message: 'Capture submission identity is invalid.',
+      message: '记录提交身份无效。',
     };
   }
 
@@ -80,38 +92,25 @@ export async function submitCapture(
     return {
       status: 'error',
       code: 'invalid_input',
-      message: 'Capture submission time is invalid.',
+      message: '记录提交时间无效。',
     };
   }
 
   const now = new Date();
 
+  let composition: Awaited<ReturnType<typeof getCoreComposition>>;
+  let confirmed: Extract<
+    Awaited<ReturnType<typeof executeCapture>>,
+    { readonly ok: true }
+  >;
+
   try {
-    const result = await getServices().ingestion.ingest({
-      origin: 'user_reported',
-      actor: 'user',
-      // The form creates this identity once per logical submission. Retrying
-      // the same submission therefore reaches ingestion with the same source.
-      sourceRef: `capture-ui:${submissionId}`,
+    composition = await getCoreComposition();
+    const result = await executeCapture(composition.ingestion, {
       verbatim,
-      // The input surface does not infer a language from the text.
-      language: null,
-      // This is when the system captured the expression, not a claim about
-      // when anything described by the expression happened.
-      time: { semantic: 'capture_time', at: submittedAtTime },
-      epistemicRoles: ['user_expression'],
+      submissionId,
+      submittedAt: submittedAtTime,
       capturedAt: now,
-      // A direct Capture submission is a root source. It does not invent a
-      // parent or lineage relation.
-      derivation: null,
-      // Directive scope attributes stay explicit. Capture infers no topic or
-      // relation axis from the user's words.
-      subject: {
-        topicTags: [],
-        source: 'capture_ui',
-        relationAxes: [],
-        userSelectedRefs: [],
-      },
     });
 
     if (!result.ok) {
@@ -119,34 +118,75 @@ export async function submitCapture(
         return {
           status: 'error',
           code: 'directive_refused',
-          message: 'An active directive does not permit this capture to be stored.',
+          message: '当前使用规则不允许保存这条记录。',
         };
       }
 
-      // A root Capture has no parent and requires no derived-evidence judgment,
-      // so the remaining refusals are fail-closed safeguards, not states the UI
-      // should reinterpret.
       return {
         status: 'error',
         code: 'ingestion_refused',
-        message: 'The capture was refused and nothing was stored.',
+        message: '这条记录未被保存。',
       };
     }
 
-    return {
-      status: 'success',
-      recordId: result.value.recordId,
-      created: !result.value.deduplicated,
-      deduplicated: result.value.deduplicated,
-      rolesAdded: result.value.rolesAdded,
-    };
+    confirmed = result;
   } catch {
-    // Configuration, connection, and repository failures are reported as an
-    // unavailable write. Never claim success when persistence is uncertain.
     return {
       status: 'error',
       code: 'storage_failed',
-      message: 'Storage is unavailable. Nothing was confirmed as saved.',
+      message: '本地数据暂时不可用，尚未确认保存成功。',
+    };
+  }
+
+  // Everything below happens only after persistence is confirmed. A cache or
+  // Provider failure must never turn a successful Capture into a failed write.
+  try {
+    revalidatePath('/');
+    revalidatePath('/records');
+    revalidatePath('/history');
+  } catch {
+    // A stale view can recover on navigation; the confirmed Record must not be
+    // misreported as missing.
+  }
+
+  return {
+    status: 'success',
+    recordId: confirmed.value.recordId,
+    created: !confirmed.value.deduplicated,
+    deduplicated: confirmed.value.deduplicated,
+    rolesAdded: confirmed.value.rolesAdded,
+  };
+}
+
+/**
+ * Post-save AI relation suggestion, requested separately from the write above.
+ *
+ * Keeping this out of `submitCapture` means the confirmed Record reaches the
+ * user immediately and the form unlocks, whatever the provider then does. Every
+ * failure mode resolves to a degraded explanation rather than an exception, so a
+ * provider problem can never surface as a Capture failure.
+ */
+export async function loadRelationCandidates(
+  recordId: string,
+): Promise<RelationSuggestionExperience> {
+  if (typeof recordId !== 'string' || recordId.length === 0) {
+    return {
+      status: 'unavailable',
+      message: '记录已保存，但这次无法为它查询值得回看的联系。',
+      candidates: [],
+    };
+  }
+
+  try {
+    return await suggestRelationsAfterCapture(
+      await getCoreComposition(),
+      recordId,
+    );
+  } catch {
+    return {
+      status: 'unavailable',
+      message: '记录已保存，但 AI 回看暂时不可用。',
+      candidates: [],
     };
   }
 }

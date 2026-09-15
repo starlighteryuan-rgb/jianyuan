@@ -14,13 +14,13 @@
 
 import { revalidatePath } from 'next/cache';
 
-import { defaultPreference } from '@/domain/reflection/reflection-preference';
-import type {
+import {
+  defaultPreference,
   ExplanationDensity,
   HypothesisVisibility,
   InterventionLevel,
-} from '@/domain/shared/enums';
-import { getServices } from '@/server/container';
+} from '../../../packages/core/index';
+import { getCoreComposition } from '@/server/capture-composition-root';
 
 const HYPOTHESIS_VISIBILITY: readonly HypothesisVisibility[] = [
   'hidden',
@@ -53,13 +53,12 @@ const pick = <T extends string>(
 };
 
 export async function updatePreference(form: FormData): Promise<void> {
-  const services = getServices();
+  const services = await getCoreComposition();
   const now = new Date();
 
   const current = await services.reflection.preference(now);
 
-  await services.repositories.preferences.save({
-    ...current,
+  await services.reflection.updatePreference({
     hypothesisVisibility: pick(
       form,
       'hypothesisVisibility',
@@ -78,7 +77,28 @@ export async function updatePreference(form: FormData): Promise<void> {
       EXPLANATION_DENSITY,
       current.explanationDensity,
     ),
-    updatedAt: now,
+    now,
+  });
+
+  revalidatePath('/settings');
+  revalidatePath('/');
+}
+
+/** AI invitation toggle projected onto the existing ReflectionPreference. */
+export async function updateReflectionInvitationPermission(
+  form: FormData,
+): Promise<void> {
+  const services = await getCoreComposition();
+  const now = new Date();
+  const current = await services.reflection.preference(now);
+
+  await services.reflection.updatePreference({
+    ...current,
+    interventionLevel:
+      form.get('allowReflectionInvitation') === 'on'
+        ? 'standard'
+        : 'minimal',
+    now,
   });
 
   revalidatePath('/settings');
