@@ -31,6 +31,9 @@ export default defineConfig({
       'react-native': fileURLToPath(
         new URL('./tests/support/react-native-double.tsx', import.meta.url),
       ),
+      'react-native-reanimated': fileURLToPath(
+        new URL('./tests/support/reanimated-double.ts', import.meta.url),
+      ),
     },
   },
 });

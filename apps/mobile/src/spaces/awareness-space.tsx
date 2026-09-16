@@ -7,9 +7,12 @@
  *
  * Opening the tab never calls the Provider and never marks everything read.
  * Only opening one concrete bubble changes that item from pending to viewed.
+ *
+ * M3 motion keeps those facts visible: a new Bubble floats in, opening reads as
+ * focusing that Bubble into Detail, and closing returns the item to History.
  */
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -19,6 +22,13 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import Animated, {
+  interpolate,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+  withTiming,
+} from 'react-native-reanimated';
 
 import type { RecordReadModel } from '../../../../packages/core/index';
 import type {
@@ -30,6 +40,7 @@ import type {
 } from '../runtime/awareness-session';
 import { useRuntime } from '../shell/runtime-context';
 import { matchesLocalQuery } from '../shell/local-search';
+import { MOTION_DURATION, useMotion } from '../theme/motion';
 import { useTheme } from '../theme/theme-context';
 import { RADIUS, SPACING, TYPOGRAPHY } from '../theme/tokens';
 
@@ -53,6 +64,8 @@ const CHOICES: readonly [ObservationMeaning, string][] = [
   ['not_my_experience', '这不是我的体验'],
 ];
 
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+
 const AwarenessBubble = ({
   item,
   onOpen,
@@ -62,43 +75,127 @@ const AwarenessBubble = ({
 }) => {
   const { theme } = useTheme();
   const { colors } = theme;
+  const motion = useMotion();
+  const entered = useSharedValue(0);
+  const focused = useSharedValue(0);
+
+  useEffect(() => {
+    entered.value = withSpring(1, motion.spring(motion.reduceMotion));
+  }, [entered, motion]);
+
+  const focus = useCallback(() => {
+    focused.value = withSpring(1, motion.spring(motion.reduceMotion));
+  }, [focused, motion]);
+
+  const bubbleStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(entered.value, [0, 1], [0, 1]),
+    transform: [
+      { scale: interpolate(entered.value + focused.value * 0.25, [0, 1.25], [motion.bubbleScale, 1]) },
+    ],
+  }));
+
+  const rippleStyle = useAnimatedStyle(() => ({
+    opacity: motion.reduceMotion
+      ? 0
+      : interpolate(entered.value, [0, 0.4, 1], [0.16, 0.08, 0]),
+    transform: [{ scale: interpolate(entered.value, [0, 1], [0.94, 1.05]) }],
+  }));
 
   const unread = item.status === 'pending';
 
   return (
-    <Pressable
-      testID={`awareness-bubble-${item.candidateId}`}
-      accessibilityRole="button"
-      accessibilityLabel="新的觉察"
-      onPress={() => onOpen(item)}
-      style={[
-        styles.bubble,
-        {
-          backgroundColor: colors.accentSoft,
-          borderColor: colors.accent,
-          borderRadius: RADIUS.lg,
-        },
-      ]}
-    >
-      <View style={styles.bubbleHead}>
-        <Text style={[TYPOGRAPHY.eyebrow, { color: colors.accent }]}>新的觉察</Text>
-        {unread ? (
-          <View
-            testID={`awareness-unread-${item.candidateId}`}
-            style={[styles.dot, { backgroundColor: colors.danger }]}
-          />
-        ) : null}
-      </View>
-      <Text style={[TYPOGRAPHY.lead, { color: colors.textPrimary, marginTop: SPACING.sm }]}>
-        {item.candidate.observation}
-      </Text>
-      <Text style={[TYPOGRAPHY.meta, { color: colors.textMuted, marginTop: SPACING.sm }]}>
-        {formatCapturedAt(item.createdAt)}
-      </Text>
-    </Pressable>
+    <View style={styles.bubbleShell}>
+      <Animated.View style={[styles.ripple, rippleStyle]} pointerEvents="none" />
+      <AnimatedPressable
+        testID={`awareness-bubble-${item.candidateId}`}
+        accessibilityRole="button"
+        accessibilityLabel="新的觉察"
+        onPress={() => {
+          focus();
+          onOpen(item);
+        }}
+        style={[
+          styles.bubble,
+          {
+            backgroundColor: colors.accentSoft,
+            borderColor: colors.accent,
+            borderRadius: RADIUS.lg,
+          },
+          bubbleStyle,
+        ]}
+      >
+        <View style={styles.bubbleHead}>
+          <Text style={[TYPOGRAPHY.eyebrow, { color: colors.accent }]}>新的觉察</Text>
+          {unread ? (
+            <View
+              testID={`awareness-unread-${item.candidateId}`}
+              style={[styles.dot, { backgroundColor: colors.danger }]}
+            />
+          ) : null}
+        </View>
+        <Text style={[TYPOGRAPHY.lead, { color: colors.textPrimary, marginTop: SPACING.sm }]}>
+          {item.candidate.observation}
+        </Text>
+        <Text style={[TYPOGRAPHY.meta, { color: colors.textMuted, marginTop: SPACING.sm }]}>
+          {formatCapturedAt(item.createdAt)}
+        </Text>
+      </AnimatedPressable>
+    </View>
   );
 };
 
+const AwarenessHistoryCard = ({
+  item,
+  onOpen,
+}: {
+  readonly item: AwarenessHistoryItem;
+  readonly onOpen: (item: AwarenessHistoryItem) => void;
+}) => {
+  const { theme } = useTheme();
+  const { colors } = theme;
+  const motion = useMotion();
+  const entered = useSharedValue(0);
+
+  useEffect(() => {
+    entered.value = withTiming(1, motion.timing('normal', motion.reduceMotion));
+  }, [entered, motion]);
+
+  const cardStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(entered.value, [0, 1], [0, 1]),
+    transform: [{ translateY: interpolate(entered.value, [0, 1], [4, 0]) }],
+  }));
+
+  return (
+    <AnimatedPressable
+      key={item.candidateId}
+      testID={`awareness-history-${item.candidateId}`}
+      onPress={() => void onOpen(item)}
+      style={[
+        styles.historyCard,
+        {
+          backgroundColor: colors.sunken,
+          borderColor: colors.borderSubtle,
+          borderRadius: RADIUS.md,
+        },
+        cardStyle,
+      ]}
+    >
+      <View style={styles.historyHead}>
+        <Text style={[TYPOGRAPHY.eyebrow, { color: colors.textMuted }]}>历史觉察</Text>
+        <Text style={[TYPOGRAPHY.meta, { color: colors.textMuted }]}>
+          {item.status === 'reflected'
+            ? '已回应'
+            : item.status === 'dismissed'
+              ? '已放下'
+              : '已查看'}
+        </Text>
+      </View>
+      <Text style={[TYPOGRAPHY.body, { color: colors.textPrimary, marginTop: SPACING.xs }]}>
+        {item.candidate.observation}
+      </Text>
+    </AnimatedPressable>
+  );
+};
 const AwarenessDetail = ({
   item,
   onClose,
@@ -114,11 +211,23 @@ const AwarenessDetail = ({
 }) => {
   const { theme } = useTheme();
   const { colors } = theme;
+  const motion = useMotion();
+  const opened = useSharedValue(0);
   const [meaning, setMeaning] = useState<ObservationMeaning | null>(item.meaning);
   const [reflectionText, setReflectionText] = useState(item.reflectionText ?? '');
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<CandidateDecisionResult | null>(null);
   const [saved, setSaved] = useState(item.status === 'reflected');
+
+  useEffect(() => {
+    opened.value = withSpring(1, motion.spring(motion.reduceMotion));
+  }, [motion, opened]);
+
+  const close = () => {
+    if (opened.value === 0) return;
+    opened.value = withTiming(0, motion.timing('normal', motion.reduceMotion));
+    onClose();
+  };
 
   const saveSucceeded = (candidate: CandidateDecisionResult): boolean =>
     candidate.status === 'discovery' || candidate.status === 'reflection_saved';
@@ -144,8 +253,16 @@ const AwarenessDetail = ({
     }
   };
 
+  const detailStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(opened.value, [0, 0.35, 1], [0, 0.45, 1]),
+    transform: [
+      { scale: interpolate(opened.value, [0, 1], [motion.detailScale, 1]) },
+      { translateY: interpolate(opened.value, [0, 1], [-6, 0]) },
+    ],
+  }));
+
   return (
-    <View
+    <Animated.View
       testID={`awareness-detail-${item.candidateId}`}
       style={[
         styles.detail,
@@ -154,6 +271,7 @@ const AwarenessDetail = ({
           borderColor: colors.borderStrong,
           borderRadius: RADIUS.md,
         },
+        detailStyle,
       ]}
     >
       <Text style={[TYPOGRAPHY.eyebrow, { color: colors.accent }]}>觉察</Text>
@@ -266,7 +384,7 @@ const AwarenessDetail = ({
         <Pressable
           testID={`awareness-close-${item.candidateId}`}
           accessibilityRole="button"
-          onPress={onClose}
+          onPress={close}
           style={styles.linkButton}
         >
           <Text style={[TYPOGRAPHY.meta, { color: colors.textSecondary }]}>收起</Text>
@@ -284,7 +402,7 @@ const AwarenessDetail = ({
           {result.message}
         </Text>
       ) : null}
-    </View>
+    </Animated.View>
   );
 };
 
@@ -292,6 +410,7 @@ export const AwarenessSpace = ({ searchQuery = '' }: { readonly searchQuery?: st
   const runtime = useRuntime();
   const { theme } = useTheme();
   const { colors } = theme;
+  const motion = useMotion();
 
   const [records, setRecords] = useState<readonly RecordReadModel[]>([]);
   const [selectedRecordId, setSelectedRecordId] = useState<string | null>(null);
@@ -299,6 +418,7 @@ export const AwarenessSpace = ({ searchQuery = '' }: { readonly searchQuery?: st
   const [history, setHistory] = useState<readonly AwarenessHistoryItem[]>([]);
   const [openItem, setOpenItem] = useState<AwarenessHistoryItem | null>(null);
   const [loading, setLoading] = useState(true);
+  const closing = useRef(false);
 
   const refreshHistory = useCallback(async () => {
     const next = await runtime.awarenessHistory();
@@ -344,6 +464,15 @@ export const AwarenessSpace = ({ searchQuery = '' }: { readonly searchQuery?: st
     [refreshHistory, runtime],
   );
 
+  const closeDetail = useCallback(() => {
+    if (closing.current) return;
+    closing.current = true;
+    setOpenItem(null);
+    setTimeout(() => {
+      closing.current = false;
+    }, motion.reduceMotion ? MOTION_DURATION.fast : MOTION_DURATION.normal);
+  }, [motion.reduceMotion]);
+
   const start = useCallback(async () => {
     if (selectedRecordId === null) return;
     setSuggestion({ kind: 'loading' });
@@ -380,11 +509,19 @@ export const AwarenessSpace = ({ searchQuery = '' }: { readonly searchQuery?: st
     suggestion.kind === 'result' && suggestion.experience.status === 'candidates'
       ? suggestion.experience
       : null;
-  const inbox = history.filter((item) => item.status === 'pending').filter((item) =>
-    matchesLocalQuery(searchQuery, [item.candidate.observation]),
+  const inbox = useMemo(
+    () =>
+      history
+        .filter((item) => item.status === 'pending')
+        .filter((item) => matchesLocalQuery(searchQuery, [item.candidate.observation])),
+    [history, searchQuery],
   );
-  const historyItems = history.filter((item) => item.status !== 'pending').filter((item) =>
-    matchesLocalQuery(searchQuery, [item.candidate.observation]),
+  const historyItems = useMemo(
+    () =>
+      history
+        .filter((item) => item.status !== 'pending')
+        .filter((item) => matchesLocalQuery(searchQuery, [item.candidate.observation])),
+    [history, searchQuery],
   );
   const manualCandidates =
     result?.candidates.filter(
@@ -436,7 +573,7 @@ export const AwarenessSpace = ({ searchQuery = '' }: { readonly searchQuery?: st
           )}
 
           {openItem !== null ? (
-            <AwarenessDetail item={openItem} onClose={() => setOpenItem(null)} onRespond={submit} />
+            <AwarenessDetail item={openItem} onClose={closeDetail} onRespond={submit} />
           ) : null}
 
           <View style={styles.divider} />
@@ -554,34 +691,8 @@ export const AwarenessSpace = ({ searchQuery = '' }: { readonly searchQuery?: st
             </Text>
           ) : (
             historyItems.map((item) => (
-                <Pressable
-                  key={item.candidateId}
-                  testID={`awareness-history-${item.candidateId}`}
-                  onPress={() => void open(item)}
-                  style={[
-                    styles.historyCard,
-                    {
-                      backgroundColor: colors.sunken,
-                      borderColor: colors.borderSubtle,
-                      borderRadius: RADIUS.md,
-                    },
-                  ]}
-                >
-                  <View style={styles.historyHead}>
-                    <Text style={[TYPOGRAPHY.eyebrow, { color: colors.textMuted }]}>历史觉察</Text>
-                    <Text style={[TYPOGRAPHY.meta, { color: colors.textMuted }]}>
-                      {item.status === 'reflected'
-                        ? '已回应'
-                        : item.status === 'dismissed'
-                          ? '已放下'
-                          : '已查看'}
-                    </Text>
-                  </View>
-                  <Text style={[TYPOGRAPHY.body, { color: colors.textPrimary, marginTop: SPACING.xs }]}>
-                    {item.candidate.observation}
-                  </Text>
-                </Pressable>
-              ))
+              <AwarenessHistoryCard key={item.candidateId} item={item} onOpen={open} />
+            ))
           )}
         </>
       )}
@@ -608,6 +719,17 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     paddingVertical: SPACING.sm,
     alignItems: 'center',
+  },
+  bubbleShell: { position: 'relative' },
+  ripple: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    borderRadius: RADIUS.lg,
+    borderWidth: 1,
+    borderColor: 'transparent',
   },
   bubble: {
     borderWidth: 1,

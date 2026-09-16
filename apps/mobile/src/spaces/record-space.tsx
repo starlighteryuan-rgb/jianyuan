@@ -32,7 +32,9 @@ import { matchesLocalQuery } from '../shell/local-search';
 import { RECORD_SAVED_MESSAGE, type CaptureFailure } from '../runtime/mobile-runtime';
 import { useTheme } from '../theme/theme-context';
 import { RADIUS, SPACING, TYPOGRAPHY } from '../theme/tokens';
+import { useMotion } from '../theme/motion';
 import type { RecordReadModel } from '../../../../packages/core/index';
+import Animated, { interpolate, useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
 
 type SaveState =
   | { readonly kind: 'idle' }
@@ -58,6 +60,26 @@ export const RecordSpace = ({ searchQuery = '' }: { readonly searchQuery?: strin
   const [saveState, setSaveState] = useState<SaveState>({ kind: 'idle' });
   const [records, setRecords] = useState<readonly RecordReadModel[]>([]);
   const [loading, setLoading] = useState(true);
+  const motion = useMotion();
+  const savedPulse = useSharedValue(0);
+
+  useEffect(() => {
+    if (saveState.kind === 'saved') {
+      savedPulse.value = 0.98;
+      savedPulse.value = withSpring(1, motion.spring(motion.reduceMotion));
+      return;
+    }
+    savedPulse.value = withTiming(0, motion.timing('fast', motion.reduceMotion));
+  }, [motion, saveState.kind, savedPulse]);
+
+  const inputStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: interpolate(savedPulse.value, [0, 1], [1, 0.995]) }],
+  }));
+
+  const acknowledgementStyle = useAnimatedStyle(() => ({
+    opacity: savedPulse.value,
+    transform: [{ translateY: interpolate(savedPulse.value, [0, 1], [2, 0]) }],
+  }));
 
   const visibleRecords = records.filter((record) =>
     matchesLocalQuery(searchQuery, [record.verbatim]),
@@ -102,7 +124,7 @@ export const RecordSpace = ({ searchQuery = '' }: { readonly searchQuery?: strin
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
       >
-        <View
+        <Animated.View
           style={[
             styles.well,
             {
@@ -110,6 +132,7 @@ export const RecordSpace = ({ searchQuery = '' }: { readonly searchQuery?: strin
               borderColor: colors.borderSubtle,
               borderRadius: RADIUS.md,
             },
+            inputStyle,
           ]}
         >
           <TextInput
@@ -122,7 +145,7 @@ export const RecordSpace = ({ searchQuery = '' }: { readonly searchQuery?: strin
             accessibilityLabel="记录输入"
             style={[styles.input, TYPOGRAPHY.body, { color: colors.textPrimary }]}
           />
-        </View>
+        </Animated.View>
 
         <View style={styles.actions}>
           <Pressable
@@ -149,9 +172,12 @@ export const RecordSpace = ({ searchQuery = '' }: { readonly searchQuery?: strin
           </Pressable>
 
           {saveState.kind === 'saved' ? (
-            <Text testID="record-saved-message" style={[TYPOGRAPHY.body, { color: colors.success }]}>
+            <Animated.Text
+              testID="record-saved-message"
+              style={[TYPOGRAPHY.body, { color: colors.success }, acknowledgementStyle]}
+            >
               {RECORD_SAVED_MESSAGE}
-            </Text>
+            </Animated.Text>
           ) : null}
 
           {saveState.kind === 'failed' ? (
