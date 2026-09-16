@@ -25,6 +25,8 @@ export interface AwarenessAutomationJob {
   readonly createdAt: string;
   readonly updatedAt: string;
   readonly failureReason?: string;
+  /** Deterministic identity for one pending record set. */
+  readonly recordSetFingerprint?: string;
 }
 
 export interface AwarenessAutomationState {
@@ -67,7 +69,8 @@ const isAutomationJob = (value: unknown): value is AwarenessAutomationJob => {
     isJobStatus(job.status) &&
     typeof job.createdAt === 'string' &&
     typeof job.updatedAt === 'string' &&
-    (job.failureReason === undefined || typeof job.failureReason === 'string')
+    (job.failureReason === undefined || typeof job.failureReason === 'string') &&
+    (job.recordSetFingerprint === undefined || typeof job.recordSetFingerprint === 'string')
   );
 };
 
@@ -174,9 +177,18 @@ export const beginAutomaticAwarenessJob = (
   }
 
   const timestamp = at.toISOString();
+  const pendingFingerprint = [...state.pendingRecordIds].sort().join('|');
+  const alreadyCompleted = state.jobs.some(
+    (job) =>
+      (job.status === 'completed' || job.status === 'no_observation') &&
+      (job.recordSetFingerprint ?? [...job.recordIds].sort().join('|')) === pendingFingerprint,
+  );
+  if (alreadyCompleted) return { state, job: null };
+  const recordSetFingerprint = [...state.pendingRecordIds].sort().join('|');
   const job: AwarenessAutomationJob = {
     id: `auto_${at.getTime()}_${Math.random().toString(36).slice(2, 10)}`,
     recordIds: [...state.pendingRecordIds],
+    recordSetFingerprint,
     status: 'queued',
     createdAt: timestamp,
     updatedAt: timestamp,

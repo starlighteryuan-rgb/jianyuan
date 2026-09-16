@@ -473,6 +473,7 @@ export class MobileSqliteStorageAdapter implements CoreStoragePorts {
 
   readonly userReflectionRecords: CoreStoragePorts['userReflectionRecords'] & {
     listRecent(limit: number): Promise<readonly UserReflectionRecord[]>;
+    listRecordIds(): Promise<readonly string[]>;
   } = {
     save: async (record) => {
       await this.driver.runAsync(
@@ -489,6 +490,13 @@ export class MobileSqliteStorageAdapter implements CoreStoragePorts {
           encodeEntity(record),
         ],
       );
+    },
+    listRecordIds: async () => {
+      const rows = await this.driver.getAllAsync<SqlRow>(
+        'SELECT record_id FROM user_reflection_records',
+        [],
+      );
+      return rows.map((row) => requiredText(row, 'record_id'));
     },
     listByRecord: async (recordId) =>
       this.allEntities<UserReflectionRecord>(

@@ -24,6 +24,7 @@ import type { RecordReadModel } from '../../../../packages/core/index';
 import type { DiscoveryStreamItem } from '../../../../packages/core/application/discovery-service';
 import type { ReflectionTargetReadModel } from '../../../../packages/core/application/reflection-flow-service';
 import { useRuntime } from '../shell/runtime-context';
+import { matchesLocalQuery } from '../shell/local-search';
 import { useTheme } from '../theme/theme-context';
 import { RADIUS, SPACING, TYPOGRAPHY } from '../theme/tokens';
 
@@ -40,7 +41,7 @@ const formatDate = (value: Date): string => {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 };
 
-export const ExplorationSpace = () => {
+export const ExplorationSpace = ({ searchQuery = '' }: { readonly searchQuery?: string }) => {
   const runtime = useRuntime();
   const { theme } = useTheme();
   const { colors } = theme;
@@ -70,9 +71,17 @@ export const ExplorationSpace = () => {
         };
       }),
     );
-    setItems(resolved);
+    setItems(
+      resolved.filter((item) =>
+        matchesLocalQuery(searchQuery, [
+          item.relation.subject.comparisonAxis.dimension,
+          item.relation.subject.evidenceSummary,
+          item.target?.reflections[0]?.verbatim,
+        ]),
+      ),
+    );
     setLoading(false);
-  }, [runtime]);
+  }, [runtime, searchQuery]);
 
   useEffect(() => {
     void load();
@@ -93,7 +102,7 @@ export const ExplorationSpace = () => {
         <ActivityIndicator color={colors.accent} />
       ) : items.length === 0 ? (
         <Text testID="exploration-empty" style={[TYPOGRAPHY.body, { color: colors.textMuted }]}>
-          还没有长期联系。觉察得到你的自由文字回应并通过 Core 判断后，才会出现在这里。
+           {searchQuery.trim().length > 0 ? '没有找到相关内容' : '还没有长期联系。觉察得到你的自由文字回应并通过 Core 判断后，才会出现在这里。'}
         </Text>
       ) : (
         items.map((item) => {

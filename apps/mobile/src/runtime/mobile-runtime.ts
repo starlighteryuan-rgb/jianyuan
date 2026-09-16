@@ -304,6 +304,13 @@ export class MobileRuntime {
     const current = await readAwarenessAutomationState(this.awarenessAutomationStorage);
     if (current.pendingRecordIds.length === 0) return;
 
+    // Old Records may be sent as supporting context, but only a new uncovered
+    // Record can anchor a new automatic check.
+    const uncoveredAnchors = current.pendingRecordIds.filter(
+      (recordId) => !current.coveredRecordIds.includes(recordId),
+    );
+    if (uncoveredAnchors.length === 0) return;
+
     const started = beginAutomaticAwarenessJob(current, new Date());
     if (started.job === null) return;
     const job = started.job;
@@ -425,9 +432,18 @@ export class MobileRuntime {
     for (const listener of this.awarenessListeners) listener();
   }
 
+  private async reflectionRecordIds(): Promise<ReadonlySet<string>> {
+    return new Set(await this.composition.storage.userReflectionRecords.listRecordIds());
+  }
+
+  /** Capture Records only. Reflection-origin Records belong to Understanding. */
   async listRecent(limit: number = DEFAULT_TIMELINE_LIMIT): Promise<readonly RecordReadModel[]> {
     const capped = Math.min(Math.max(limit, 1), MAX_TIMELINE_LIMIT);
-    return this.composition.records.listRecent({ limit: capped });
+    const [records, reflectionIds] = await Promise.all([
+      this.composition.records.listRecent({ limit: capped }),
+      this.reflectionRecordIds(),
+    ]);
+    return records.filter((record) => !reflectionIds.has(record.id));
   }
 
   async getRecord(id: string): Promise<RecordReadModel | null> {
@@ -436,7 +452,12 @@ export class MobileRuntime {
 
   /** Search over preserved Record wording. */
   async search(query: string, limit: number = DEFAULT_TIMELINE_LIMIT): Promise<readonly RecordReadModel[]> {
-    return this.composition.records.search({ query, limit });
+    const capped = Math.min(Math.max(limit, 1), MAX_TIMELINE_LIMIT);
+    const [records, reflectionIds] = await Promise.all([
+      this.composition.records.search({ query, limit: capped }),
+      this.reflectionRecordIds(),
+    ]);
+    return records.filter((record) => !reflectionIds.has(record.id));
   }
 
   /**

@@ -28,6 +28,7 @@ import {
 } from 'react-native';
 
 import { useRuntime } from '../shell/runtime-context';
+import { matchesLocalQuery } from '../shell/local-search';
 import { RECORD_SAVED_MESSAGE, type CaptureFailure } from '../runtime/mobile-runtime';
 import { useTheme } from '../theme/theme-context';
 import { RADIUS, SPACING, TYPOGRAPHY } from '../theme/tokens';
@@ -48,7 +49,7 @@ const formatCapturedAt = (value: Date): string => {
   )}:${pad(date.getMinutes())}`;
 };
 
-export const RecordSpace = () => {
+export const RecordSpace = ({ searchQuery = '' }: { readonly searchQuery?: string }) => {
   const runtime = useRuntime();
   const { theme } = useTheme();
   const { colors } = theme;
@@ -57,6 +58,10 @@ export const RecordSpace = () => {
   const [saveState, setSaveState] = useState<SaveState>({ kind: 'idle' });
   const [records, setRecords] = useState<readonly RecordReadModel[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const visibleRecords = records.filter((record) =>
+    matchesLocalQuery(searchQuery, [record.verbatim]),
+  );
 
   const refresh = useCallback(async () => {
     try {
@@ -163,7 +168,7 @@ export const RecordSpace = () => {
         ) : (
           <FlatList
             testID="record-timeline"
-            data={records}
+            data={visibleRecords}
             scrollEnabled={false}
             keyExtractor={(item) => (item as RecordReadModel).id}
             ListEmptyComponent={
@@ -171,7 +176,7 @@ export const RecordSpace = () => {
                 testID="record-empty"
                 style={[TYPOGRAPHY.body, { color: colors.textMuted, lineHeight: 26 }]}
               >
-                还没有记录。写下此刻的一句话，它会留在这里。
+                {searchQuery.trim().length > 0 ? '没有找到相关内容' : '还没有记录。写下此刻的一句话，它会留在这里。'}
               </Text>
             }
             renderItem={({ item }) => {

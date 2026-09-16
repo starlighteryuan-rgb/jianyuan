@@ -22,6 +22,7 @@ import {
 import type { RecordReadModel } from '../../../../packages/core/index';
 import type { ReflectionTargetReadModel } from '../../../../packages/core/application/reflection-flow-service';
 import { useRuntime } from '../shell/runtime-context';
+import { matchesLocalQuery } from '../shell/local-search';
 import { useTheme } from '../theme/theme-context';
 import { RADIUS, SPACING, TYPOGRAPHY } from '../theme/tokens';
 
@@ -41,7 +42,7 @@ const formatDate = (value: Date): string => {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 };
 
-export const UnderstandingSpace = () => {
+export const UnderstandingSpace = ({ searchQuery = '' }: { readonly searchQuery?: string }) => {
   const runtime = useRuntime();
   const { theme } = useTheme();
   const { colors } = theme;
@@ -78,14 +79,14 @@ export const UnderstandingSpace = () => {
           };
         }),
       );
-      setItems(resolved);
+      setItems(resolved.filter((item) => matchesLocalQuery(searchQuery, [item.verbatim])));
       setError(null);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : String(caught));
     } finally {
       setLoading(false);
     }
-  }, [runtime]);
+  }, [runtime, searchQuery]);
 
   useEffect(() => {
     void load();
@@ -110,7 +111,7 @@ export const UnderstandingSpace = () => {
         </Text>
       ) : items.length === 0 ? (
         <Text testID="understanding-empty" style={[TYPOGRAPHY.body, { color: colors.textMuted }]}>
-          还没有可以理解的内容。你在觉察里写下的理解会保存在这里。
+           {searchQuery.trim().length > 0 ? '没有找到相关内容' : '还没有可以理解的内容。你在觉察里写下的理解会保存在这里。'}
         </Text>
       ) : (
         items.map((item) => {

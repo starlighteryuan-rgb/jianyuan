@@ -29,6 +29,7 @@ import type {
   RelationSuggestionExperience,
 } from '../runtime/awareness-session';
 import { useRuntime } from '../shell/runtime-context';
+import { matchesLocalQuery } from '../shell/local-search';
 import { useTheme } from '../theme/theme-context';
 import { RADIUS, SPACING, TYPOGRAPHY } from '../theme/tokens';
 
@@ -62,6 +63,8 @@ const AwarenessBubble = ({
   const { theme } = useTheme();
   const { colors } = theme;
 
+  const unread = item.status === 'pending';
+
   return (
     <Pressable
       testID={`awareness-bubble-${item.candidateId}`}
@@ -79,10 +82,12 @@ const AwarenessBubble = ({
     >
       <View style={styles.bubbleHead}>
         <Text style={[TYPOGRAPHY.eyebrow, { color: colors.accent }]}>新的觉察</Text>
-        <View
-          testID={`awareness-unread-${item.candidateId}`}
-          style={[styles.dot, { backgroundColor: colors.danger }]}
-        />
+        {unread ? (
+          <View
+            testID={`awareness-unread-${item.candidateId}`}
+            style={[styles.dot, { backgroundColor: colors.danger }]}
+          />
+        ) : null}
       </View>
       <Text style={[TYPOGRAPHY.lead, { color: colors.textPrimary, marginTop: SPACING.sm }]}>
         {item.candidate.observation}
@@ -113,6 +118,12 @@ const AwarenessDetail = ({
   const [reflectionText, setReflectionText] = useState(item.reflectionText ?? '');
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<CandidateDecisionResult | null>(null);
+  const [saved, setSaved] = useState(item.status === 'reflected');
+
+  const saveSucceeded = (candidate: CandidateDecisionResult): boolean =>
+    candidate.status === 'discovery' || candidate.status === 'reflection_saved';
+
+  const resultSucceeded = result !== null && saveSucceeded(result);
 
   const submit = async () => {
     if (meaning === null || submitting) return;
@@ -125,7 +136,9 @@ const AwarenessDetail = ({
     }
     setSubmitting(true);
     try {
-      setResult(await onRespond(item, meaning, reflectionText));
+      const next = await onRespond(item, meaning, reflectionText);
+      setResult(next);
+      setSaved(saveSucceeded(next));
     } finally {
       setSubmitting(false);
     }
@@ -247,7 +260,7 @@ const AwarenessDetail = ({
           ]}
         >
           <Text style={[TYPOGRAPHY.lead, { color: colors.textPrimary }]}>
-            {submitting ? '正在保存……' : '确认我的回应'}
+            {submitting ? '正在保存……' : saved ? '已保存到「理解」' : '确认我的回应'}
           </Text>
         </Pressable>
         <Pressable
@@ -263,7 +276,10 @@ const AwarenessDetail = ({
       {result !== null && result.status !== 'idle' ? (
         <Text
           testID={`awareness-result-${item.candidateId}`}
-          style={[TYPOGRAPHY.meta, { color: colors.textSecondary, marginTop: SPACING.sm }]}
+          style={[
+            TYPOGRAPHY.meta,
+            { color: resultSucceeded ? colors.success : colors.textSecondary, marginTop: SPACING.sm },
+          ]}
         >
           {result.message}
         </Text>
@@ -272,7 +288,7 @@ const AwarenessDetail = ({
   );
 };
 
-export const AwarenessSpace = () => {
+export const AwarenessSpace = ({ searchQuery = '' }: { readonly searchQuery?: string }) => {
   const runtime = useRuntime();
   const { theme } = useTheme();
   const { colors } = theme;
@@ -342,13 +358,20 @@ export const AwarenessSpace = () => {
       meaning: ObservationMeaning,
       reflectionText: string,
     ) => {
-      const result = await runtime.submitObservationReflection({
-        candidateId: item.candidateId,
-        meaning,
-        ...(reflectionText.length === 0 ? {} : { reflectionText }),
-      });
-      await refreshHistory();
-      return result;
+      try {
+        const result = await runtime.submitObservationReflection({
+          candidateId: item.candidateId,
+          meaning,
+          ...(reflectionText.length === 0 ? {} : { reflectionText }),
+        });
+        await refreshHistory();
+        return result;
+      } catch (caught) {
+        return {
+          status: 'unavailable' as const,
+          message: caught instanceof Error ? caught.message : '保存失败，请重试。',
+        };
+      }
     },
     [refreshHistory, runtime],
   );
@@ -357,7 +380,12 @@ export const AwarenessSpace = () => {
     suggestion.kind === 'result' && suggestion.experience.status === 'candidates'
       ? suggestion.experience
       : null;
-  const inbox = history.filter((item) => item.status !== 'dismissed');
+  const inbox = history.filter((item) => item.status === 'pending').filter((item) =>
+    matchesLocalQuery(searchQuery, [item.candidate.observation]),
+  );
+  const historyItems = history.filter((item) => item.status !== 'pending').filter((item) =>
+    matchesLocalQuery(searchQuery, [item.candidate.observation]),
+  );
   const manualCandidates =
     result?.candidates.filter(
       (candidate) => !history.some((item) => item.candidateId === candidate.candidateId),
@@ -399,7 +427,7 @@ export const AwarenessSpace = () => {
           </View>
           {inbox.length === 0 ? (
             <Text testID="awareness-empty" style={[TYPOGRAPHY.body, { color: colors.textMuted }]}>
-              还没有可以察觉的内容。开启自动觉察并继续记录后，值得回看的内容会安静地留在这里。
+               {searchQuery.trim().length > 0 ? '没有找到相关内容' : '还没有可以察觉的内容。开启自动觉察并继续记录后，值得回看的内容会安静地留在这里。'}
             </Text>
           ) : (
             inbox.map((item) => (
@@ -520,14 +548,12 @@ export const AwarenessSpace = () => {
 
           <View style={styles.divider} />
           <Text style={[TYPOGRAPHY.eyebrow, { color: colors.textMuted }]}>历史觉察</Text>
-          {history.filter((item) => item.status !== 'pending').length === 0 ? (
+          {historyItems.length === 0 ? (
             <Text testID="awareness-history-empty" style={[TYPOGRAPHY.meta, { color: colors.textMuted }]}>
-              查看过的觉察会留在这里。
+               {searchQuery.trim().length > 0 ? '没有找到相关内容' : '查看过的觉察会留在这里。'}
             </Text>
           ) : (
-            history
-              .filter((item) => item.status !== 'pending')
-              .map((item) => (
+            historyItems.map((item) => (
                 <Pressable
                   key={item.candidateId}
                   testID={`awareness-history-${item.candidateId}`}

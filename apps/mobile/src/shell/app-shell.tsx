@@ -7,7 +7,7 @@
  * other spaces bled into view. The fix there was a visibility rule; here the
  * equivalent failure is designed out.
  *
- * `renderActiveSpace` returns exactly ONE element for the active space. There is
+ * The shell renders exactly ONE space element for the active space. There is
  * no list of spaces, no `display: none`, and no conditional wrapper around
  * siblings — inactive spaces are simply never constructed. A space component
  * therefore cannot render unless it is the active one, and
@@ -43,33 +43,13 @@ import {
 import { useAwarenessUnreadCount } from './runtime-context';
 import { useTheme } from '../theme/theme-context';
 import { SPACING, TYPOGRAPHY } from '../theme/tokens';
-
-/**
- * Exactly one space element, chosen by id.
- *
- * A `switch` with a default means an unknown id renders the empty state rather
- * than silently falling through to another space's content.
- */
-const renderActiveSpace = (space: SpaceId) => {
-  switch (space) {
-    case 'records':
-      return <RecordSpace />;
-    case 'awareness':
-      return <AwarenessSpace />;
-    case 'reflection':
-      return <UnderstandingSpace />;
-    case 'exploration':
-      return <ExplorationSpace />;
-    case 'settings':
-      return <SettingsSpace />;
-    default:
-      return <RecordSpace />;
-  }
-};
+import { LocalSearchControl } from './local-search';
 
 export const AppShell = () => {
   const [activeSpace, setActiveSpace] = useState<SpaceId>('records');
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchOpen, setSearchOpen] = useState(false);
   const { theme } = useTheme();
   const { colors } = theme;
   const unreadAwareness = useAwarenessUnreadCount();
@@ -79,6 +59,8 @@ export const AppShell = () => {
   const currentSpace: SpaceId = settingsOpen ? SETTINGS_SPACE : activeSpace;
 
   const selectTab = (space: SpaceId) => {
+    setSearchQuery('');
+    setSearchOpen(false);
     setSettingsOpen(false);
     setActiveSpace(space);
   };
@@ -95,6 +77,17 @@ export const AppShell = () => {
           {SPACE_LABELS[currentSpace]}
         </Text>
 
+        <View style={styles.headerActions}>
+          {currentSpace === SETTINGS_SPACE ? null : (
+            <LocalSearchControl
+              testID="local-search"
+              placeholder={`搜索${SPACE_LABELS[currentSpace]}`}
+              query={searchQuery}
+              onChangeQuery={setSearchQuery}
+              open={searchOpen}
+              onOpenChange={setSearchOpen}
+            />
+          )}
         <Pressable
           testID="settings-entry"
           accessibilityRole="button"
@@ -111,6 +104,7 @@ export const AppShell = () => {
             设置
           </Text>
         </Pressable>
+        </View>
       </View>
 
       {/*
@@ -118,7 +112,11 @@ export const AppShell = () => {
         assert which space is present without relying on styling.
       */}
       <View testID={`active-space-${currentSpace}`} style={styles.body}>
-        {renderActiveSpace(currentSpace)}
+        {currentSpace === 'records' ? <RecordSpace searchQuery={searchQuery} /> : null}
+        {currentSpace === 'awareness' ? <AwarenessSpace searchQuery={searchQuery} /> : null}
+        {currentSpace === 'reflection' ? <UnderstandingSpace searchQuery={searchQuery} /> : null}
+        {currentSpace === 'exploration' ? <ExplorationSpace searchQuery={searchQuery} /> : null}
+        {currentSpace === SETTINGS_SPACE ? <SettingsSpace /> : null}
       </View>
 
       <View
@@ -168,6 +166,13 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
   },
   settingsEntry: { paddingVertical: SPACING.xs, paddingHorizontal: SPACING.sm },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: SPACING.sm,
+    flex: 1,
+  },
   body: { flex: 1 },
   tabBar: {
     flexDirection: 'row',
