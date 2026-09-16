@@ -471,7 +471,9 @@ export class MobileSqliteStorageAdapter implements CoreStoragePorts {
       ),
   };
 
-  readonly userReflectionRecords: CoreStoragePorts['userReflectionRecords'] = {
+  readonly userReflectionRecords: CoreStoragePorts['userReflectionRecords'] & {
+    listRecent(limit: number): Promise<readonly UserReflectionRecord[]>;
+  } = {
     save: async (record) => {
       await this.driver.runAsync(
         `INSERT INTO user_reflection_records(id, record_id, created_at, payload_json)
@@ -503,6 +505,15 @@ export class MobileSqliteStorageAdapter implements CoreStoragePorts {
          ORDER BY created_at`,
         episodeRef,
       ),
+    listRecent: async (limit) => {
+      if (limit <= 0) return [];
+      return this.allEntities<UserReflectionRecord>(
+        this.driver,
+        `SELECT payload_json FROM user_reflection_records
+         ORDER BY created_at DESC, rowid DESC LIMIT ?`,
+        limit,
+      );
+    },
   };
 
   /**

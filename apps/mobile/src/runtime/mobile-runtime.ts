@@ -511,18 +511,30 @@ export class MobileRuntime {
       // (`reflection_required`) or a transient failure (`unavailable`) must
       // leave the item pending, and a rejection must not retain text the user
       // typed before switching to `not_my_experience`.
-      if (result.status !== 'discovery' && result.status !== 'discarded') {
+      if (
+        result.status !== 'discovery' &&
+        result.status !== 'reflection_saved' &&
+        result.status !== 'discarded'
+      ) {
         return result;
       }
+      const persistedUserText =
+        result.status === 'discovery' || result.status === 'reflection_saved'
+          ? input.reflectionText ?? null
+          : null;
       const next = updateAwarenessHistoryItem(current, input.candidateId, {
         status: result.status === 'discarded' ? 'dismissed' : 'reflected',
         updatedAt: new Date().toISOString(),
         meaning: input.meaning,
-        reflectionText:
-          result.status === 'discovery' ? input.reflectionText ?? null : null,
-        targetRef: result.status === 'discovery' ? result.targetRef : null,
+        reflectionText: persistedUserText,
+        targetRef:
+          result.status === 'discovery' || result.status === 'reflection_saved'
+            ? result.targetRef
+            : null,
         reflectionRecordId:
-          result.status === 'discovery' ? result.reflectionRecordId ?? null : null,
+          result.status === 'discovery' || result.status === 'reflection_saved'
+            ? result.reflectionRecordId ?? null
+            : null,
       });
       await writeAwarenessHistory(this.awarenessHistoryStorage, next);
       this.notifyAwarenessChanged();
@@ -530,9 +542,59 @@ export class MobileRuntime {
     });
   }
 
+
   /** Understanding: persisted Reflections attached to a relation target. */
   getReflectionTarget(targetRef: string, now: Date = new Date()) {
     return this.composition.reflectionFlow.getRelationTarget(targetRef, now);
+  }
+
+  /**
+   * Understanding read model for the user's own persisted Reflections.
+   *
+   * This deliberately does not start from Relations: a Reflection is saved
+   * before the Core Gate, and remains readable when no Relation was admitted.
+   */
+  async listUnderstandingReflections(): Promise<
+    readonly {
+      readonly reflectionRecordId: string;
+      readonly recordId: string;
+      readonly verbatim: string;
+      readonly createdAt: Date;
+      readonly targetRef: string | null;
+      readonly relatedToRelation: boolean;
+    }[]
+  > {
+    const reflections = await this.composition.storage.userReflectionRecords.listRecent(100);
+    const discoveries = await this.listDiscoveries();
+    const relationTargetByRecordId = new Map<string, string>();
+    for (const item of discoveries) {
+      if (item.kind !== 'relation') continue;
+      const target = await this.composition.reflectionFlow.getRelationTarget(
+        item.subject.id,
+        new Date(),
+      );
+      if (target === null) continue;
+      for (const reflection of target.reflections) {
+        relationTargetByRecordId.set(reflection.recordId, item.subject.id);
+      }
+    }
+    const resolved = await Promise.all(
+      reflections.map(async (reflection) => {
+        const record = await this.composition.records.getById(reflection.recordId);
+        if (record === null) return null;
+        const targetRef =
+          relationTargetByRecordId.get(reflection.recordId) ?? null;
+        return {
+          reflectionRecordId: reflection.id,
+          recordId: reflection.recordId,
+          verbatim: record.verbatim ?? '',
+          createdAt: reflection.createdAt,
+          targetRef,
+          relatedToRelation: targetRef !== null,
+        };
+      }),
+    );
+    return resolved.filter((item) => item !== null);
   }
 
   /** Understanding / Exploration source: every passively-eligible Discovery. */

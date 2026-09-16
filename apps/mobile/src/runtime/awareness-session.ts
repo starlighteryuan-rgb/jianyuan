@@ -16,8 +16,9 @@
  *     is never written as a Relation.
  *   - A quick choice is a stance, not an approval. `not_my_experience` discards
  *     the Observation and writes nothing.
- *   - Only free text can reach `RelationService.evaluate` and
- *     `ReflectionFlowService.respondToRelation`, exactly as on Desktop.
+ *   - Free text is persisted as a User Reflection BEFORE the Relation Gate runs.
+ *     The Gate decides whether a long-lived Relation is admitted; it never
+ *     decides whether the user's own words are saved.
  */
 
 import {
@@ -134,6 +135,17 @@ export type CandidateDecisionResult =
       readonly reflectionRecordId?: string;
     }
   | {
+      /**
+       * The user's free text is durably saved, but the Core Gate did not admit
+       * a Relation. This is a successful user outcome, not a failure: the text
+       * is readable in Understanding and contains no long-lived relation.
+       */
+      readonly status: 'reflection_saved';
+      readonly message: string;
+      readonly targetRef: string;
+      readonly reflectionRecordId: string;
+    }
+  | {
       readonly status:
         | 'reflection_required'
         | 'discarded'
@@ -175,6 +187,7 @@ export interface RelationCandidateRegistryHooks {
 export class RelationCandidateRegistry {
   private readonly candidates = new Map<string, StoredRelationCandidate>();
   private readonly inFlight = new Map<string, Promise<unknown>>();
+  private readonly claimed = new Set<string>();
   private sequence = 0;
 
   constructor(private readonly hooks: RelationCandidateRegistryHooks = {}) {}
@@ -204,8 +217,24 @@ export class RelationCandidateRegistry {
     return this.candidates.get(candidateId) ?? null;
   }
 
+  /**
+   * Atomically claim a candidate for one terminal response.
+   *
+   * A duplicate tap must not create a second Reflection. The first caller owns
+   * the candidate and every later caller sees it as already handled.
+   */
+  claim(candidateId: string): boolean {
+    this.prune();
+    if (!this.candidates.has(candidateId) || this.claimed.has(candidateId)) {
+      return false;
+    }
+    this.claimed.add(candidateId);
+    return true;
+  }
+
   remove(candidateId: string): void {
     this.candidates.delete(candidateId);
+    this.claimed.delete(candidateId);
     this.hooks.removed?.(candidateId);
   }
 
@@ -222,7 +251,10 @@ export class RelationCandidateRegistry {
   private prune(): void {
     const now = Date.now();
     for (const [id, candidate] of this.candidates) {
-      if (candidate.expiresAt <= now) this.candidates.delete(id);
+      if (candidate.expiresAt <= now) {
+        this.candidates.delete(id);
+        this.claimed.delete(id);
+      }
     }
   }
 }
@@ -563,8 +595,8 @@ export const suggestRelations = async (
 /**
  * User's meaning-making response to one transient Observation.
  *
- * Quick choices never reach Core. Only `connected` / `different_understanding`
- * with free text may evaluate a Relation and persist the user's Reflection.
+ * The user's free text is persisted before any Gate evaluation. A Relation is
+ * optional; the Reflection is not.
  */
 export const submitObservationReflection = async (
   composition: MobileComposition,
@@ -585,6 +617,12 @@ export const submitObservationReflection = async (
   }
 
   if (input.meaning === 'not_my_experience') {
+    if (!registry.claim(input.candidateId)) {
+      return {
+        status: 'expired',
+        message: '这次回应已经处理过，没有重复保存。',
+      };
+    }
     registry.remove(input.candidateId);
     return {
       status: 'discarded',
@@ -599,14 +637,66 @@ export const submitObservationReflection = async (
     };
   }
 
+  if (!registry.claim(input.candidateId)) {
+    return {
+      status: 'expired',
+      message: '这次回应已经处理过，没有重复保存。',
+    };
+  }
+
+  const reflectionText = input.reflectionText.trim();
+  let episode;
+  let persisted;
+  try {
+    episode = await composition.reflection.recordSpontaneous({
+      targetRef: null,
+      now: input.now,
+    });
+    persisted = await composition.reflection.respond({
+      episode,
+      feedback: {
+        response: null,
+        freeText: reflectionText,
+        leaveForNow: false,
+        userInitiatedContinuation: false,
+      },
+      subject: {
+        topicTags: [],
+        source: MOBILE_SOURCE,
+        relationAxes: [],
+        userSelectedRefs: [stored.currentRecordId],
+      },
+      targetType: 'relation_claim',
+      targetRef: `spontaneous:${episode.id}`,
+      now: input.now,
+    });
+  } catch {
+    registry.remove(input.candidateId);
+    return {
+      status: 'unavailable',
+      message: '你的理解没有保存完成；请重试。',
+    };
+  }
+
+  const reflectionRecordId = persisted.recordId;
+  if (reflectionRecordId === null) {
+    registry.remove(input.candidateId);
+    return {
+      status: 'unavailable',
+      message: '你的理解没有保存完成；请重试。',
+    };
+  }
+
   const resolved = await Promise.all(
     stored.suggestion.recordRefs.map((id) => composition.records.getById(id)),
   );
   if (resolved.some((record) => record === null)) {
     registry.remove(input.candidateId);
     return {
-      status: 'expired',
-      message: '这次观察引用的记录已不可用，因此没有继续处理。',
+      status: 'reflection_saved',
+      message: '你的理解已保存。相关记录已不可用，因此没有继续形成长期联系。',
+      targetRef: `record:${reflectionRecordId}`,
+      reflectionRecordId,
     };
   }
 
@@ -631,26 +721,29 @@ export const submitObservationReflection = async (
       now: input.now,
     });
   } catch {
-    return {
-      status: 'unavailable',
-      message: '这次观察暂时无法评估；没有把它当成已确认联系。',
-    };
-  }
-
-  if (evaluation.persisted.length === 0) {
     registry.remove(input.candidateId);
     return {
-      status: 'not_admitted',
-      message: '这次观察没有通过必要的边界检查，因此没有形成长期联系。',
+      status: 'reflection_saved',
+      message: '你的理解已保存。这次观察暂时无法评估，因此没有形成长期联系。',
+      targetRef: `record:${reflectionRecordId}`,
+      reflectionRecordId,
     };
   }
 
-  registry.remove(input.candidateId);
   const target = evaluation.persisted[0];
+  if (target !== undefined) {
+    await composition.storage.reflectionEpisodes.save({
+      ...episode,
+      targetRef: target.id,
+    });
+  }
   if (target === undefined) {
+    registry.remove(input.candidateId);
     return {
-      status: 'not_admitted',
-      message: '这次观察没有产生可展示的长期联系。',
+      status: 'reflection_saved',
+      message: '你的理解已保存。目前没有形成长期联系。',
+      targetRef: `record:${reflectionRecordId}`,
+      reflectionRecordId,
     };
   }
 
@@ -664,47 +757,31 @@ export const submitObservationReflection = async (
       (item) => item.kind === 'relation' && item.subject.id === target.id,
     );
     if (discovery === undefined) {
+      registry.remove(input.candidateId);
       return {
-        status: 'not_admitted',
-        message: '这条联系已通过评估，但当前使用规则不允许显示它。',
+        status: 'reflection_saved',
+        message: '你的理解已保存。这条联系暂时不满足显示条件。',
+        targetRef: `record:${reflectionRecordId}`,
+        reflectionRecordId,
       };
     }
     discoveryId = discovery.projection.discovery.id;
   } catch {
+    registry.remove(input.candidateId);
     return {
-      status: 'not_admitted',
-      message: '这条联系已通过评估，但暂时无法显示。',
+      status: 'reflection_saved',
+      message: '你的理解已保存。这条联系暂时无法显示。',
+      targetRef: `record:${reflectionRecordId}`,
+      reflectionRecordId,
     };
   }
 
-  try {
-    const reflected = await composition.reflectionFlow.respondToRelation({
-      targetRef: target.id,
-      feedback: {
-        response: null,
-        freeText: input.reflectionText,
-        leaveForNow: false,
-        userInitiatedContinuation: false,
-      },
-      now: input.now,
-    });
-    if (reflected === null || reflected.recordId === null) {
-      return {
-        status: 'unavailable',
-        message: '你的理解没有保存完成；当前关系仍未被当作你的结论。',
-      };
-    }
-    return {
-      status: 'discovery',
-      message: '你的理解已保存。Core 已完成这次关系评估；它仍不是对你的定义。',
-      targetRef: target.id,
-      discoveryId,
-      reflectionRecordId: reflected.recordId,
-    };
-  } catch {
-    return {
-      status: 'unavailable',
-      message: '你的理解没有保存完成；请重试，当前关系不会被当作你的结论。',
-    };
-  }
+  registry.remove(input.candidateId);
+  return {
+    status: 'discovery',
+    message: '你的理解已保存。Core 已完成这次关系评估；它仍不是对你的定义。',
+    targetRef: target.id,
+    discoveryId,
+    reflectionRecordId,
+  };
 };
