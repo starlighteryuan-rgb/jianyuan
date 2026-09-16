@@ -93,7 +93,6 @@ export const ExplorationSpace = ({ searchQuery = '' }: { readonly searchQuery?: 
       style={[styles.root, { backgroundColor: colors.canvas }]}
       contentContainerStyle={styles.content}
     >
-      <Text style={[TYPOGRAPHY.title, { color: colors.textPrimary }]}>探索</Text>
       <Text style={[TYPOGRAPHY.body, { color: colors.textSecondary, lineHeight: 24 }]}>
         这里展示已经通过 Core 判断的长期联系。打开页面不会发起新的 AI 推断。
       </Text>

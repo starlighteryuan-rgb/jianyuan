@@ -46,8 +46,8 @@ export const LocalSearchControl = ({
 }) => {
   const { theme } = useTheme();
   const { colors } = theme;
-  const motion = useMotion();
-  const inputRef = useRef<TextInput | null>(null);
+ const motion = useMotion();
+ const inputRef = useRef<TextInput | null>(null);
   const progress = useSharedValue(open ? 1 : 0);
 
   useEffect(() => {
@@ -121,6 +121,11 @@ export const LocalSearchControl = ({
           ref={inputRef}
           value={query}
           onChangeText={onChangeQuery}
+          onBlur={() => {
+            // A dismissed keyboard releases focus. An empty query has nothing to
+            // show, so collapse instead of leaving a blank field on screen.
+            if (query.trim().length === 0) onOpenChange(false);
+          }}
           autoFocus
           placeholder={placeholder}
           placeholderTextColor={colors.textMuted}

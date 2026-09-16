@@ -30,7 +30,6 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
-import type { RecordReadModel } from '../../../../packages/core/index';
 import type {
   AwarenessHistoryItem,
   CandidateDecisionResult,
@@ -412,8 +411,7 @@ export const AwarenessSpace = ({ searchQuery = '' }: { readonly searchQuery?: st
   const { colors } = theme;
   const motion = useMotion();
 
-  const [records, setRecords] = useState<readonly RecordReadModel[]>([]);
-  const [selectedRecordId, setSelectedRecordId] = useState<string | null>(null);
+  const [latestRecordId, setLatestRecordId] = useState<string | null>(null);
   const [suggestion, setSuggestion] = useState<SuggestionState>({ kind: 'idle' });
   const [history, setHistory] = useState<readonly AwarenessHistoryItem[]>([]);
   const [openItem, setOpenItem] = useState<AwarenessHistoryItem | null>(null);
@@ -436,12 +434,11 @@ export const AwarenessSpace = ({ searchQuery = '' }: { readonly searchQuery?: st
     void (async () => {
       try {
         const [recent, storedHistory] = await Promise.all([
-          runtime.listRecent(),
+          runtime.listRecent(5),
           runtime.awarenessHistory(),
         ]);
         if (cancelled) return;
-        setRecords(recent);
-        setSelectedRecordId((current) => current ?? recent[0]?.id ?? null);
+        setLatestRecordId(recent[0]?.id ?? null);
         setHistory(storedHistory);
       } finally {
         if (!cancelled) setLoading(false);
@@ -474,12 +471,12 @@ export const AwarenessSpace = ({ searchQuery = '' }: { readonly searchQuery?: st
   }, [motion.reduceMotion]);
 
   const start = useCallback(async () => {
-    if (selectedRecordId === null) return;
+    if (latestRecordId === null) return;
     setSuggestion({ kind: 'loading' });
-    const experience = await runtime.suggestRelations(selectedRecordId);
+    const experience = await runtime.suggestRelations(latestRecordId ?? undefined);
     setSuggestion({ kind: 'result', experience });
     await refreshHistory();
-  }, [refreshHistory, runtime, selectedRecordId]);
+  }, [refreshHistory, runtime, latestRecordId]);
 
   const submit = useCallback(
     async (
@@ -516,16 +513,9 @@ export const AwarenessSpace = ({ searchQuery = '' }: { readonly searchQuery?: st
         .filter((item) => matchesLocalQuery(searchQuery, [item.candidate.observation])),
     [history, searchQuery],
   );
-  const historyItems = useMemo(
-    () =>
-      history
-        .filter((item) => item.status !== 'pending')
-        .filter((item) => matchesLocalQuery(searchQuery, [item.candidate.observation])),
-    [history, searchQuery],
-  );
   const manualCandidates =
-    result?.candidates.filter(
-      (candidate) => !history.some((item) => item.candidateId === candidate.candidateId),
+    result?.candidates.filter((candidate) =>
+      history.every((item) => item.candidateId !== candidate.candidateId),
     ) ?? [];
   const openManualCandidate = (candidate: RelationCandidateView): AwarenessHistoryItem => ({
     candidateId: candidate.candidateId,
@@ -541,96 +531,44 @@ export const AwarenessSpace = ({ searchQuery = '' }: { readonly searchQuery?: st
     reflectionRecordId: null,
   });
 
+
   return (
     <ScrollView
       testID="space-awareness"
       style={[styles.root, { backgroundColor: colors.canvas }]}
       contentContainerStyle={styles.content}
     >
-      <Text style={[TYPOGRAPHY.title, { color: colors.textPrimary }]}>觉察</Text>
-      <Text style={[TYPOGRAPHY.body, { color: colors.textSecondary, lineHeight: 24 }]}>
-        这里保存 AI 在你允许后准备好的观察。只有你打开具体气泡，它才会变为已查看。
-      </Text>
-
       {loading ? (
         <ActivityIndicator color={colors.accent} />
       ) : (
         <>
-          <View style={styles.sectionHeader}>
-            <Text style={[TYPOGRAPHY.eyebrow, { color: colors.textMuted }]}>新的觉察</Text>
-            <Text testID="awareness-inbox-count" style={[TYPOGRAPHY.meta, { color: colors.textMuted }]}>
-              未读 {history.filter((item) => item.status === 'pending').length}
-            </Text>
-          </View>
-          {inbox.length === 0 ? (
-            <Text testID="awareness-empty" style={[TYPOGRAPHY.body, { color: colors.textMuted }]}>
-               {searchQuery.trim().length > 0 ? '没有找到相关内容' : '还没有可以察觉的内容。开启自动觉察并继续记录后，值得回看的内容会安静地留在这里。'}
-            </Text>
-          ) : (
-            inbox.map((item) => (
-              <AwarenessBubble key={item.candidateId} item={item} onOpen={open} />
-            ))
-          )}
-
           {openItem !== null ? (
             <AwarenessDetail item={openItem} onClose={closeDetail} onRespond={submit} />
           ) : null}
 
-          <View style={styles.divider} />
-
-          <Text style={[TYPOGRAPHY.eyebrow, { color: colors.textMuted }]}>开始一次觉察</Text>
-          <Text style={[TYPOGRAPHY.meta, { color: colors.textSecondary, lineHeight: 22 }]}>
-            选择一条记录，由你主动发起检查。手动检查不受自动静默窗口影响。
-          </Text>
-          {records.length === 0 ? (
-            <Text style={[TYPOGRAPHY.body, { color: colors.textMuted }]}>
-              先在“记录”里写下一句话。
-            </Text>
-          ) : (
+          {inbox.length === 0 ? (
             <>
-              <View style={styles.recordList}>
-                {records.slice(0, 5).map((record) => {
-                  const active = record.id === selectedRecordId;
-                  return (
-                    <Pressable
-                      key={record.id}
-                      testID={`awareness-record-${record.id}`}
-                      accessibilityRole="button"
-                      accessibilityState={{ selected: active }}
-                      onPress={() => {
-                        setSelectedRecordId(record.id);
-                        setSuggestion({ kind: 'idle' });
-                      }}
-                      style={[
-                        styles.recordItem,
-                        {
-                          backgroundColor: active ? colors.accentSoft : colors.surface,
-                          borderColor: active ? colors.accent : colors.borderSubtle,
-                          borderRadius: RADIUS.md,
-                        },
-                      ]}
-                    >
-                      <Text style={[TYPOGRAPHY.meta, { color: colors.textMuted }]}>
-                        {formatCapturedAt(record.capturedAt)}
-                      </Text>
-                      <Text style={[TYPOGRAPHY.body, { color: colors.textPrimary, lineHeight: 24 }]}>
-                        {record.verbatim ?? ''}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
+              <View testID="awareness-stage" style={styles.stage}>
+                <Text
+                  testID="awareness-empty"
+                  style={[TYPOGRAPHY.body, { color: colors.textMuted, textAlign: 'center' }]}
+                >
+                  {searchQuery.trim().length > 0
+                    ? '没有找到相关内容'
+                    : '这里还没有新的觉察。你可以继续记录，或主动开始一次觉察。'}
+                </Text>
               </View>
 
               <Pressable
                 testID="awareness-start"
                 accessibilityRole="button"
-                disabled={selectedRecordId === null || suggestion.kind === 'loading'}
+                disabled={latestRecordId === null || suggestion.kind === 'loading'}
                 onPress={() => void start()}
                 style={[
                   styles.primaryButton,
                   {
                     backgroundColor:
-                      selectedRecordId === null || suggestion.kind === 'loading'
+                      latestRecordId === null || suggestion.kind === 'loading'
                         ? colors.borderSubtle
                         : colors.accentCta,
                     borderRadius: RADIUS.sm,
@@ -643,10 +581,7 @@ export const AwarenessSpace = ({ searchQuery = '' }: { readonly searchQuery?: st
                   <Text
                     style={[
                       TYPOGRAPHY.lead,
-                      {
-                        color:
-                          selectedRecordId === null ? colors.textMuted : colors.onAccent,
-                      },
+                      { color: latestRecordId === null ? colors.textMuted : colors.onAccent },
                     ]}
                   >
                     开始一次觉察
@@ -654,44 +589,27 @@ export const AwarenessSpace = ({ searchQuery = '' }: { readonly searchQuery?: st
                 )}
               </Pressable>
 
-              {suggestion.kind === 'result' && suggestion.experience.status !== 'candidates' ? (
-                <Text testID="awareness-status" style={[TYPOGRAPHY.body, { color: colors.textSecondary }]}>
+              {suggestion.kind === 'result' &&
+              suggestion.experience.status !== 'candidates' ? (
+                <Text
+                  testID="awareness-status"
+                  style={[TYPOGRAPHY.body, { color: colors.textSecondary }]}
+                >
                   {suggestion.experience.message}
                 </Text>
               ) : null}
 
               {manualCandidates.map((candidate) => (
-                <Pressable
+                <AwarenessBubble
                   key={candidate.candidateId}
-                  testID={`awareness-manual-${candidate.candidateId}`}
-                  onPress={() => setOpenItem(openManualCandidate(candidate))}
-                  style={[
-                    styles.bubble,
-                    {
-                      backgroundColor: colors.surface,
-                      borderColor: colors.borderSubtle,
-                      borderRadius: RADIUS.lg,
-                    },
-                  ]}
-                >
-                  <Text style={[TYPOGRAPHY.eyebrow, { color: colors.accent }]}>手动觉察</Text>
-                  <Text style={[TYPOGRAPHY.lead, { color: colors.textPrimary, marginTop: SPACING.sm }]}>
-                    {candidate.observation}
-                  </Text>
-                </Pressable>
+                  item={openManualCandidate(candidate)}
+                  onOpen={(item) => setOpenItem(item)}
+                />
               ))}
             </>
-          )}
-
-          <View style={styles.divider} />
-          <Text style={[TYPOGRAPHY.eyebrow, { color: colors.textMuted }]}>历史觉察</Text>
-          {historyItems.length === 0 ? (
-            <Text testID="awareness-history-empty" style={[TYPOGRAPHY.meta, { color: colors.textMuted }]}>
-               {searchQuery.trim().length > 0 ? '没有找到相关内容' : '查看过的觉察会留在这里。'}
-            </Text>
           ) : (
-            historyItems.map((item) => (
-              <AwarenessHistoryCard key={item.candidateId} item={item} onOpen={open} />
+            inbox.map((item) => (
+              <AwarenessBubble key={item.candidateId} item={item} onOpen={open} />
             ))
           )}
         </>
@@ -700,16 +618,77 @@ export const AwarenessSpace = ({ searchQuery = '' }: { readonly searchQuery?: st
   );
 };
 
+export const AwarenessHistoryView = ({ searchQuery = '' }: { readonly searchQuery?: string }) => {
+  const runtime = useRuntime();
+  const { theme } = useTheme();
+  const { colors } = theme;
+  const [history, setHistory] = useState<readonly AwarenessHistoryItem[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const storedHistory = await runtime.awarenessHistory();
+        if (!cancelled) setHistory(storedHistory);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [runtime]);
+
+  const open = useCallback(
+    async (item: AwarenessHistoryItem) => {
+      if (item.status === 'pending') await runtime.markAwarenessViewed(item.candidateId);
+      setHistory(await runtime.awarenessHistory());
+    },
+    [runtime],
+  );
+
+  const historyItems = useMemo(
+    () =>
+      history.filter((item) =>
+        matchesLocalQuery(searchQuery, [item.candidate.observation]),
+      ),
+    [history, searchQuery],
+  );
+
+  return (
+    <ScrollView
+      testID="space-awareness-history"
+      style={[styles.root, { backgroundColor: colors.canvas }]}
+      contentContainerStyle={styles.content}
+    >
+      <Text style={[TYPOGRAPHY.title, { color: colors.textPrimary }]}>觉察历史</Text>
+      {loading ? (
+        <ActivityIndicator color={colors.accent} />
+      ) : historyItems.length === 0 ? (
+        <Text
+          testID="awareness-history-empty"
+          style={[TYPOGRAPHY.body, { color: colors.textMuted }]}
+        >
+          {searchQuery.trim().length > 0 ? '没有找到相关内容' : '查看过的觉察会留在这里。'}
+        </Text>
+      ) : (
+        historyItems.map((item) => (
+          <AwarenessHistoryCard key={item.candidateId} item={item} onOpen={open} />
+        ))
+      )}
+    </ScrollView>
+  );
+};
+
 const styles = StyleSheet.create({
   root: { flex: 1 },
   content: { padding: SPACING.lg, gap: SPACING.md, paddingBottom: SPACING.xxl },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  stage: {
+    minHeight: 220,
+    justifyContent: 'center',
     alignItems: 'center',
   },
-  recordList: { gap: SPACING.sm },
-  recordItem: { borderWidth: 1, padding: SPACING.md, gap: SPACING.xs },
   primaryButton: {
     paddingVertical: SPACING.md,
     alignItems: 'center',

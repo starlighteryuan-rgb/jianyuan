@@ -37,7 +37,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
-import { AwarenessSpace } from '../spaces/awareness-space';
+import { AwarenessHistoryView, AwarenessSpace } from '../spaces/awareness-space';
 import { ExplorationSpace } from '../spaces/exploration-space';
 import { RecordSpace } from '../spaces/record-space';
 import { SettingsSpace } from '../spaces/settings-space';
@@ -121,6 +121,7 @@ export const AppShell = () => {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
+  const [awarenessHistoryOpen, setAwarenessHistoryOpen] = useState(false);
   const [direction, setDirection] = useState<1 | -1>(1);
   const { theme } = useTheme();
   const { colors } = theme;
@@ -141,6 +142,7 @@ export const AppShell = () => {
         ? 1 : -1;
     setSearchQuery('');
     setSearchOpen(false);
+    setAwarenessHistoryOpen(false);
     setSettingsOpen(false);
     showSpace(space, nextDirection);
     setActiveSpace(space);
@@ -174,20 +176,55 @@ export const AppShell = () => {
         ]}
       >
         <Text testID="app-title" style={[TYPOGRAPHY.title, { color: colors.textPrimary }]}>
-          {SPACE_LABELS[currentSpace]}
+          见渊
         </Text>
 
         <View style={styles.headerActions}>
           {currentSpace === SETTINGS_SPACE ? null : (
             <LocalSearchControl
               testID="local-search"
-              placeholder={`搜索${SPACE_LABELS[currentSpace]}`}
+              placeholder={
+                currentSpace === 'awareness' && awarenessHistoryOpen
+                  ? '搜索觉察历史'
+                  : `搜索${SPACE_LABELS[currentSpace]}`
+              }
               query={searchQuery}
               onChangeQuery={setSearchQuery}
               open={searchOpen}
               onOpenChange={setSearchOpen}
             />
           )}
+          {currentSpace === 'awareness' ? (
+            awarenessHistoryOpen ? (
+              <Pressable
+                testID="awareness-history-back"
+                accessibilityRole="button"
+                accessibilityLabel="返回觉察"
+                onPress={() => {
+                  setSearchQuery('');
+                  setSearchOpen(false);
+                  setAwarenessHistoryOpen(false);
+                }}
+                style={styles.settingsEntry}
+              >
+                <Text style={[TYPOGRAPHY.meta, { color: colors.textSecondary }]}>返回</Text>
+              </Pressable>
+            ) : (
+              <Pressable
+                testID="awareness-history-entry"
+                accessibilityRole="button"
+                accessibilityLabel="觉察历史"
+                onPress={() => {
+                  setSearchQuery('');
+                  setSearchOpen(false);
+                  setAwarenessHistoryOpen(true);
+                }}
+                style={styles.settingsEntry}
+              >
+                <Text style={[TYPOGRAPHY.meta, { color: colors.textSecondary }]}>历史</Text>
+              </Pressable>
+            )
+          ) : null}
           <Pressable
             testID="settings-entry"
             accessibilityRole="button"
@@ -217,7 +254,13 @@ export const AppShell = () => {
       */}
       <Animated.View testID={`active-space-${currentSpace}`} style={[styles.body, contentStyle]}>
         {currentSpace === 'records' ? <RecordSpace searchQuery={searchQuery} /> : null}
-        {currentSpace === 'awareness' ? <AwarenessSpace searchQuery={searchQuery} /> : null}
+        {currentSpace === 'awareness' ? (
+          awarenessHistoryOpen ? (
+            <AwarenessHistoryView searchQuery={searchQuery} />
+          ) : (
+            <AwarenessSpace searchQuery={searchQuery} />
+          )
+        ) : null}
         {currentSpace === 'reflection' ? <UnderstandingSpace searchQuery={searchQuery} /> : null}
         {currentSpace === 'exploration' ? <ExplorationSpace searchQuery={searchQuery} /> : null}
         {currentSpace === SETTINGS_SPACE ? <SettingsSpace /> : null}

@@ -192,6 +192,8 @@ describe('Mobile M2 stabilization', () => {
     await press(tree, `awareness-bubble-${item.candidateId}`);
     expect(await runtime.runtime.unreadAwarenessCount()).toBe(0);
     expect(tree.root.findAllByProps({ testID: `awareness-bubble-${item.candidateId}` })).toHaveLength(0);
+    await press(tree, 'awareness-history-entry');
+    expect(tree.root.findByProps({ testID: 'space-awareness-history' })).toBeDefined();
     expect(tree.root.findAllByProps({ testID: `awareness-history-${item.candidateId}` }).length).toBeGreaterThan(0);
   });
 

@@ -98,7 +98,6 @@ export const UnderstandingSpace = ({ searchQuery = '' }: { readonly searchQuery?
       style={[styles.root, { backgroundColor: colors.canvas }]}
       contentContainerStyle={styles.content}
     >
-      <Text style={[TYPOGRAPHY.title, { color: colors.textPrimary }]}>理解</Text>
       <Text style={[TYPOGRAPHY.body, { color: colors.textSecondary, lineHeight: 24 }]}>
         这里保存的是你自己的话。来源记录和当时的问题只作为背景，不替代你的理解。
       </Text>

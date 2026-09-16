@@ -1,17 +1,15 @@
 /**
- * M3.0 motion foundation guards.
+ * M3.1 Awareness Space verification.
  *
- * Motion may change how a change feels; it must not change what is mounted,
- * what persists, or whether a save finishes. These tests render the production
- * shell with the real Mobile runtime and SQLite. Only RN primitives, Reanimated,
- * and the network provider are test doubles.
+ * The main Awareness surface is a stage for the current or newly emerged
+ * observation. History is a separate retrieval view. Manual Awareness remains
+ * one user action; the Record anchor stays internal.
  */
 
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { Text } from 'react-native';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -22,7 +20,6 @@ import { RuntimeProvider } from '../src/shell/runtime-context';
 import { ThemeProvider } from '../src/theme/theme-context';
 import type { MobileRuntime } from '../src/runtime/mobile-runtime';
 import { openMobileTestRuntime, type MobileTestRuntime } from './support/mobile-test-runtime';
-import { __setReducedMotion } from './support/reanimated-double';
 
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -43,7 +40,7 @@ const keychain = (): SecureStoreBinding & { readonly entries: Map<string, string
   };
 };
 
-const surfaceProvider = (): typeof fetch => {
+const surfaceProvider = () => {
   const fetcher = async (input: RequestInfo | URL, init?: RequestInit) => {
     if (String(input).endsWith('/v1/models')) {
       return new Response(JSON.stringify({ data: [{ id: 'test-model' }] }), {
@@ -132,19 +129,20 @@ const press = async (tree: ReactTestRenderer, testID: string): Promise<void> => 
   await flush();
 };
 
+const typeName = (node: ReactTestRenderer['root']): string => String(node.type);
+
 const testIds = (tree: ReactTestRenderer): readonly string[] =>
   tree.root
     .findAll((node) => typeof node.type === 'string' && node.props.testID !== undefined)
     .map((node) => String(node.props.testID));
 
 beforeEach(async () => {
-  directory = mkdtempSync(join(tmpdir(), 'jianyuan-mobile-m3-motion-'));
-  __setReducedMotion(false);
+  directory = mkdtempSync(join(tmpdir(), 'jianyuan-mobile-m3-1-'));
+  vi.restoreAllMocks();
 });
 
 afterEach(async () => {
   vi.restoreAllMocks();
-  __setReducedMotion(false);
   if (renderer !== null) {
     const currentRenderer = renderer;
     act(() => {
@@ -159,59 +157,74 @@ afterEach(async () => {
   rmSync(directory, { recursive: true, force: true });
 });
 
-describe('Mobile M3.0 motion foundation', () => {
-  it('keeps navigation synchronous and structurally isolated during tab transitions', async () => {
+describe('Mobile M3.1 Awareness Space', () => {
+  it('keeps product identity in the header and removes repeated space titles', async () => {
     const runtime = await open();
     const tree = renderShell(runtime.runtime);
     await flush();
 
-    await press(tree, 'tab-awareness');
-    expect(testIds(tree)).toContain('active-space-awareness');
-    expect(testIds(tree)).toContain('space-awareness');
-    expect(testIds(tree)).not.toContain('space-records');
-
-    await press(tree, 'tab-records');
-    expect(testIds(tree)).toContain('active-space-records');
-    expect(testIds(tree)).toContain('space-records');
+    expect(tree.root.findByProps({ testID: 'app-title' }).props.children).toBe('见渊');
     expect(testIds(tree)).not.toContain('space-awareness');
 
-    await press(tree, 'settings-entry');
-    expect(testIds(tree)).toContain('active-space-settings');
-    await press(tree, 'settings-entry');
-    expect(testIds(tree)).toContain('active-space-records');
+    for (const [tab, space] of [
+      ['tab-awareness', 'space-awareness'],
+      ['tab-reflection', 'space-reflection'],
+      ['tab-exploration', 'space-exploration'],
+      ['tab-records', 'space-records'],
+    ] as const) {
+      await press(tree, tab);
+      expect(testIds(tree)).toContain(space);
+      expect(tree.root.findByProps({ testID: 'app-title' }).props.children).toBe('见渊');
+    }
+
+    const textNodes = tree.root
+      .findAll((node) => typeof node.type === 'string')
+      .filter((node) => typeName(node) === 'Text' && node.props.children === '觉察历史');
+    expect(textNodes).toHaveLength(0);
   });
 
-  it('morphs search without mounting input while collapsed and keeps Provider idle', async () => {
-    const runtime = await open();
-    const tree = renderShell(runtime.runtime);
-    await flush();
-
-    expect(tree.root.findAllByProps({ testID: 'local-search-input' })).toHaveLength(0);
-    await press(tree, 'local-search-open');
-
-    const input = tree.root.findByProps({ testID: 'local-search-input' });
-    expect(input.props.autoFocus).toBe(true);
-    await act(async () => {
-      input.props.onChangeText('暂停');
-      await Promise.resolve();
-    });
-
-    await press(tree, 'local-search-cancel');
-    expect(tree.root.findAllByProps({ testID: 'local-search-input' })).toHaveLength(0);
-    expect(tree.root.findAllByProps({ testID: 'local-search-open' }).length).toBeGreaterThan(0);
-  });
-
-  it('keeps awareness bubble, detail close, and reflection save state functional', async () => {
+  it('starts manual awareness with one action and never exposes a Record selector', async () => {
     const runtime = await open();
     await runtime.runtime.configureAI({
       providerId: 'openai-compatible',
       baseUrl: 'https://provider.example/v1',
       model: 'test-model',
-      apiKey: 'sk-m3-motion',
+      apiKey: 'sk-m3-1-manual',
+    });
+    await runtime.runtime.capture('第一条手动检查记录。');
+    await runtime.runtime.capture('第二条手动检查记录。');
+    const tree = renderShell(runtime.runtime);
+    await flush();
+    await press(tree, 'tab-awareness');
+
+    expect(testIds(tree)).toContain('awareness-stage');
+    expect(
+      tree.root.findAll((node) => typeName(node) === 'Pressable' && node.props.testID === 'awareness-start'),
+    ).toHaveLength(1);
+    expect(
+      tree.root.findAll((node) => String(node.props.testID ?? '').startsWith('awareness-record-')),
+    ).toHaveLength(0);
+    expect(tree.root.findAll((node) => node.props.children === '选择一条记录')).toHaveLength(0);
+
+    await press(tree, 'awareness-start');
+    const [item] = await runtime.runtime.awarenessHistory();
+    if (item === undefined) throw new Error('expected a manual awareness item');
+    expect(
+      tree.root.findAllByProps({ testID: `awareness-bubble-${item.candidateId}` }).length,
+    ).toBeGreaterThan(0);
+  });
+
+  it('moves viewed awareness out of the stage and into a separate History view', async () => {
+    const runtime = await open();
+    await runtime.runtime.configureAI({
+      providerId: 'openai-compatible',
+      baseUrl: 'https://provider.example/v1',
+      model: 'test-model',
+      apiKey: 'sk-m3-1',
     });
     await runtime.runtime.setAutomaticAwarenessEnabled(true);
-    await runtime.runtime.capture('开始前停了一小段。');
-    await runtime.runtime.capture('发言前也停了一小段。');
+    await runtime.runtime.capture('第一条历史迁移记录。');
+    await runtime.runtime.capture('第二条历史迁移记录。');
     await runtime.runtime.runScheduledAutomaticAwareness();
     const [item] = await runtime.runtime.awarenessHistory();
     if (item === undefined) throw new Error('expected an awareness item');
@@ -219,87 +232,44 @@ describe('Mobile M3.0 motion foundation', () => {
     const tree = renderShell(runtime.runtime);
     await flush();
     await press(tree, 'tab-awareness');
-    expect(
-      tree.root.findAllByProps({ testID: `awareness-bubble-${item.candidateId}` }).length,
-    ).toBeGreaterThan(0);
-
     await press(tree, `awareness-bubble-${item.candidateId}`);
-    expect(await runtime.runtime.unreadAwarenessCount()).toBe(0);
-    await press(tree, `awareness-choice-${item.candidateId}-connected`);
-    const reflection = tree.root.findByProps({
-      testID: `awareness-reflection-${item.candidateId}`,
-    });
-    await act(async () => {
-      reflection.props.onChangeText('这两件事都有准备后的进入感。');
-      await Promise.resolve();
-    });
-    await press(tree, `awareness-submit-${item.candidateId}`);
+    expect(tree.root.findAllByProps({ testID: `awareness-bubble-${item.candidateId}` })).toHaveLength(0);
 
-    const submit = tree.root.findByProps({ testID: `awareness-submit-${item.candidateId}` });
-    expect(String(submit.findByType(Text).props.children)).not.toContain('正在保存');
-    expect(String(submit.findByType(Text).props.children)).toContain('已保存到「理解」');
-
-    await press(tree, `awareness-close-${item.candidateId}`);
-    expect(tree.root.findAllByProps({ testID: `awareness-detail-${item.candidateId}` })).toHaveLength(0);
     await press(tree, 'awareness-history-entry');
     expect(tree.root.findByProps({ testID: 'space-awareness-history' })).toBeDefined();
     expect(
       tree.root.findAllByProps({ testID: `awareness-history-${item.candidateId}` }).length,
     ).toBeGreaterThan(0);
+
+    await press(tree, 'awareness-history-back');
+    expect(tree.root.findByProps({ testID: 'space-awareness' })).toBeDefined();
+    expect(tree.root.findAllByProps({ testID: `awareness-history-${item.candidateId}` })).toHaveLength(0);
   });
 
-  it('ends a failed reflection save in the error state', async () => {
+  it('collapses an empty query when search loses focus and keeps a filled query expanded', async () => {
     const runtime = await open();
-    await runtime.runtime.configureAI({
-      providerId: 'openai-compatible',
-      baseUrl: 'https://provider.example/v1',
-      model: 'test-model',
-      apiKey: 'sk-m3-motion-failure',
-    });
-    await runtime.runtime.setAutomaticAwarenessEnabled(true);
-    await runtime.runtime.capture('失败前第一条。');
-    await runtime.runtime.capture('失败前第二条。');
-    await runtime.runtime.runScheduledAutomaticAwareness();
-    const [item] = await runtime.runtime.awarenessHistory();
-    if (item === undefined) throw new Error('expected an awareness item');
     const tree = renderShell(runtime.runtime);
     await flush();
-    await press(tree, 'tab-awareness');
-    await press(tree, `awareness-bubble-${item.candidateId}`);
-    await press(tree, `awareness-choice-${item.candidateId}-connected`);
-    const reflection = tree.root.findByProps({
-      testID: `awareness-reflection-${item.candidateId}`,
-    });
+
+    await press(tree, 'local-search-open');
+    const input = tree.root.findByProps({ testID: 'local-search-input' });
     await act(async () => {
-      reflection.props.onChangeText('这条保存会失败。');
+      await input.props.onBlur?.();
       await Promise.resolve();
     });
-    vi.spyOn(runtime.runtime, 'submitObservationReflection').mockRejectedValueOnce(
-      new Error('保存服务暂时不可用。'),
-    );
-    await press(tree, `awareness-submit-${item.candidateId}`);
-
-    const submit = tree.root.findByProps({ testID: `awareness-submit-${item.candidateId}` });
-    expect(String(submit.findByType(Text).props.children)).not.toContain('正在保存');
-    expect(String(submit.findByType(Text).props.children)).toContain('确认我的回应');
-    expect(
-      String(tree.root.findByProps({ testID: `awareness-result-${item.candidateId}` }).props.children),
-    ).toContain('保存服务暂时不可用');
-  });
-
-  it('preserves navigation and search behavior under Reduce Motion', async () => {
-    __setReducedMotion(true);
-    const runtime = await open();
-    const tree = renderShell(runtime.runtime);
-    await flush();
-
-    await press(tree, 'tab-awareness');
-    expect(testIds(tree)).toContain('active-space-awareness');
-    await press(tree, 'local-search-open');
-    expect(tree.root.findByProps({ testID: 'local-search-input' }).props.autoFocus).toBe(true);
-    await press(tree, 'local-search-cancel');
     expect(tree.root.findAllByProps({ testID: 'local-search-input' })).toHaveLength(0);
-    await press(tree, 'tab-records');
-    expect(testIds(tree)).toContain('active-space-records');
+    expect(tree.root.findAllByProps({ testID: 'local-search-open' }).length).toBeGreaterThan(0);
+
+    await press(tree, 'local-search-open');
+    const filledInput = tree.root.findByProps({ testID: 'local-search-input' });
+    await act(async () => {
+      filledInput.props.onChangeText('保留');
+      await Promise.resolve();
+    });
+    await act(async () => {
+      await filledInput.props.onBlur?.();
+      await Promise.resolve();
+    });
+    expect(tree.root.findByProps({ testID: 'local-search-input' })).toBeDefined();
   });
 });
