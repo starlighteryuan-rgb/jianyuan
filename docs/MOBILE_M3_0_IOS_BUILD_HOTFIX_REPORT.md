@@ -1,6 +1,6 @@
 # Mobile M3.0 iOS Build Hotfix Report
 
-Status: HOTFIX IN PROGRESS
+Status: M3.0 IOS BUILD HOTFIX COMPLETE
 
 ## ROOT CAUSE
 
@@ -77,8 +77,34 @@ Result after the fix:
 
 ### GitHub Actions
 
-A fresh `iOS Unsigned Build` run for the hotfix commit will be triggered after
-committing. This section will be completed only after the run reports PASS.
+Hotfix commit:
+
+- `f08aac4546b1b4efb56402c81fcc24f92a830fea`
+- short SHA: `f08aac4`
+
+Successful run:
+
+- workflow: `iOS Unsigned Build`
+- branch: `mobile-m3`
+- run: `35097293280`
+- URL: <https://github.com/starlighteryuan-rgb/jianyuan/actions/runs/35097293280>
+- conclusion: SUCCESS
+- iOS prebuild: PASS
+- CocoaPods: PASS
+- `Bundle React Native code and images`: PASS
+- iphoneos Release build: PASS
+- unsigned IPA packaging: PASS
+- `UNSIGNED IPA CHECK`: PASS
+- artifact upload: PASS
+
+Artifacts were downloaded and verified:
+
+- `Jianyuan-iOS-unsigned.ipa`
+  - size: 10,929,909 bytes
+  - SHA256: `e333ee452876f438f8c38f94945ca1b66a1c295e56613981532abb73176b9ba4`
+- `Jianyuan-iOS-unsigned.app.zip`
+  - size: 10,925,562 bytes
+  - SHA256: `04c35863613d4882f457b31b27966ab8fc3d7622f59820dd4f4523b8341f9b60`
 
 ## SCOPE
 
