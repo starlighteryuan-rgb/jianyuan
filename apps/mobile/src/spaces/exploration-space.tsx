@@ -9,6 +9,12 @@
  * The trace is Relation -> source Records -> user Reflection. The Reflection
  * text is fetched through the existing read model rather than copied into a
  * Mobile-only table.
+ *
+ * DIRECTION AB
+ * B2 contributes the spatial relation structure. A contributes the material:
+ * typography, hairlines, weak surfaces, and quiet connectors. Nodes are text
+ * anchors, not rounded cards, and the field is read-only; it is never a graph
+ * editor.
  */
 
 import { useCallback, useEffect, useState } from 'react';
@@ -26,7 +32,7 @@ import type { ReflectionTargetReadModel } from '../../../../packages/core/applic
 import { useRuntime } from '../shell/runtime-context';
 import { matchesLocalQuery } from '../shell/local-search';
 import { useTheme } from '../theme/theme-context';
-import { RADIUS, SPACING, TYPOGRAPHY } from '../theme/tokens';
+import { DEPTH, SPACING, TYPOGRAPHY } from '../theme/tokens';
 
 interface ExplorationItem {
   readonly relation: Extract<DiscoveryStreamItem, { readonly kind: 'relation' }>;
@@ -39,6 +45,13 @@ const formatDate = (value: Date): string => {
   if (Number.isNaN(date.getTime())) return '';
   const pad = (part: number) => String(part).padStart(2, '0');
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+};
+
+const shortDate = (value: Date): string => {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  const pad = (part: number) => String(part).padStart(2, '0');
+  return `${pad(date.getMonth() + 1)}月${pad(date.getDate())}日`;
 };
 
 export const ExplorationSpace = ({ searchQuery = '' }: { readonly searchQuery?: string }) => {
@@ -93,75 +106,160 @@ export const ExplorationSpace = ({ searchQuery = '' }: { readonly searchQuery?: 
       style={[styles.root, { backgroundColor: colors.canvas }]}
       contentContainerStyle={styles.content}
     >
-      <Text style={[TYPOGRAPHY.body, { color: colors.textSecondary, lineHeight: 24 }]}>
-        这里展示已经通过 Core 判断的长期联系。打开页面不会发起新的 AI 推断。
-      </Text>
+      <View style={styles.masthead}>
+        <Text style={[TYPOGRAPHY.eyebrow, { color: colors.textFaint }]}>探索 · 长期结构</Text>
+        <View style={[styles.mastheadRule, { backgroundColor: colors.dividerWeak }]} />
+      </View>
 
       {loading ? (
         <ActivityIndicator color={colors.accent} />
       ) : items.length === 0 ? (
-        <Text testID="exploration-empty" style={[TYPOGRAPHY.body, { color: colors.textMuted }]}>
-           {searchQuery.trim().length > 0 ? '没有找到相关内容' : '还没有长期联系。觉察得到你的自由文字回应并通过 Core 判断后，才会出现在这里。'}
+        <Text testID="exploration-empty" style={[TYPOGRAPHY.empty, { color: colors.textMuted }]}>
+          {searchQuery.trim().length > 0
+            ? '没有找到相关内容'
+            : '还没有长期联系。觉察得到你的自由文字回应并通过 Core 判断后，才会出现在这里。'}
         </Text>
       ) : (
-        items.map((item) => {
+        items.map((item, itemIndex) => {
           const relation = item.relation.subject;
           const reflection = item.target?.reflections[0] ?? null;
+          const nodes = item.sourceRecords.slice(0, 5);
           return (
             <View
               key={relation.id}
               testID={`exploration-item-${relation.id}`}
-              style={[
-                styles.item,
-                {
-                  backgroundColor: colors.surface,
-                  borderColor: colors.borderSubtle,
-                  borderRadius: RADIUS.md,
-                },
-              ]}
+              style={[styles.relationBlock, itemIndex > 0 && styles.relationBlockSpaced]}
             >
-              <Text style={[TYPOGRAPHY.eyebrow, { color: colors.accent }]}>长期联系</Text>
-              <Text style={[TYPOGRAPHY.lead, { color: colors.textPrimary, marginTop: SPACING.xs }]}>
-                {relation.comparisonAxis.dimension}
-              </Text>
-              <Text style={[TYPOGRAPHY.body, { color: colors.textSecondary, marginTop: SPACING.sm }]}>
-                {relation.evidenceSummary}
-              </Text>
-              <Text style={[TYPOGRAPHY.meta, { color: colors.textMuted, marginTop: SPACING.sm }]}>
-                {formatDate(relation.createdAt)} · 依据 {relation.recordRefs.length} 条记录
-              </Text>
-
-              <Text style={[TYPOGRAPHY.eyebrow, { color: colors.textMuted, marginTop: SPACING.md }]}>
-                你写下的理解
-              </Text>
-              <Text
-                testID={`exploration-reflection-${relation.id}`}
-                style={[TYPOGRAPHY.body, { color: colors.textPrimary, lineHeight: 24, marginTop: SPACING.xs }]}
-              >
-                {reflection?.verbatim ?? '（这条联系还没有你的文字回应）'}
-              </Text>
-
-              <Text style={[TYPOGRAPHY.eyebrow, { color: colors.textMuted, marginTop: SPACING.md }]}>
-                来源记录
-              </Text>
-              {item.sourceRecords.map((record) => (
-                <Text
-                  key={record.id}
-                  style={[TYPOGRAPHY.meta, { color: colors.textSecondary, marginTop: SPACING.xs, lineHeight: 22 }]}
-                >
-                  · {record.verbatim ?? '（没有可显示的原话）'}
+              <View style={styles.relationHead}>
+                <Text style={[TYPOGRAPHY.caption, { color: colors.accent }]}>
+                  {String(itemIndex + 1).padStart(2, '0')}
                 </Text>
-              ))}
+                <Text
+                  style={[
+                    TYPOGRAPHY.lead,
+                    { color: colors.textPrimary, flex: 1, marginLeft: SPACING.md },
+                  ]}
+                >
+                  {relation.comparisonAxis.dimension}
+                </Text>
+              </View>
+              <Text
+                style={[TYPOGRAPHY.caption, { color: colors.textMuted, marginTop: SPACING.sm }]}
+              >
+                {shortDate(relation.createdAt)} · {relation.recordRefs.length} 条记录 · 支持程度
+                {relation.evidenceSummary.length > 0 ? '中等' : '待观察'}
+              </Text>
+
+              <View style={styles.field}>
+                <View
+                  pointerEvents="none"
+                  style={[styles.fieldAxis, { backgroundColor: colors.connector }]}
+                />
+                {nodes.map((record, nodeIndex) => {
+                  const near = nodeIndex === 0;
+                  const left = nodeIndex % 2 === 0 ? 0 : 44;
+                  const width = nodeIndex % 3 === 2 ? '86%' : '100%';
+                  return (
+                    <View
+                      key={record.id}
+                      style={[
+                        styles.node,
+                        {
+                          marginLeft: left,
+                          width,
+                          borderTopColor: near ? colors.accent : colors.divider,
+                          opacity: near ? 1 : DEPTH.recedeOpacity,
+                        },
+                      ]}
+                    >
+                      <Text style={[TYPOGRAPHY.caption, { color: colors.textFaint }]}>
+                        {shortDate(record.capturedAt)}
+                      </Text>
+                      <Text
+                        style={[
+                          TYPOGRAPHY.body,
+                          {
+                            color: near ? colors.textPrimary : colors.textSecondary,
+                            marginTop: SPACING.xs,
+                          },
+                        ]}
+                      >
+                        {record.verbatim ?? '（没有可显示的原话）'}
+                      </Text>
+                    </View>
+                  );
+                })}
+              </View>
+
+              <View style={styles.relationFoot}>
+                <Text style={[TYPOGRAPHY.caption, { color: colors.textFaint }]}>
+                  你写下的理解
+                </Text>
+                <Text
+                  testID={`exploration-reflection-${relation.id}`}
+                  style={[
+                    TYPOGRAPHY.reflection,
+                    { color: colors.textPrimary, marginTop: SPACING.sm },
+                  ]}
+                >
+                  {reflection?.verbatim ?? '（这条联系还没有你的文字回应）'}
+                </Text>
+                {relation.evidenceSummary.length > 0 ? (
+                  <Text
+                    style={[TYPOGRAPHY.caption, { color: colors.textMuted, marginTop: SPACING.md }]}
+                  >
+                    {relation.evidenceSummary}
+                  </Text>
+                ) : null}
+              </View>
             </View>
           );
         })
       )}
+      <Text style={[TYPOGRAPHY.caption, { color: colors.textFaint, marginTop: SPACING.section }]}>
+        这是可能的结构，不是结论。
+      </Text>
     </ScrollView>
   );
 };
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  content: { padding: SPACING.lg, gap: SPACING.md, paddingBottom: SPACING.xxl },
-  item: { borderWidth: 1, padding: SPACING.md },
+  content: {
+    paddingHorizontal: SPACING.screen,
+    paddingTop: SPACING.sm,
+    paddingBottom: SPACING.xxl,
+  },
+  masthead: { marginBottom: SPACING.section },
+  mastheadRule: { height: 1, marginTop: SPACING.md },
+  relationBlock: {},
+  relationBlockSpaced: {
+    marginTop: SPACING.xxl,
+    paddingTop: SPACING.section,
+    borderTopWidth: 1,
+  },
+  relationHead: { flexDirection: 'row', alignItems: 'baseline' },
+  field: {
+    position: 'relative',
+    marginTop: SPACING.section,
+    paddingLeft: SPACING.md,
+    gap: SPACING.section,
+  },
+  fieldAxis: {
+    position: 'absolute',
+    left: 0,
+    top: 8,
+    bottom: 8,
+    width: 1,
+  },
+  node: {
+    borderTopWidth: 1,
+    paddingTop: SPACING.sm,
+    paddingRight: SPACING.sm,
+  },
+  relationFoot: {
+    marginTop: SPACING.section,
+    paddingTop: SPACING.lg,
+    borderTopWidth: 1,
+  },
 });
