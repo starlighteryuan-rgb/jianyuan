@@ -1,0 +1,138 @@
+/*
+ * 见渊 · M3.3 Global Visual Language — token sheet
+ *
+ * These are DESIGN tokens for review, not runtime tokens. They deliberately
+ * reuse the names of the shipping theme (apps/mobile/src/theme/tokens.ts) so a
+ * future implementation is a value swap, not a rename:
+ *
+ *   canvas, surface, elevated, sunken, textPrimary, textSecondary, textMuted,
+ *   accent, accentCta, accentSoft, onAccent, borderSubtle, borderHair,
+ *   borderStrong, success, danger
+ *
+ * plus new roles this round introduces: inkFaint, focus, warning, the awareness
+ * bubble / ripple / glow family, and tag roles.
+ *
+ * Light and Dark share ONE set of role names. Only values differ. That is the
+ * whole point: one product, two themes.
+ */
+
+.phone {
+  /* ── Light · Warm Paper ───────────────────────────────────────────── */
+  --canvas: #f6f2ea;
+  --surface: #fbf8f2;
+  --elevated: #fffdf8;
+  --sunken: #ede7db;
+
+  --ink: #221f1a;
+  --ink-secondary: #565146;
+  --ink-muted: #6e685c;
+  --ink-faint: #938c7e;
+
+  --line: #e4dcce;
+  --line-strong: #cfc5b2;
+
+  --accent-ink: #7a5a2e;
+  --accent-fill: #8a683a;
+  --accent-soft: rgba(138, 104, 58, 0.09);
+  --on-accent: #fffdf8;
+  --focus: rgba(168, 121, 47, 0.4);
+
+  --success: #3d6a45;
+  --danger: #9a3f31;
+  --warning: #8a6420;
+
+  --awareness-fill: rgba(138, 104, 58, 0.06);
+  --awareness-edge: rgba(138, 104, 58, 0.3);
+  --awareness-glow: rgba(138, 104, 58, 0.14);
+  --awareness-ripple: rgba(138, 104, 58, 0.2);
+
+  --tag-bg: rgba(138, 104, 58, 0.07);
+  --tag-border: rgba(138, 104, 58, 0.22);
+  --tag-text: #6a5732;
+
+  --scrim: rgba(34, 31, 26, 0.34);
+
+  /* Depth: quiet by construction. Never stacked. */
+  --shadow-rest: none;
+  --shadow-raised: 0 1px 2px rgba(34, 31, 26, 0.05);
+  --shadow-object: 0 8px 24px rgba(34, 31, 26, 0.1);
+
+  --paper: #efeade;
+}
+
+.phone[data-theme='dark'] {
+  /* ── Dark · Deep Amber ────────────────────────────────────────────── */
+  --canvas: #14130f;
+  --surface: #1b1a15;
+  --elevated: #21201a;
+  --sunken: #100f0c;
+
+  --ink: #edeae3;
+  --ink-secondary: #b3aea3;
+  --ink-muted: #918b7e;
+  --ink-faint: #6e6960;
+
+  --line: #2a2721;
+  --line-strong: #3a362d;
+
+  --accent-ink: #ddb276;
+  --accent-fill: #c69355;
+  --accent-soft: rgba(221, 178, 118, 0.12);
+  --on-accent: #1a1712;
+  --focus: rgba(221, 178, 118, 0.42);
+
+  --success: #8fbe97;
+  --danger: #e39c8b;
+  --warning: #d6ac6a;
+
+  --awareness-fill: rgba(221, 178, 118, 0.07);
+  --awareness-edge: rgba(221, 178, 118, 0.34);
+  --awareness-glow: rgba(221, 178, 118, 0.18);
+  --awareness-ripple: rgba(221, 178, 118, 0.24);
+
+  --tag-bg: rgba(221, 178, 118, 0.1);
+  --tag-border: rgba(221, 178, 118, 0.24);
+  --tag-text: #d8bf94;
+
+  --scrim: rgba(0, 0, 0, 0.56);
+
+  --shadow-rest: none;
+  --shadow-raised: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-object: 0 10px 30px rgba(0, 0, 0, 0.45);
+
+  --paper: #0f0e0b;
+}
+
+/* Shared geometry — identical in both themes, by construction. */
+.phone {
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+
+  /* Radius is deliberately small. "Everything is a big rounded rectangle" is
+     the failure mode this system exists to avoid. */
+  --radius-xs: 6px;
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-pill: 999px;
+
+  /* Type scale */
+  --type-app-title: 20px;
+  --type-nav-title: 17px;
+  --type-section: 15px;
+  --type-day: 12px;
+  --type-body-record: 16px;
+  --type-body-reflection: 17px;
+  --type-secondary: 14px;
+  --type-meta: 12px;
+  --type-tag: 12px;
+  --type-action: 15px;
+
+  --leading-record: 26px;
+  --leading-reflection: 28px;
+}

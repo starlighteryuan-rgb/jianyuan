@@ -1,0 +1,423 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>见渊 · M3.3 Global Visual Language</title>
+<link rel="stylesheet" href="./tokens.css" />
+<link rel="stylesheet" href="./board.css" />
+</head>
+<body>
+
+<div class="board-head">
+  <h1>见渊 · M3.3 Global Visual Language</h1>
+  <p>One system, two themes. Light is <b>Warm Paper</b>, Dark is <b>Deep Amber</b>. Same token roles, same geometry, different values — not two products and not an inverted copy.</p>
+  <p class="meta">Review board · design reference only. No runtime code changed. Bubble emergence timing 520 / 420 / 820 ms shown as static frames.</p>
+</div>
+
+<!-- ══ 1. THEME SYSTEM ══════════════════════════════════════════════ -->
+<div class="section">
+  <h2>1 · Theme system — role values</h2>
+  <p class="note">Every role below exists in both themes with the same name. Light is a warm paper ground; Dark is a warm near-black ground, never neon and never black-gold luxury.</p>
+  <table class="spec">
+    <tr><th>Role</th><th>Light · Warm Paper</th><th>Dark · Deep Amber</th><th>Used for</th></tr>
+    <tr><td><code>canvas</code></td><td><span class="swatch" style="background:#f6f2ea"></span>#f6f2ea</td><td><span class="swatch" style="background:#14130f"></span>#14130f</td><td>page ground</td></tr>
+    <tr><td><code>surface</code></td><td><span class="swatch" style="background:#fbf8f2"></span>#fbf8f2</td><td><span class="swatch" style="background:#1b1a15"></span>#1b1a15</td><td>raised record, detail, tab bar</td></tr>
+    <tr><td><code>sunken</code></td><td><span class="swatch" style="background:#ede7db"></span>#ede7db</td><td><span class="swatch" style="background:#100f0c"></span>#100f0c</td><td>write-in well</td></tr>
+    <tr><td><code>textPrimary</code></td><td><span class="swatch" style="background:#221f1a"></span>#221f1a</td><td><span class="swatch" style="background:#edeae3"></span>#edeae3</td><td>user's own words</td></tr>
+    <tr><td><code>textSecondary</code></td><td><span class="swatch" style="background:#565146"></span>#565146</td><td><span class="swatch" style="background:#b3aea3"></span>#b3aea3</td><td>supporting copy</td></tr>
+    <tr><td><code>textMuted / Faint</code></td><td><span class="swatch" style="background:#6e685c"></span>#6e685c · <span class="swatch" style="background:#938c7e"></span>#938c7e</td><td><span class="swatch" style="background:#918b7e"></span>#918b7e · <span class="swatch" style="background:#6e6960"></span>#6e6960</td><td>time, metadata</td></tr>
+    <tr><td><code>accent</code></td><td><span class="swatch" style="background:#7a5a2e"></span>#7a5a2e</td><td><span class="swatch" style="background:#ddb276"></span>#ddb276</td><td>restrained amber, never neon</td></tr>
+    <tr><td><code>borderHair / Subtle</code></td><td><span class="swatch" style="background:#e4dcce"></span>#e4dcce</td><td><span class="swatch" style="background:#2a2721"></span>#2a2721</td><td>divider between records</td></tr>
+    <tr><td><code>awareness family</code></td><td><span class="swatch" style="background:#eae2d4"></span>fill/edge/glow/ripple</td><td><span class="swatch" style="background:#262119"></span>fill/edge/glow/ripple</td><td>bubble, ripple, halo</td></tr>
+    <tr><td><code>tag family</code></td><td><span class="swatch" style="background:#ece4d4"></span>bg/border/text</td><td><span class="swatch" style="background:#2a2418"></span>bg/border/text</td><td>tag / chip / filter</td></tr>
+  </table>
+</div>
+
+<!-- ══ 2. APP SHELL ═════════════════════════════════════════════════ -->
+<div class="section">
+  <h2>2 · App shell — header + tab bar</h2>
+  <p class="note">Header left is always 见渊. Bottom tab is 记录 / 觉察 / 理解 / 探索. Geometry is identical in both themes.</p>
+  <div class="pair">
+    <div class="device">
+      <div class="device-label"><b>Light</b><span>Warm Paper</span></div>
+      <div class="phone" data-theme="light">
+        <div class="statusbar"><span>9:41</span><span>5G 100%</span></div>
+        <div class="header"><div class="brand">见渊</div><div class="actions"><span>搜索</span><span>设置</span></div></div>
+        <div class="body">
+          <div class="capture"><div class="placeholder">写下此刻的一句话……</div><div class="capture-actions"><span class="save">记下来</span></div></div>
+          <div class="day">今天</div>
+          <div class="record"><div class="text">今天把之前一直回避的那件事重新想了一遍，好像没有当时那么重了。</div><div class="time">09:42</div><div class="tags"><span class="tag">重新适应</span></div></div>
+          <div class="record"><div class="text">早上出门前还是停了一下，等那股急的劲儿过去才走。</div><div class="time">08:15</div></div>
+        </div>
+        <div class="tabbar"><div class="tab on">记录</div><div class="tab">觉察</div><div class="tab">理解</div><div class="tab">探索</div></div>
+      </div>
+    </div>
+    <div class="device">
+      <div class="device-label"><b>Dark</b><span>Deep Amber</span></div>
+      <div class="phone" data-theme="dark">
+        <div class="statusbar"><span>9:41</span><span>5G 100%</span></div>
+        <div class="header"><div class="brand">见渊</div><div class="actions"><span>搜索</span><span>设置</span></div></div>
+        <div class="body">
+          <div class="capture"><div class="placeholder">写下此刻的一句话……</div><div class="capture-actions"><span class="save">记下来</span></div></div>
+          <div class="day">今天</div>
+          <div class="record"><div class="text">今天把之前一直回避的那件事重新想了一遍，好像没有当时那么重了。</div><div class="time">09:42</div><div class="tags"><span class="tag">重新适应</span></div></div>
+          <div class="record"><div class="text">早上出门前还是停了一下，等那股急的劲儿过去才走。</div><div class="time">08:15</div></div>
+        </div>
+        <div class="tabbar"><div class="tab on">记录</div><div class="tab">觉察</div><div class="tab">理解</div><div class="tab">探索</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ 3. RECORD ════════════════════════════════════════════════════ -->
+<div class="section">
+  <h2>3 · Record — weak-carded time stream</h2>
+  <p class="note">Body is the subject. Time is quiet metadata. No card at rest; a surface appears only when a record is opened. Day headers are small and faint, with no timeline rail.</p>
+  <div class="pair">
+    <div class="device">
+      <div class="device-label"><b>Light</b><span>rest → opened</span></div>
+      <div class="phone" data-theme="light">
+        <div class="statusbar"><span>9:41</span><span>5G 100%</span></div>
+        <div class="header"><div class="brand">见渊</div><div class="actions"><span>搜索</span><span>设置</span></div></div>
+        <div class="body">
+          <div class="day">今天</div>
+          <div class="record"><div class="text">今天把之前一直回避的那件事重新想了一遍，好像没有当时那么重了。</div><div class="time">09:42</div><div class="tags"><span class="tag">重新适应</span></div></div>
+          <div class="record raised"><div class="text">早上出门前还是停了一下，等那股急的劲儿过去才走。这个停顿以前让我觉得自己很慢，现在更像是给自己留了一点余地。</div><div class="time">08:15</div><div class="tags"><span class="tag">前任</span><span class="tag add">+ 添加标签</span></div></div>
+          <div class="day">昨天</div>
+          <div class="record"><div class="text">晚上和她把话说开了一些，没有想象中那么难。</div><div class="time">23:18</div></div>
+        </div>
+        <div class="tabbar"><div class="tab on">记录</div><div class="tab">觉察</div><div class="tab">理解</div><div class="tab">探索</div></div>
+      </div>
+    </div>
+    <div class="device">
+      <div class="device-label"><b>Dark</b><span>rest → opened</span></div>
+      <div class="phone" data-theme="dark">
+        <div class="statusbar"><span>9:41</span><span>5G 100%</span></div>
+        <div class="header"><div class="brand">见渊</div><div class="actions"><span>搜索</span><span>设置</span></div></div>
+        <div class="body">
+          <div class="day">今天</div>
+          <div class="record"><div class="text">今天把之前一直回避的那件事重新想了一遍，好像没有当时那么重了。</div><div class="time">09:42</div><div class="tags"><span class="tag">重新适应</span></div></div>
+          <div class="record raised"><div class="text">早上出门前还是停了一下，等那股急的劲儿过去才走。这个停顿以前让我觉得自己很慢，现在更像是给自己留了一点余地。</div><div class="time">08:15</div><div class="tags"><span class="tag">前任</span><span class="tag add">+ 添加标签</span></div></div>
+          <div class="day">昨天</div>
+          <div class="record"><div class="text">晚上和她把话说开了一些，没有想象中那么难。</div><div class="time">23:18</div></div>
+        </div>
+        <div class="tabbar"><div class="tab on">记录</div><div class="tab">觉察</div><div class="tab">理解</div><div class="tab">探索</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ 4. AWARENESS MAIN ════════════════════════════════════════════ -->
+<div class="section">
+  <h2>4 · Awareness — main stage</h2>
+  <p class="note">A quiet stage, not an inbox. A new observation floats up as an object with a soft halo — not a list card inserted into a feed. History stays a separate entry in the header.</p>
+  <div class="pair">
+    <div class="device">
+      <div class="device-label"><b>Light</b><span>idle → emerged</span></div>
+      <div class="phone" data-theme="light">
+        <div class="statusbar"><span>9:41</span><span>5G 100%</span></div>
+        <div class="header"><div class="brand">见渊</div><div class="actions"><span>历史</span><span>搜索</span><span>设置</span></div></div>
+        <div class="body">
+          <div class="stage">
+            <div class="bubble">
+              <div class="halo"></div>
+              <div class="eyebrow">新的觉察</div>
+              <div class="obs">你最近几次都提到，开始之前会先停一下。</div>
+            </div>
+          </div>
+          <div class="primary-action">开始一次觉察</div>
+        </div>
+        <div class="tabbar"><div class="tab">记录</div><div class="tab on">觉察<span class="dot"></span></div><div class="tab">理解</div><div class="tab">探索</div></div>
+      </div>
+    </div>
+    <div class="device">
+      <div class="device-label"><b>Dark</b><span>idle → emerged</span></div>
+      <div class="phone" data-theme="dark">
+        <div class="statusbar"><span>9:41</span><span>5G 100%</span></div>
+        <div class="header"><div class="brand">见渊</div><div class="actions"><span>历史</span><span>搜索</span><span>设置</span></div></div>
+        <div class="body">
+          <div class="stage">
+            <div class="bubble">
+              <div class="halo"></div>
+              <div class="eyebrow">新的觉察</div>
+              <div class="obs">你最近几次都提到，开始之前会先停一下。</div>
+            </div>
+          </div>
+          <div class="primary-action">开始一次觉察</div>
+        </div>
+        <div class="tabbar"><div class="tab">记录</div><div class="tab on">觉察<span class="dot"></span></div><div class="tab">理解</div><div class="tab">探索</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ 5. AWARENESS OPEN ════════════════════════════════════════════ -->
+<div class="section">
+  <h2>5 · Awareness — bubble opened (stage-centred object)</h2>
+  <p class="note">Opening a bubble makes the object the centre of the stage; the surrounding content recedes. The observation stays visually continuous — this is the known debt the redesign must resolve away from an accordion.</p>
+  <div class="pair">
+    <div class="device">
+      <div class="device-label"><b>Light</b><span>object focused</span></div>
+      <div class="phone" data-theme="light">
+        <div class="statusbar"><span>9:41</span><span>5G 100%</span></div>
+        <div class="header"><div class="brand">见渊</div><div class="actions"><span>历史</span><span>搜索</span><span>设置</span></div></div>
+        <div class="body">
+          <div class="receded"><div class="day">今天</div><div class="record"><div class="text">早上出门前还是停了一下。</div></div></div>
+          <div class="open-object">
+            <div class="eyebrow" style="color:var(--accent-ink);font-size:12px">觉察</div>
+            <div class="obs">你最近几次都提到，开始之前会先停一下。</div>
+            <div class="block-title">一种可能</div>
+            <div class="block-text">这个停顿更像是给自己留出余地，而不是拖延。</div>
+            <div class="block-title">你的回应</div>
+            <div class="choices"><div class="choice on">很接近</div><div class="choice">有一点像</div><div class="choice">不是我的体验</div></div>
+            <div class="block-text" style="color:var(--ink-faint)">写下你自己的理解……</div>
+          </div>
+          <div class="receded"><div class="record"><div class="text">晚上和她把话说开了一些。</div></div></div>
+        </div>
+        <div class="tabbar"><div class="tab">记录</div><div class="tab on">觉察</div><div class="tab">理解</div><div class="tab">探索</div></div>
+      </div>
+    </div>
+    <div class="device">
+      <div class="device-label"><b>Dark</b><span>object focused</span></div>
+      <div class="phone" data-theme="dark">
+        <div class="statusbar"><span>9:41</span><span>5G 100%</span></div>
+        <div class="header"><div class="brand">见渊</div><div class="actions"><span>历史</span><span>搜索</span><span>设置</span></div></div>
+        <div class="body">
+          <div class="receded"><div class="day">今天</div><div class="record"><div class="text">早上出门前还是停了一下。</div></div></div>
+          <div class="open-object">
+            <div class="eyebrow" style="color:var(--accent-ink);font-size:12px">觉察</div>
+            <div class="obs">你最近几次都提到，开始之前会先停一下。</div>
+            <div class="block-title">一种可能</div>
+            <div class="block-text">这个停顿更像是给自己留出余地，而不是拖延。</div>
+            <div class="block-title">你的回应</div>
+            <div class="choices"><div class="choice on">很接近</div><div class="choice">有一点像</div><div class="choice">不是我的体验</div></div>
+            <div class="block-text" style="color:var(--ink-faint)">写下你自己的理解……</div>
+          </div>
+          <div class="receded"><div class="record"><div class="text">晚上和她把话说开了一些。</div></div></div>
+        </div>
+        <div class="tabbar"><div class="tab">记录</div><div class="tab on">觉察</div><div class="tab">理解</div><div class="tab">探索</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ 6. AWARENESS HISTORY ═════════════════════════════════════════ -->
+<div class="section">
+  <h2>6 · Awareness — history (retrieval, not stage)</h2>
+  <p class="note">History is a secondary view and may use a conventional list. Calm retrieval, no bubbles, no ripple.</p>
+  <div class="pair">
+    <div class="device">
+      <div class="device-label"><b>Light</b><span>secondary view</span></div>
+      <div class="phone" data-theme="light">
+        <div class="statusbar"><span>9:41</span><span>5G 100%</span></div>
+        <div class="header"><div class="brand">见渊</div><div class="actions"><span>返回</span></div></div>
+        <div class="body">
+          <div class="day" style="margin-top:0">觉察历史</div>
+          <div class="history-item"><div class="obs">你最近几次都提到，开始之前会先停一下。</div><div class="meta">今天 · 已回应</div></div>
+          <div class="history-item"><div class="obs">有几条记录都出现过“重新适应”这个词。</div><div class="meta">昨天 · 已查看</div></div>
+          <div class="history-item"><div class="obs">关于“把话说完”这件事，出现过三次。</div><div class="meta">9月15日 · 已放下</div></div>
+        </div>
+        <div class="tabbar"><div class="tab">记录</div><div class="tab on">觉察</div><div class="tab">理解</div><div class="tab">探索</div></div>
+      </div>
+    </div>
+    <div class="device">
+      <div class="device-label"><b>Dark</b><span>secondary view</span></div>
+      <div class="phone" data-theme="dark">
+        <div class="statusbar"><span>9:41</span><span>5G 100%</span></div>
+        <div class="header"><div class="brand">见渊</div><div class="actions"><span>返回</span></div></div>
+        <div class="body">
+          <div class="day" style="margin-top:0">觉察历史</div>
+          <div class="history-item"><div class="obs">你最近几次都提到，开始之前会先停一下。</div><div class="meta">今天 · 已回应</div></div>
+          <div class="history-item"><div class="obs">有几条记录都出现过“重新适应”这个词。</div><div class="meta">昨天 · 已查看</div></div>
+          <div class="history-item"><div class="obs">关于“把话说完”这件事，出现过三次。</div><div class="meta">9月15日 · 已放下</div></div>
+        </div>
+        <div class="tabbar"><div class="tab">记录</div><div class="tab on">觉察</div><div class="tab">理解</div><div class="tab">探索</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ 7. UNDERSTANDING ═════════════════════════════════════════════ -->
+<div class="section">
+  <h2>7 · Understanding — the user's own words, settled</h2>
+  <p class="note">Stable and sedimented, more focused than Record. The user's reflection is the subject; the AI's suggestion is visibly secondary and never shares its weight.</p>
+  <div class="pair">
+    <div class="device">
+      <div class="device-label"><b>Light</b><span>sedimented</span></div>
+      <div class="phone" data-theme="light">
+        <div class="statusbar"><span>9:41</span><span>5G 100%</span></div>
+        <div class="header"><div class="brand">见渊</div><div class="actions"><span>搜索</span><span>设置</span></div></div>
+        <div class="body">
+          <div class="reflection">
+            <div class="quote landed">我好像不是因为懒，是因为怕开始之后达不到自己想的那个样子。</div>
+            <div class="meta"><span>今天</span><span>已形成长期联系</span></div>
+          </div>
+          <div class="reflection">
+            <div class="quote landed">这件事我需要先允许它做得不完整。</div>
+            <div class="meta"><span>昨天</span><span>仅保存理解</span></div>
+          </div>
+        </div>
+        <div class="tabbar"><div class="tab">记录</div><div class="tab">觉察</div><div class="tab on">理解</div><div class="tab">探索</div></div>
+      </div>
+    </div>
+    <div class="device">
+      <div class="device-label"><b>Dark</b><span>sedimented</span></div>
+      <div class="phone" data-theme="dark">
+        <div class="statusbar"><span>9:41</span><span>5G 100%</span></div>
+        <div class="header"><div class="brand">见渊</div><div class="actions"><span>搜索</span><span>设置</span></div></div>
+        <div class="body">
+          <div class="reflection">
+            <div class="quote landed">我好像不是因为懒，是因为怕开始之后达不到自己想的那个样子。</div>
+            <div class="meta"><span>今天</span><span>已形成长期联系</span></div>
+          </div>
+          <div class="reflection">
+            <div class="quote landed">这件事我需要先允许它做得不完整。</div>
+            <div class="meta"><span>昨天</span><span>仅保存理解</span></div>
+          </div>
+        </div>
+        <div class="tabbar"><div class="tab">记录</div><div class="tab">觉察</div><div class="tab on">理解</div><div class="tab">探索</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ 8. EXPLORATION ═══════════════════════════════════════════════ -->
+<div class="section">
+  <h2>8 · Exploration — connection, not stacking</h2>
+  <p class="note">Long-term structure with an explicit evidence boundary. Relations are drawn as threads with stated support, never as a confident graph, and never as another card list.</p>
+  <div class="pair">
+    <div class="device">
+      <div class="device-label"><b>Light</b><span>longitudinal</span></div>
+      <div class="phone" data-theme="light">
+        <div class="statusbar"><span>9:41</span><span>5G 100%</span></div>
+        <div class="header"><div class="brand">见渊</div><div class="actions"><span>搜索</span><span>设置</span></div></div>
+        <div class="body">
+          <div class="thread">
+            <div class="axis">开始之前的停顿</div>
+            <div class="lattice">
+              <div class="node" style="height:34px"></div><div class="connector"></div>
+              <div class="node" style="height:58px"></div><div class="connector"></div>
+              <div class="node" style="height:44px"></div><div class="connector"></div>
+              <div class="node" style="height:70px"></div>
+            </div>
+            <div class="caption">这条联系来自 4 条记录，时间跨度约两周。</div>
+            <div class="evidence">支持程度：中等 · 这是可能的结构，不是结论</div>
+          </div>
+        </div>
+        <div class="tabbar"><div class="tab">记录</div><div class="tab">觉察</div><div class="tab">理解</div><div class="tab on">探索</div></div>
+      </div>
+    </div>
+    <div class="device">
+      <div class="device-label"><b>Dark</b><span>longitudinal</span></div>
+      <div class="phone" data-theme="dark">
+        <div class="statusbar"><span>9:41</span><span>5G 100%</span></div>
+        <div class="header"><div class="brand">见渊</div><div class="actions"><span>搜索</span><span>设置</span></div></div>
+        <div class="body">
+          <div class="thread">
+            <div class="axis">开始之前的停顿</div>
+            <div class="lattice">
+              <div class="node" style="height:34px"></div><div class="connector"></div>
+              <div class="node" style="height:58px"></div><div class="connector"></div>
+              <div class="node" style="height:44px"></div><div class="connector"></div>
+              <div class="node" style="height:70px"></div>
+            </div>
+            <div class="caption">这条联系来自 4 条记录，时间跨度约两周。</div>
+            <div class="evidence">支持程度：中等 · 这是可能的结构，不是结论</div>
+          </div>
+        </div>
+        <div class="tabbar"><div class="tab">记录</div><div class="tab">觉察</div><div class="tab">理解</div><div class="tab on">探索</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ 9. SEARCH MODE ══════════════════════════════════════════════ -->
+<div class="section">
+  <h2>9 · Search — header search mode + tag / chip / filter</h2>
+  <p class="note">Entering search swaps the header from brand mode to search mode: 见渊 and the actions leave the layout so the field takes the full width and cannot overlap the title. Tag filters reuse the same chip language.</p>
+  <div class="pair">
+    <div class="device small">
+      <div class="device-label"><b>Light</b><span>small iPhone · normal</span></div>
+      <div class="phone" data-theme="light">
+        <div class="statusbar"><span>9:41</span><span>5G</span></div>
+        <div class="header"><div class="brand">见渊</div><div class="actions"><span>搜索</span><span>设置</span></div></div>
+        <div class="body">
+          <div class="day" style="margin-top:0">今天</div>
+          <div class="record"><div class="text">今天的记录。</div><div class="time">09:42</div></div>
+        </div>
+        <div class="tabbar"><div class="tab on">记录</div><div class="tab">觉察</div><div class="tab">理解</div><div class="tab">探索</div></div>
+      </div>
+    </div>
+    <div class="device small">
+      <div class="device-label"><b>Light</b><span>small iPhone · search mode</span></div>
+      <div class="phone" data-theme="light">
+        <div class="statusbar"><span>9:41</span><span>5G</span></div>
+        <div class="header"><div class="search-field"><span>⌕</span><span style="color:var(--ink-muted)">搜索记录</span><span class="caret">取消</span></div></div>
+        <div class="filter-row"><span class="tag selected">全部</span><span class="tag">关系</span><span class="tag">学习</span><span class="tag">生活</span></div>
+        <div class="body">
+          <div class="record"><div class="text">关于前任的一段记录。</div><div class="time">09:42</div><div class="tags"><span class="tag">关系</span></div></div>
+        </div>
+        <div class="tabbar"><div class="tab on">记录</div><div class="tab">觉察</div><div class="tab">理解</div><div class="tab">探索</div></div>
+      </div>
+    </div>
+    <div class="device small">
+      <div class="device-label"><b>Dark</b><span>small iPhone · search mode</span></div>
+      <div class="phone" data-theme="dark">
+        <div class="statusbar"><span>9:41</span><span>5G</span></div>
+        <div class="header"><div class="search-field"><span>⌕</span><span style="color:var(--ink-muted)">搜索记录</span><span class="caret">取消</span></div></div>
+        <div class="filter-row"><span class="tag selected">全部</span><span class="tag">关系</span><span class="tag">学习</span><span class="tag">生活</span></div>
+        <div class="body">
+          <div class="record"><div class="text">关于前任的一段记录。</div><div class="time">09:42</div><div class="tags"><span class="tag">关系</span></div></div>
+        </div>
+        <div class="tabbar"><div class="tab on">记录</div><div class="tab">觉察</div><div class="tab">理解</div><div class="tab">探索</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ 10. MOTION FRAMES ══════════════════════════════════════════ -->
+<div class="section">
+  <h2>10 · Motion — awareness emergence, frozen timing as frames</h2>
+  <p class="note">Frozen: bubble ≈520 ms, content ≈420 ms, ripple ≈820 ms. A light gather, then the shape, then the text, then the ripple dissipating. No bounce, no loop, no pulse.</p>
+  <div class="frames">
+    <div class="frame" data-theme="light"><div class="stage-mini"><div class="mini-bubble" style="transform:scale(.62);opacity:.25"></div></div><div class="cap">0 ms · gather</div></div>
+    <div class="frame" data-theme="light"><div class="stage-mini"><div class="mini-bubble halo"></div></div><div class="cap">≈520 ms · shape + ripple</div></div>
+    <div class="frame" data-theme="light"><div class="stage-mini"><div class="mini-bubble halo2"></div></div><div class="cap">≈420 ms · text settles</div></div>
+    <div class="frame" data-theme="light"><div class="stage-mini"><div class="mini-bubble"></div></div><div class="cap">≈820 ms · ripple gone</div></div>
+    <div class="frame" data-theme="dark"><div class="stage-mini"><div class="mini-bubble" style="transform:scale(.62);opacity:.25"></div></div><div class="cap">Reduce Motion · fade only</div></div>
+  </div>
+</div>
+
+<!-- ══ 11. SPACING / RADIUS / TOUCH ══════════════════════════════ -->
+<div class="section">
+  <h2>11 · Layout, spacing, radius, touch</h2>
+  <table class="spec">
+    <tr><th>Item</th><th>Value</th><th>Reason</th></tr>
+    <tr><td>Page margin</td><td>20 px</td><td>breathing room without wasting width on small phones</td></tr>
+    <tr><td>Section gap</td><td>24 px</td><td>separation by space, not by boxes</td></tr>
+    <tr><td>List item vertical padding</td><td>12 px</td><td>records read as one stream</td></tr>
+    <tr><td>Header height</td><td>52 px (8 top / 12 bottom)</td><td>stable, identical in both themes</td></tr>
+    <tr><td>Search field</td><td>38 px tall, flex 1 in search mode</td><td>full width so the title cannot be overlapped</td></tr>
+    <tr><td>Radius</td><td>xs 6 · sm 10 · md 14 · pill</td><td>small radii; nothing is a big rounded blob</td></tr>
+    <tr><td>Touch target</td><td>44×44 pt minimum</td><td>iOS minimum; visual may be smaller with padding</td></tr>
+    <tr><td>Safe area</td><td>top + bottom insets on the shell</td><td>nothing essential under notch / home indicator</td></tr>
+  </table>
+</div>
+
+<!-- ══ 12. SURFACE HIERARCHY ══════════════════════════════════════ -->
+<div class="section">
+  <h2>12 · Surface hierarchy — five levels, and when each appears</h2>
+  <table class="spec">
+    <tr><th>Level</th><th>Treatment</th><th>Appears when</th></tr>
+    <tr><td>0 · None</td><td>canvas only, separation by space + hairline</td><td>record at rest, day groups, thread</td></tr>
+    <tr><td>1 · Faint surface</td><td>surface fill, no border, no shadow</td><td>an opened record, a settled understanding</td></tr>
+    <tr><td>2 · Interactive surface</td><td>surface fill + hairline border</td><td>the write-in well, a pressed control</td></tr>
+    <tr><td>3 · Object surface</td><td>surface + awareness edge, optional halo, one soft shadow</td><td>awareness bubble / opened object</td></tr>
+    <tr><td>4 · Overlay</td><td>elevated fill over scrim</td><td>a true modal or picker — used rarely</td></tr>
+  </table>
+  <p class="note">Card is not the default answer. Level 0 and 1 carry most of the product; level 3 is reserved for awareness, where the object genuinely is the point.</p>
+</div>
+
+</body>
+</html>
