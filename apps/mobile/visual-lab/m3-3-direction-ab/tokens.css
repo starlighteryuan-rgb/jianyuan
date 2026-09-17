@@ -1,0 +1,137 @@
+/*
+ * 见渊 · M3.3 Direction AB — Editorial x Spatial Synthesis
+ *
+ * DESIGN tokens for review, not runtime code.
+ *
+ * A OWNS THE IDENTITY.
+ *   Light ground, typography, whitespace, reading rhythm, weak surface, and
+ *   "Card is not the default answer" all come from Direction A.
+ *
+ * B2 ONLY CONTRIBUTES CAPABILITY.
+ *   near / far, focus / recede, object entering foreground, and relation
+ *   layout are borrowed where they carry meaning. They are not the base style.
+ *
+ * NO NEW PALETTE.
+ *   Light is Direction A warm paper, darkened one step toward B2 limestone so
+ *   the two directions can share one product. Dark uses B2's refined warm
+ *   charcoal roles with Direction A's amber/copper accent relationship kept
+ *   restrained. No green, blue, purple, or high-saturation accent is added.
+ */
+
+.phone {
+  /* ── Light · Warm Paper / Limestone ─────────────────────────────── */
+  --canvas: #f2eee5;
+  --paper: #faf7f0;
+  --band: #e8e1d4;
+  --band-2: #ded6c8;
+
+  --ink: #1f1c17;
+  --ink-2: #4f4a40;
+  --ink-3: #6d675b;
+  --ink-4: #948d7e;
+
+  --rule: #ddd4c3;
+  --rule-strong: #c6bba6;
+
+  --accent: #7c5c2f;
+  --accent-soft: rgba(124, 92, 47, 0.08);
+  --on-accent: #fbf9f3;
+
+  --focus: rgba(124, 92, 47, 0.30);
+  --mark: rgba(124, 92, 47, 0.55);
+
+  --awareness-line: rgba(124, 92, 47, 0.26);
+  --awareness-halo: rgba(124, 92, 47, 0.11);
+  --awareness-fill: rgba(124, 92, 47, 0.045);
+
+  --tag-text: #6a5732;
+  --tag-bg: rgba(124, 92, 47, 0.07);
+  --tag-border: rgba(124, 92, 47, 0.20);
+
+  /* Borrowed from B2: barely visible near/far tone steps. */
+  --near-surface: rgba(255, 253, 248, 0.86);
+  --far-surface: rgba(232, 225, 212, 0.46);
+  --recede-opacity: 0.62;
+
+  --danger: #993f31;
+}
+
+.phone[data-theme='dark'] {
+  /* ── Dark · Warm Charcoal / Copper ─────────────────────────────── */
+  --canvas: #141312;
+  --paper: #1b1917;
+  --band: #24211d;
+  --band-2: #2e2a25;
+
+  --ink: #ebe7df;
+  --ink-2: #b4aea5;
+  --ink-3: #8e8880;
+  --ink-4: #68625b;
+
+  --rule: #2d2925;
+  --rule-strong: #3d3832;
+
+  --accent: #bd8a60;
+  --accent-soft: rgba(189, 138, 96, 0.13);
+  --on-accent: #16140f;
+
+  --focus: rgba(189, 138, 96, 0.32);
+  --mark: rgba(189, 138, 96, 0.58);
+
+  --awareness-line: rgba(189, 138, 96, 0.30);
+  --awareness-halo: rgba(189, 138, 96, 0.13);
+  --awareness-fill: rgba(189, 138, 96, 0.05);
+
+  --tag-text: #d8bf94;
+  --tag-bg: rgba(189, 138, 96, 0.10);
+  --tag-border: rgba(189, 138, 96, 0.22);
+
+  --near-surface: rgba(40, 37, 32, 0.82);
+  --far-surface: rgba(26, 25, 23, 0.62);
+  --recede-opacity: 0.56;
+
+  --danger: #d99a8a;
+}
+
+/* De-colour check: the synthesis must survive without hue. */
+.phone[data-theme='neutral'] {
+  --canvas: #f1f0ed; --paper: #faf9f7; --band: #e6e4e0; --band-2: #dbd9d4;
+  --ink: #1c1b19; --ink-2: #4c4a47; --ink-3: #6e6c68; --ink-4: #989693;
+  --rule: #dcdad6; --rule-strong: #c6c3bd;
+  --accent: #55524e; --accent-soft: rgba(0,0,0,.06); --on-accent: #faf9f8;
+  --focus: rgba(0,0,0,.24); --mark: rgba(0,0,0,.48);
+  --awareness-line: rgba(0,0,0,.24); --awareness-halo: rgba(0,0,0,.10);
+  --awareness-fill: rgba(0,0,0,.035);
+  --tag-text: #57534e; --tag-bg: rgba(0,0,0,.05); --tag-border: rgba(0,0,0,.16);
+  --near-surface: rgba(255,255,255,.84); --far-surface: rgba(0,0,0,.055);
+  --recede-opacity: .6; --danger: #5c5a57;
+}
+
+/* ── Shared geometry ────────────────────────────────────────────── */
+.phone {
+  --page-x: 22px;
+  --rail: 52px;
+  --gutter: 14px;
+  --measure: calc(100% - var(--rail) - var(--gutter));
+
+  /* A's breathing rhythm is the main grouping device. */
+  --breath: 26px;
+  --breath-lg: 40px;
+
+  /* B2's depth is intentionally tiny: it must never read as perspective. */
+  --near-scale: 1;
+  --mid-scale: 0.992;
+  --far-scale: 0.982;
+  --near-y: 0px;
+  --mid-y: 2px;
+  --far-y: 5px;
+
+  --r-xs: 6px;
+  --r-sm: 10px;
+  --r-md: 14px;
+  --r-pill: 999px;
+
+  --serif: 'Songti SC', 'Source Han Serif SC', 'Noto Serif CJK SC', Georgia, serif;
+  --sans: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB',
+    'Microsoft YaHei', sans-serif;
+}

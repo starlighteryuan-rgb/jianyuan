@@ -1,0 +1,401 @@
+/* 见渊 M3.3 Direction AB — Editorial x Spatial Synthesis board + component language. */
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  padding: 40px 32px 80px;
+  background: #d8d2c7;
+  color: #1f1c17;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
+    'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.board-head { max-width: 1480px; margin: 0 auto 30px; }
+.board-head h1 { font-size: 25px; font-weight: 600; margin: 0 0 8px; }
+.board-head p { margin: 0 0 5px; max-width: 900px; color: #524c41; }
+.board-head .meta { font-size: 12px; color: #7c7566; }
+.board-head .ratio {
+  display: inline-flex; align-items: center; gap: 8px; margin-top: 10px;
+  padding: 6px 10px; border: 1px solid #c4bcab; background: #eee9df;
+  font-size: 12px; color: #524c41;
+}
+.board-head .ratio b { color: #7c5c2f; font-weight: 600; }
+
+.section { max-width: 1480px; margin: 0 auto 50px; }
+.section > h2 {
+  font-size: 15px; font-weight: 600; margin: 0 0 6px;
+  padding-bottom: 9px; border-bottom: 1px solid #c4bcab;
+}
+.section > .note { margin: 0 0 20px; font-size: 13px; color: #524c41; max-width: 980px; }
+
+.pair { display: flex; gap: 26px; align-items: flex-start; flex-wrap: wrap; }
+.trio { display: flex; gap: 22px; align-items: flex-start; flex-wrap: wrap; }
+
+/* ── Device ─────────────────────────────────────────────────────── */
+.device { width: 390px; flex: 0 0 390px; }
+.device.small { width: 320px; flex: 0 0 320px; }
+.device.mini { width: 300px; flex: 0 0 300px; }
+.device-label {
+  display: flex; gap: 8px; align-items: baseline;
+  margin: 0 0 8px 4px; font-size: 12px; color: #4a4438;
+}
+.device-label b { font-weight: 600; }
+.device-label span { color: #7c7566; }
+
+.phone {
+  position: relative; display: flex; flex-direction: column;
+  height: 844px; overflow: hidden;
+  border-radius: 10px; background: var(--canvas); color: var(--ink);
+  box-shadow: 0 10px 30px rgba(0,0,0,.18);
+}
+.device.small .phone { height: 700px; }
+.device.mini .phone { height: 620px; }
+
+/* ── Fusion legend attached to every mockup ─────────────────────── */
+.fusion {
+  display: flex; gap: 8px; align-items: flex-start; flex-wrap: wrap;
+  margin: 0 0 9px 4px; font-size: 11px; line-height: 1.45; color: #6d675b;
+}
+.fusion span { display: inline-flex; gap: 4px; align-items: baseline; }
+.fusion b { color: #4f4a40; font-weight: 600; }
+.fusion .base { color: #7c5c2f; }
+.fusion .borrow { color: #6d675b; }
+
+/* ── Chrome ─────────────────────────────────────────────────────── */
+.statusbar {
+  display: flex; justify-content: space-between;
+  padding: 12px 22px 2px; font-size: 12px; color: var(--ink-4); flex: 0 0 auto;
+}
+.topbar {
+  display: flex; align-items: baseline; justify-content: space-between;
+  padding: 10px var(--page-x) 12px; flex: 0 0 auto;
+}
+.topbar .brand {
+  font-family: var(--serif); font-size: 21px; font-weight: 600;
+  letter-spacing: .06em; color: var(--ink);
+}
+.topbar .acts { display: flex; gap: 15px; font-size: 12px; color: var(--ink-3); }
+.topbar .acts .on { color: var(--accent); }
+
+.searchline {
+  display: flex; align-items: baseline; gap: 10px; flex: 1;
+  border-bottom: 1px solid var(--rule-strong); padding: 0 0 7px;
+}
+.searchline .q { font-family: var(--serif); font-size: 17px; color: var(--ink); flex: 1; }
+.searchline .x { font-size: 12px; color: var(--accent); }
+
+.masthead { padding: 6px var(--page-x) 0; flex: 0 0 auto; }
+.masthead .kicker {
+  font-size: 10px; letter-spacing: .22em; text-transform: uppercase; color: var(--ink-4);
+}
+.masthead .title {
+  font-family: var(--serif); font-size: 30px; line-height: 1.15;
+  letter-spacing: .02em; color: var(--ink); margin-top: 6px;
+}
+.masthead .lede {
+  margin-top: 8px; font-size: 12px; color: var(--ink-3); max-width: 88%;
+}
+.masthead .rule { height: 1px; background: var(--rule); margin-top: 16px; }
+
+.scroller { flex: 1 1 auto; overflow: hidden; padding: 0 var(--page-x); }
+
+/* ── Rails (A) ──────────────────────────────────────────────────── */
+.entry { display: flex; gap: var(--gutter); padding: var(--breath) 0 0; }
+.entry + .entry { padding-top: var(--breath); }
+.rail {
+  width: var(--rail); flex: 0 0 var(--rail);
+  font-size: 11px; color: var(--ink-4); padding-top: 3px;
+  font-variant-numeric: tabular-nums;
+}
+.rail .stamp { display: block; }
+.rail .mark {
+  display: block; margin-top: 6px; width: 14px; height: 1px; background: var(--mark);
+}
+.col { flex: 1 1 auto; min-width: 0; }
+
+/* ── Record: A text stream + borrowed B2 near/far ───────────────── */
+.rtext {
+  font-family: var(--serif);
+  font-size: 17px; line-height: 30px; color: var(--ink);
+}
+.entry + .entry .col { border-top: 1px solid var(--rule); padding-top: var(--breath); }
+.entry + .entry .rail { border-top: 1px solid var(--rule); }
+
+/* Borrowed capability only: current entry is nearer in tone, older ones
+   recede by contrast and opacity. No card stack is introduced. */
+.record-stream .entry.near .rtext { color: var(--ink); }
+.record-stream .entry.near .col {
+  background: linear-gradient(90deg, var(--near-surface), transparent 86%);
+  margin-left: -8px; padding-left: 8px;
+}
+.record-stream .entry.mid .rtext { color: var(--ink-2); opacity: .92; }
+.record-stream .entry.far .rtext { color: var(--ink-3); opacity: var(--recede-opacity); }
+.record-stream .entry.far .rail { opacity: var(--recede-opacity); }
+
+.margin-tag {
+  display: block; margin-top: 10px;
+  font-size: 11px; letter-spacing: .04em; color: var(--ink-4);
+}
+.margin-tag::before { content: '§ '; color: var(--mark); }
+.margin-tag + .margin-tag { margin-top: 3px; }
+
+.dayrule {
+  display: flex; align-items: baseline; gap: 12px;
+  margin: var(--breath-lg) 0 0;
+}
+.dayrule .d { font-family: var(--serif); font-size: 15px; color: var(--ink-2); }
+.dayrule .y { font-size: 11px; color: var(--ink-4); }
+.dayrule .line { flex: 1; height: 1px; background: var(--rule); }
+
+.composer { padding: var(--breath) 0 0; }
+.composer .hint {
+  font-family: var(--serif); font-size: 17px; line-height: 30px; color: var(--ink-4);
+}
+.composer .underline { height: 1px; background: var(--rule); margin-top: 14px; }
+.composer .go { margin-top: 12px; font-size: 13px; color: var(--accent); }
+
+/* ── Record expand: in-place foreground focus ───────────────────── */
+.expand-stage { position: relative; padding-top: var(--breath); }
+.expand-ghost {
+  position: absolute; left: 0; right: 0; top: 22px; height: 82px;
+  background: var(--far-surface); border-radius: var(--r-sm);
+  transform: scale(var(--far-scale)); transform-origin: 50% 0;
+  opacity: .78;
+}
+.expand-ghost.two { top: 108px; height: 62px; opacity: .48; }
+.entry.focus {
+  position: relative; z-index: 2;
+  background: linear-gradient(90deg, var(--near-surface), transparent 92%);
+  border-left: 2px solid var(--accent);
+  padding: 16px 16px 14px 18px;
+  transform: scale(var(--near-scale));
+  transform-origin: 50% 0;
+}
+.entry.focus .rail { padding-top: 5px; }
+.entry.focus .rtext { font-size: 18px; line-height: 32px; }
+.entry.focus .inline-more {
+  margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--rule);
+  font-size: 14px; line-height: 24px; color: var(--ink-2);
+}
+.entry.focus .collapse {
+  margin-top: 12px; font-size: 12px; color: var(--accent);
+}
+.expand-stage .entry.after {
+  padding-top: 14px; opacity: var(--recede-opacity);
+}
+.expand-stage .entry.after .col { border-top: 0; padding-top: 0; }
+
+/* ── Awareness main: A stage, only B2 recede ────────────────────── */
+.awareness-stage {
+  flex: 1 1 auto; display: flex; flex-direction: column;
+  justify-content: center; align-items: center; padding: 0 var(--page-x);
+  position: relative;
+}
+.awareness-stage .stage-bg {
+  position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(64% 38% at 50% 48%, var(--awareness-fill), transparent 72%);
+}
+.halo {
+  position: absolute; width: 300px; height: 300px; border-radius: 50%;
+  border: 1px solid var(--awareness-halo);
+  top: 50%; left: 50%; transform: translate(-50%, -58%);
+}
+.halo.inner {
+  width: 218px; height: 218px; border-color: var(--awareness-line);
+  transform: translate(-50%, -64%);
+}
+.statement {
+  position: relative; text-align: center; max-width: 272px;
+  transform: scale(var(--near-scale));
+}
+.statement .tagline {
+  font-size: 10px; letter-spacing: .22em; text-transform: uppercase; color: var(--accent);
+}
+.statement .said {
+  font-family: var(--serif); font-size: 21px; line-height: 34px; color: var(--ink);
+  margin-top: 14px;
+}
+.statement .glass { margin-top: 16px; font-size: 11px; color: var(--ink-4); }
+
+.awareness-action { padding: 0 var(--page-x) var(--breath); flex: 0 0 auto; }
+.awareness-action .act {
+  text-align: center; font-size: 14px; color: var(--accent);
+  border-top: 1px solid var(--rule); padding-top: 14px;
+}
+
+/* ── Awareness open: A layout + B2 foreground focus ─────────────── */
+.open-stage {
+  position: relative; flex: 1 1 auto; overflow: hidden;
+  padding: 0 var(--page-x);
+}
+.open-stage .recede {
+  position: absolute; left: var(--page-x); right: var(--page-x); top: 6px;
+  transform: scale(.94) translateY(-4px); opacity: .24;
+  font-size: 11px; color: var(--ink-4);
+  border-bottom: 1px solid var(--rule); padding-bottom: 10px;
+}
+.open-object {
+  position: relative; z-index: 3; margin-top: 38px;
+  padding: 20px 2px 16px;
+  background: linear-gradient(180deg, var(--near-surface), transparent 88%);
+  border-top: 1px solid var(--rule-strong);
+  transform: scale(1.004);
+}
+.open-object .tagline {
+  font-size: 10px; letter-spacing: .22em; text-transform: uppercase; color: var(--accent);
+}
+.open-said {
+  font-family: var(--serif); font-size: 23px; line-height: 37px; color: var(--ink);
+  margin-top: 10px;
+}
+.open-block { margin-top: var(--breath-lg); }
+.open-block .k {
+  font-size: 10px; letter-spacing: .2em; text-transform: uppercase; color: var(--ink-4);
+}
+.open-block .v {
+  font-family: var(--serif); font-size: 15px; line-height: 27px;
+  color: var(--ink-2); margin-top: 7px;
+}
+.reply { display: flex; gap: 0; margin-top: 18px; border-top: 1px solid var(--rule); }
+.reply .r {
+  flex: 1; text-align: center; padding: 12px 0; font-size: 12px; color: var(--ink-3);
+  border-right: 1px solid var(--rule);
+}
+.reply .r:last-child { border-right: 0; }
+.reply .r.on { color: var(--accent); }
+.margin-note {
+  margin-top: var(--breath); padding-left: 12px;
+  border-left: 1px solid var(--mark); font-size: 12px; color: var(--ink-3);
+}
+.open-stage .open-footnote {
+  position: relative; z-index: 3; margin-top: 16px;
+  font-size: 11px; color: var(--ink-4);
+}
+
+/* ── Understanding: A essay, only minor depth ───────────────────── */
+.essay {
+  font-family: var(--serif); font-size: 19px; line-height: 34px; color: var(--ink);
+}
+.essay .drop {
+  float: left; font-size: 44px; line-height: 40px; padding: 4px 8px 0 0;
+  color: var(--accent);
+}
+.attrib {
+  margin-top: 16px; font-size: 11px; color: var(--ink-4);
+  display: flex; gap: 10px; align-items: center;
+}
+.attrib .dot { width: 3px; height: 3px; border-radius: 50%; background: var(--mark); }
+.attrib .asis { color: var(--ink-3); }
+.essay-entry.focus .col {
+  background: linear-gradient(90deg, var(--near-surface), transparent 88%);
+  margin-left: -8px; padding-left: 8px;
+}
+.essay-entry.far .essay { color: var(--ink-2); opacity: .78; }
+.essay-entry.far .attrib { opacity: var(--recede-opacity); }
+
+/* ── Exploration: B2 spatial field + A surface language ─────────── */
+.constellation { position: relative; height: 430px; margin-top: 10px; }
+.node {
+  position: absolute;
+  background: transparent;
+  border-top: 1px solid var(--rule-strong);
+  padding: 9px 0 0;
+  font-family: var(--serif); font-size: 14px; line-height: 20px; color: var(--ink);
+}
+.node .sub {
+  display: block; margin-top: 4px; font-size: 10px; color: var(--ink-4);
+  font-family: var(--sans); letter-spacing: .02em;
+}
+.node .index {
+  display: block; margin-bottom: 3px; font-family: var(--sans);
+  font-size: 9px; letter-spacing: .16em; color: var(--ink-4);
+}
+.node.near { border-top-color: var(--accent); color: var(--ink); }
+.node.near .index { color: var(--accent); }
+.node.mid { color: var(--ink-2); border-top-color: var(--rule-strong); }
+.node.far {
+  color: var(--ink-3); border-top-color: var(--rule);
+  transform: scale(.97); transform-origin: 0 0;
+  opacity: var(--recede-opacity);
+}
+.link {
+  position: absolute; height: 1px; background: var(--rule-strong);
+  transform-origin: 0 0; opacity: .48;
+}
+.link.hot { background: var(--accent); opacity: .68; }
+.cluster-caption { margin-top: 14px; font-size: 11px; color: var(--ink-3); }
+.cluster-caption b { color: var(--ink-2); font-weight: 500; }
+.exploration-foot {
+  margin-top: 6px; font-size: 11px; color: var(--ink-4);
+}
+
+/* ── Search: A search line, weak B2 recede ──────────────────────── */
+.search-results { padding-top: 18px; }
+.search-result {
+  padding: 18px 0; border-bottom: 1px solid var(--rule);
+}
+.search-result.dim { opacity: .42; }
+.search-result .meta {
+  font-size: 11px; color: var(--ink-4); font-variant-numeric: tabular-nums;
+}
+.search-result .rtext { margin-top: 7px; }
+.search-result .margin-tag { margin-top: 8px; }
+
+/* ── Tab bar ────────────────────────────────────────────────────── */
+.tabbar {
+  display: flex; align-items: baseline;
+  background: var(--canvas); border-top: 1px solid var(--rule);
+  padding: 12px 0 22px; flex: 0 0 auto;
+}
+.tabbar .tab { flex: 1; text-align: center; font-size: 12px; color: var(--ink-4); }
+.tabbar .tab.on { color: var(--ink); }
+.tabbar .tab.on::after {
+  content: ''; display: block; width: 14px; height: 1px;
+  background: var(--mark); margin: 4px auto 0;
+}
+.tabbar .tab .dot {
+  display: inline-block; width: 4px; height: 4px; margin-left: 4px;
+  border-radius: 50%; background: var(--danger); vertical-align: middle;
+}
+
+/* ── Synthesis map / comparison tables ─────────────────────────── */
+.map { display: grid; grid-template-columns: 1.1fr 1.2fr 1.2fr; gap: 0; }
+.map > div {
+  padding: 12px 14px; border-bottom: 1px solid #ddd6c8; background: #faf7f0;
+  font-size: 13px; vertical-align: top;
+}
+.map > div.head { background: #f1ece0; font-weight: 600; }
+.map .space { font-weight: 600; }
+.map .a { color: #524c41; }
+.map .b2 { color: #6d675b; }
+
+.legend-row { display: flex; gap: 18px; flex-wrap: wrap; margin: 0 0 18px; }
+.legend {
+  display: inline-flex; gap: 7px; align-items: center; padding: 6px 10px;
+  border: 1px solid #c4bcab; background: #eee9df; font-size: 12px; color: #524c41;
+}
+.legend i { display: block; width: 12px; height: 12px; border-radius: 3px; }
+
+.compare { display: flex; gap: 22px; flex-wrap: wrap; }
+.compare > div { flex: 1 1 440px; }
+.compare .colhead {
+  font-size: 12px; margin: 0 0 8px 4px; font-weight: 600; color: #4a4438;
+}
+.compare .colhead span { font-weight: 400; color: #7c7566; }
+
+table.spec { width: 100%; border-collapse: collapse; font-size: 13px; background: #faf7f0; }
+table.spec th, table.spec td {
+  text-align: left; padding: 8px 10px; border-bottom: 1px solid #ddd6c8; vertical-align: top;
+}
+table.spec th { font-weight: 600; background: #f1ece0; }
+code { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; }
+.swatch {
+  display: inline-block; width: 14px; height: 14px; border-radius: 3px;
+  margin-right: 6px; vertical-align: -2px; border: 1px solid rgba(0,0,0,.12);
+}
+
+/* Neutral proof uses the same components with all hue removed. */
+.neutral-proof .phone { box-shadow: none; }
