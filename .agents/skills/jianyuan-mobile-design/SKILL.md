@@ -81,23 +81,45 @@ Use a Card only when there is a real need for grouping, hierarchy, or an
 interaction boundary. Card-as-default produces a dashboard, and 见渊 is not a
 dashboard.
 
-## Observation Is Not Object
+## Awareness Has Three Distinct States
 
-AI Observation / Awareness Result defaults to text, not a visual object. It is
-closer to a discovered sentence, a surfaced observation, or a judgment clue
-worth pausing for than to an AI card, bubble, or generated panel.
+Awareness Main, New Awareness Result, and Awareness Open are separate states
+and must not share one object language.
 
-Prefer typography, whitespace, focus line, tonal shift, and subtle emergence.
-Do not default to card, bubble, panel, or closed container.
+### Awareness Main — Stage, Not Object
 
-## Awareness Main Is Stage, Not Bubble
+Main may keep a blurred circular / halo atmosphere, a soft tonal diffusion,
+and an attention center. The stage expresses “觉察正在发生的空间”.
 
-The center circle / halo in Awareness Main is stage language: attention center,
-emergence field, quiet anticipation. It is not a bubble, content container, or
-object shell.
+Allowed: very light circular / concentric halo, soft tonal diffusion, low
+contrast center focus, equivalent Light / Dark structure.
 
-Only light halo and tonal field are allowed. Heavy outlines and solid object
-shapes are not.
+Forbidden: solid dark circular blocks, closed heavy outlines, obvious object
+boundaries, and anything that reads as a card, ball, bubble, or floating object.
+
+### New Awareness Result — Observation Is Not Object
+
+The result is editorial text flow, not an object card. It should read like a
+sentence that was discovered, a surfaced observation, or a judgment clue worth
+pausing for.
+
+Prefer typography, whitespace, a very light focus line, tonal shift, and
+subtle emergence. Keep the relation between “新的觉察”, the observation, and
+time clear.
+
+Do not use a circle, oval, halo, large shape, card, bubble, panel, or closed
+container around the result.
+
+### Awareness Open — AB Foreground Reading Logic
+
+Open keeps the AB foreground reading logic: the opened observation enters the
+foreground, surrounding content recedes, reading order stays clear, and the
+response area remains natural.
+
+Do not rebuild Open as a heavy card or heavy container.
+
+Never return to the regressed state of a track-shaped outline, a solid dark
+circle, or text incorrectly enclosed by an object.
 
 ## Visual character
 

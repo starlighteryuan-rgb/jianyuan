@@ -33,43 +33,24 @@ whitespace, grouping, typography, dividers, timeline, spatial placement, and
 subtle surface. Use a Card only when there is a genuine need for grouping,
 hierarchy, or an interaction boundary.
 
-## Observation Is Not Object
+## Awareness Has Three Distinct States
 
-AI Observation / Awareness Result defaults to text, not a visual object. It
-should read like a sentence that was discovered, a surfaced observation, or a
-judgment clue worth pausing for.
+Awareness Main, New Awareness Result, and Awareness Open are different states
+and must not share one object language.
 
-It must not default to an AI card, a bubble object, a generated panel, or a
-closed container.
+- **Awareness Main:** stage, not object. It may keep a blurred circular / halo
+  atmosphere and an attention center. It must not become a hard-edged circle,
+  solid dark disc, bubble, or object shell.
+- **New Awareness Result:** editorial text flow, not an object card. Keep the
+  relation between “新的觉察”, the observation, and time clear. Use
+  typography, whitespace, a very light focus line, and tonal emphasis.
+  Do not wrap it in a circle, oval, halo, large shape, card, or floating panel.
+- **Awareness Open:** keep the AB foreground reading logic. The opened
+  observation enters the foreground; surrounding content recedes. Keep the
+  reading order and response area calm. Do not rebuild it as a heavy card.
 
-Prefer:
-
-- typography;
-- whitespace;
-- focus line;
-- tonal shift;
-- subtle emergence.
-
-Do not use:
-
-- card;
-- bubble;
-- panel;
-- closed container.
-
-## Awareness Main Is Stage, Not Bubble
-
-The circular center / halo in Awareness Main is stage language only. Its
-meaning is:
-
-- attention center;
-- emergence field;
-- quiet anticipation.
-
-It is not a bubble, a content container, or an object shell.
-
-Only light halo and tonal field are allowed. Heavy outlines and solid object
-shapes are not.
+Never return to the regressed state of a track-shaped outline, a solid dark
+circle, or text incorrectly enclosed by an object.
 
 ## Surfaces and depth
 

@@ -24,33 +24,42 @@ It must not become an inbox, a notification center, a chat, a dashboard, or an
 ordinary card feed. The core metaphor is: **觉察像是从已有经历中浮出来** —
 awareness floats up out of existing experience.
 
-### Awareness Main Is Stage, Not Bubble
+### Awareness Main ≠ New Awareness Result ≠ Awareness Open
 
-The accepted main structure is a quiet stage with an optional light halo, tonal
-diffusion, and center focus. Its meaning is an attention center and emergence
-field, not a bubble or content container.
+The three Awareness states are distinct and must not reuse one object language.
 
-Allowed:
+#### Awareness Main — Stage, Not Object
 
-- very light circular / concentric halo;
-- soft tonal diffusion;
-- low-contrast, non-objectified center focus;
-- equivalent structure in Light and Dark.
+Main may keep a blurred circular / halo atmosphere, soft tonal diffusion, and
+an attention center. It expresses “觉察正在发生的空间”.
 
-Forbidden:
+Allowed: very light circular / concentric halo, soft tonal diffusion, low
+contrast center focus, equivalent Light / Dark structure.
 
-- solid dark circular blocks;
-- heavy closed outlines;
-- obvious object boundaries;
-- any treatment that reads as a card, ball, bubble, or object shell.
+Forbidden: solid dark circular blocks, closed heavy outlines, obvious object
+boundaries, and anything that reads as a card, ball, bubble, or object shell.
 
-### Observation Is Not Object
+#### New Awareness Result — Observation Is Not Object
 
-Awareness Result defaults to text-first. It should read like a discovered
-sentence, a surfaced observation, or a judgment clue worth pausing for.
+Awareness Result is editorial text flow, not an object card. It should read
+like a discovered sentence, a surfaced observation, or a judgment clue worth
+pausing for.
 
-Prefer typography, whitespace, a focus line, tonal shift, and subtle emergence.
-Do not default to a card, bubble, panel, or closed container.
+Prefer typography, whitespace, a very light focus line, tonal shift, and subtle
+emergence. Keep the relation between “新的觉察”, the observation, and time
+clear.
+
+Do not use a circle, oval, halo, large shape, card, bubble, panel, or closed
+container around the result.
+
+#### Awareness Open — AB Foreground Reading Logic
+
+Open keeps the AB foreground reading logic: the opened observation enters the
+foreground, surrounding content recedes, reading order stays clear, and the
+response area remains natural. Do not rebuild Open as a heavy card.
+
+Never return to the regressed state of a track-shaped outline, a solid dark
+circle, or text incorrectly enclosed by an object.
 
 The accepted Bubble emergence timing remains frozen for automatic Awareness
 entries. Do not redesign the accepted main structure without an explicit

@@ -24,15 +24,6 @@
  * Awareness Result is text-first. The observation is a sentence that surfaces;
  * it is not an object. It may use whitespace, a focus line, and tonal emphasis,
  * but must not add a closed container, card surface, bubble, or floating panel.
- *
- * FROZEN UI
- * Awareness Main may keep a soft circular stage / halo, but only as stage
- * atmosphere: an attention center and emergence field, never a bubble, card,
- * or object shell.
- *
- * Awareness Result is text-first. The observation is a sentence that surfaces;
- * it is not an object. It may use whitespace, a focus line, and tonal emphasis,
- * but must not add a closed container, card surface, bubble, or floating panel.
  */
 
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
@@ -134,6 +125,9 @@ const AwarenessResult = ({
         <Text style={[TYPOGRAPHY.eyebrow, { color: colors.textFaint }]}>新的觉察</Text>
         <Text style={[TYPOGRAPHY.lead, { color: colors.textPrimary, marginTop: SPACING.sm }]}>
           {item.candidate.observation}
+        </Text>
+        <Text style={[TYPOGRAPHY.timestamp, { color: colors.textFaint, marginTop: SPACING.md }]}>
+          {formatCapturedAt(item.createdAt)}
         </Text>
       </View>
     </AnimatedPressable>
@@ -703,19 +697,15 @@ export const AwarenessSpace = ({ searchQuery = '' }: { readonly searchQuery?: st
                 <View testID="awareness-stage" style={styles.stage}>
                   <View
                     pointerEvents="none"
-                    style={[
-                      styles.halo,
-                      styles.haloOuter,
-                      { borderColor: colors.awarenessHalo },
-                    ]}
+                    style={[styles.stageField, { backgroundColor: colors.awarenessFill }]}
                   />
                   <View
                     pointerEvents="none"
-                    style={[
-                      styles.halo,
-                      styles.haloInner,
-                      { borderColor: colors.awarenessEdge },
-                    ]}
+                    style={[styles.stageFieldInner, { backgroundColor: colors.awarenessHalo }]}
+                  />
+                  <View
+                    pointerEvents="none"
+                    style={[styles.stageHint, { borderColor: colors.awarenessHalo }]}
                   />
                   <Text
                     testID="awareness-empty"
@@ -886,13 +876,28 @@ const styles = StyleSheet.create({
     position: 'relative',
     paddingHorizontal: SPACING.lg,
   },
-  halo: {
+  stageField: {
     position: 'absolute',
+    width: 300,
+    height: 300,
+    borderRadius: 999,
+    opacity: 0.92,
+  },
+  stageFieldInner: {
+    position: 'absolute',
+    width: 196,
+    height: 196,
+    borderRadius: 999,
+    opacity: 0.62,
+  },
+  stageHint: {
+    position: 'absolute',
+    width: 226,
+    height: 226,
     borderRadius: 999,
     borderWidth: 1,
+    opacity: 0.22,
   },
-  haloOuter: { width: 300, height: 300 },
-  haloInner: { width: 218, height: 218 },
   primaryButton: {
     minHeight: 44,
     borderTopWidth: 1,
@@ -900,18 +905,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   result: {
-    minHeight: 220,
+    minHeight: 236,
     justifyContent: 'center',
-    paddingVertical: SPACING.xl,
+    paddingVertical: SPACING.xxl,
     paddingLeft: SPACING.md,
   },
   resultFocus: {
     position: 'absolute',
     left: 0,
     top: SPACING.sm,
-    bottom: SPACING.section,
+    bottom: SPACING.lg,
     width: 1,
-    opacity: 0.52,
+    opacity: 0.46,
   },
   resultCopy: { paddingLeft: SPACING.md },
   secondaryButton: {
