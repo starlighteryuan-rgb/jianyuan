@@ -129,11 +129,17 @@ motion, Core, Provider contract, and storage semantics.
 
 ## IOS BUILD
 
-- Commit: pending
-- Run ID: pending
-- Status: pending
-- IPA SHA256: pending
-- APP zip SHA256: pending
+- Commit: d00a476a090ebebcbc3c248a0bfff1ec43f2db28
+- Run ID: 35170579755
+- Run URL: https://github.com/starlighteryuan-rgb/jianyuan/actions/runs/35170579755
+- Status: completed / success
+- All workflow steps: success (typecheck, mobile tests, iphoneos Release build,
+  entitlement/signature audit, unsigned IPA verification, artifact upload)
+- Artifacts: Jianyuan-iOS-unsigned-ipa, Jianyuan-iOS-unsigned-app
+- IPA SHA256: 84ec783dd182e2436f3f8aa638e7a82ac1e8cf1c71216a170438d2aad153e347
+- APP zip SHA256: 2f11c499fe0e7eda0dd42041f14c4b2613b288aac2cabdc57c626e74a5bc28f5
+- Local unsigned audit of the downloaded IPA: 0 embedded.mobileprovision,
+  0 `_CodeSignature`, 0 `CodeResources` (matches CI verification)
 
 ## REAL DEVICE ACCEPTANCE
 
