@@ -128,7 +128,11 @@ const AwarenessBubble = ({
       <View style={styles.bubbleShell}>
         <View
           pointerEvents="none"
-          style={[styles.bubbleGhost, { borderColor: colors.awarenessHalo }]}
+          style={[styles.bubbleFocus, { backgroundColor: colors.awarenessFill }]}
+        />
+        <View
+          pointerEvents="none"
+          style={[styles.bubbleHalo, { borderColor: colors.awarenessHalo }]}
         />
         <Animated.View
           style={[styles.ripple, { borderColor: colors.awarenessRipple }, rippleStyle]}
@@ -835,30 +839,53 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  bubbleShell: { position: 'relative', minHeight: 180, justifyContent: 'center' },
-  bubbleGhost: {
+  bubbleShell: {
+    position: 'relative',
+    minHeight: 220,
+    justifyContent: 'center',
+    paddingVertical: SPACING.xl,
+  },
+  bubbleFocus: {
     position: 'absolute',
-    left: SPACING.xl,
-    right: SPACING.xl,
-    top: SPACING.lg,
-    bottom: SPACING.lg,
-    borderRadius: RADIUS.pill,
+    width: 230,
+    height: 230,
+    borderRadius: 999,
+    alignSelf: 'center',
+    left: '50%',
+    top: '50%',
+    marginLeft: -115,
+    marginTop: -115,
+    opacity: .9,
+  },
+  bubbleHalo: {
+    position: 'absolute',
+    width: 252,
+    height: 252,
+    borderRadius: 999,
+    alignSelf: 'center',
+    left: '50%',
+    top: '50%',
+    marginLeft: -126,
+    marginTop: -126,
     borderWidth: 1,
-    transform: [{ scale: 0.94 }],
+    opacity: .75,
   },
   ripple: {
     position: 'absolute',
-    top: 0,
-    right: 0,
-    bottom: 0,
-    left: 0,
-    borderRadius: RADIUS.pill,
+    width: 252,
+    height: 252,
+    borderRadius: 999,
+    alignSelf: 'center',
+    left: '50%',
+    top: '50%',
+    marginLeft: -126,
+    marginTop: -126,
     borderWidth: 1,
   },
   bubble: {
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.lg,
-    minHeight: 150,
+    paddingHorizontal: SPACING.xl,
+    paddingVertical: SPACING.xl,
+    minHeight: 180,
     justifyContent: 'center',
   },
   bubbleHead: {

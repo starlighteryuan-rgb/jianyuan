@@ -107,7 +107,7 @@ export const TYPOGRAPHY = {
   action: { fontSize: 15, lineHeight: 20, letterSpacing: 0 },
   empty: { fontSize: 15, lineHeight: 24, letterSpacing: 0 },
   title: { fontSize: 21, lineHeight: 28, letterSpacing: 0 },
-  firstPerson: { fontSize: 34, lineHeight: 32, letterSpacing: 0 },
+  firstPerson: { fontSize: 28, lineHeight: 28, letterSpacing: 0 },
 } as const;
 
 /** Near / far geometry is intentionally tiny; tone and contrast do the work. */

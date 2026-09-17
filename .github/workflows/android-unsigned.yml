@@ -1,0 +1,104 @@
+name: Android Unsigned APK
+
+# 产出：未签名的 Android Release APK。
+#
+# 为什么用 GitHub Actions：
+#   本机是 Windows，Expo/React Native 的 Android 原生 Gradle 构建可以在
+#   Linux runner 上稳定完成；该工作流不读取任何 secret，也不生成签名。
+#
+# 产物用途：
+#   验证原生 Android 工程可编译、可打包、体积与结构可审计。
+#   未签名 APK 不能直接安装到普通设备。
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-unsigned-apk:
+    name: Build unsigned Android APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Report toolchain versions
+        run: |
+          node --version
+          npm --version
+          java -version
+          ./gradlew --version || true
+
+      - name: Install mobile dependencies
+        working-directory: apps/mobile
+        run: npm ci
+
+      - name: Typecheck mobile
+        working-directory: apps/mobile
+        run: npm run typecheck
+
+      - name: Run mobile tests
+        working-directory: apps/mobile
+        run: npm test
+
+      - name: Generate the native Android project
+        working-directory: apps/mobile
+        run: npx expo prebuild --platform android --clean --no-install
+
+      - name: Build unsigned Release APK
+        working-directory: apps/mobile/android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleRelease --no-daemon
+
+      - name: Locate APK
+        id: locate
+        working-directory: apps/mobile/android
+        run: |
+          APK="$(find app/build/outputs/apk/release -maxdepth 1 -name '*.apk' | head -1)"
+          if [ -z "$APK" ]; then
+            echo 'No APK produced in app/build/outputs/apk/release'
+            find app/build/outputs -maxdepth 4 -name '*.apk' || true
+            exit 1
+          fi
+          echo "apk=$APK"
+          echo "apk_path=$APK" >> "$GITHUB_OUTPUT"
+
+      - name: Audit APK
+        working-directory: apps/mobile/android
+        run: |
+          APK='${{ steps.locate.outputs.apk_path }}'
+          echo "APK: $APK"
+          file "$APK"
+          unzip -l "$APK" | head -40
+          unzip -l "$APK" | grep -E 'AndroidManifest.xml|classes.dex|lib/' | head -40 || true
+
+      - name: Record artifact hash
+        run: |
+          set -eu
+          APK='${{ steps.locate.outputs.apk_path }}'
+          sha256sum "$APK" | tee SHA256SUMS.txt
+
+      - name: Upload unsigned APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Jianyuan-Android-unsigned-apk
+          path: |
+            ${{ steps.locate.outputs.apk_path }}
+            SHA256SUMS.txt
+          if-no-files-found: error
