@@ -10,6 +10,11 @@
  *
  * M3 motion keeps those facts visible: a new Bubble floats in, opening reads as
  * focusing that Bubble into Detail, and closing returns the item to History.
+ *
+ * DIRECTION AB
+ * Main is A: a large quiet stage, concentric halo, one current observation.
+ * B2 contributes only a faint background recede. Open keeps A's reading order
+ * and uses B2's foreground focus without becoming a large response card.
  */
 
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
@@ -89,8 +94,6 @@ const AwarenessBubble = ({
     rippleOut.value = withTiming(1, motion.timing('ripple', motion.reduceMotion));
   }, [entered, motion, rippleOut, textIn]);
 
-
-
   const bubbleStyle = useAnimatedStyle(() => ({
     opacity: interpolate(entered.value, [0, 0.55, 1], [0, 0.82, 1]),
     transform: [
@@ -107,28 +110,29 @@ const AwarenessBubble = ({
   const rippleStyle = useAnimatedStyle(() => ({
     opacity: motion.reduceMotion
       ? 0
-      : interpolate(rippleOut.value, [0, 0.18, 0.55, 1], [0, 0.2, 0.1, 0]),
-    transform: [{ scale: interpolate(rippleOut.value, [0, 0.55, 1], [0.92, 1.03, 1.09]) }],
+      : interpolate(rippleOut.value, [0, 0.18, 0.55, 1], [0, 0.24, 0.12, 0]),
+    transform: [
+      { scale: interpolate(rippleOut.value, [0, 0.55, 1], [0.92, 1.03, 1.09]) },
+    ],
   }));
   const unread = item.status === 'pending';
 
   return (
     <View style={styles.bubbleShell}>
-      <Animated.View style={[styles.ripple, rippleStyle]} pointerEvents="none" />
+      <View
+        pointerEvents="none"
+        style={[styles.bubbleGhost, { borderColor: colors.awarenessHalo }]}
+      />
+      <Animated.View
+        style={[styles.ripple, { borderColor: colors.awarenessRipple }, rippleStyle]}
+        pointerEvents="none"
+      />
       <AnimatedPressable
         testID={`awareness-bubble-${item.candidateId}`}
         accessibilityRole="button"
         accessibilityLabel="新的觉察"
         onPress={() => onOpen(item)}
-        style={[
-          styles.bubble,
-          {
-            backgroundColor: colors.accentSoft,
-            borderColor: colors.accent,
-            borderRadius: RADIUS.lg,
-          },
-          bubbleStyle,
-        ]}
+        style={[styles.bubble, bubbleStyle]}
       >
         <View style={styles.bubbleHead}>
           <Animated.View style={textStyle}>
@@ -137,7 +141,7 @@ const AwarenessBubble = ({
           {unread ? (
             <View
               testID={`awareness-unread-${item.candidateId}`}
-              style={[styles.dot, { backgroundColor: colors.danger }]}
+              style={[styles.dot, { backgroundColor: colors.accent }]}
             />
           ) : null}
         </View>
@@ -145,7 +149,7 @@ const AwarenessBubble = ({
           <Text style={[TYPOGRAPHY.lead, { color: colors.textPrimary, marginTop: SPACING.sm }]}>
             {item.candidate.observation}
           </Text>
-          <Text style={[TYPOGRAPHY.meta, { color: colors.textMuted, marginTop: SPACING.sm }]}>
+          <Text style={[TYPOGRAPHY.timestamp, { color: colors.textFaint, marginTop: SPACING.md }]}>
             {formatCapturedAt(item.createdAt)}
           </Text>
         </Animated.View>
@@ -180,19 +184,11 @@ const AwarenessHistoryCard = ({
       key={item.candidateId}
       testID={`awareness-history-${item.candidateId}`}
       onPress={() => void onOpen(item)}
-      style={[
-        styles.historyCard,
-        {
-          backgroundColor: colors.sunken,
-          borderColor: colors.borderSubtle,
-          borderRadius: RADIUS.md,
-        },
-        cardStyle,
-      ]}
+      style={[styles.historyCard, cardStyle]}
     >
       <View style={styles.historyHead}>
         <Text style={[TYPOGRAPHY.eyebrow, { color: colors.textMuted }]}>历史觉察</Text>
-        <Text style={[TYPOGRAPHY.meta, { color: colors.textMuted }]}>
+        <Text style={[TYPOGRAPHY.timestamp, { color: colors.textFaint }]}>
           {item.status === 'reflected'
             ? '已回应'
             : item.status === 'dismissed'
@@ -200,12 +196,13 @@ const AwarenessHistoryCard = ({
               : '已查看'}
         </Text>
       </View>
-      <Text style={[TYPOGRAPHY.body, { color: colors.textPrimary, marginTop: SPACING.xs }]}>
+      <Text style={[TYPOGRAPHY.body, { color: colors.textPrimary, marginTop: SPACING.sm }]}>
         {item.candidate.observation}
       </Text>
     </AnimatedPressable>
   );
 };
+
 const AwarenessDetail = ({
   item,
   onClose,
@@ -304,7 +301,9 @@ const AwarenessDetail = ({
       });
       dispatchSave({ type: 'outcome', persisted: false, validationFailed: false });
     }
-  };  const detailStyle = useAnimatedStyle(() => ({
+  };
+
+  const detailStyle = useAnimatedStyle(() => ({
     opacity: interpolate(opened.value, [0, 0.35, 1], [0, 0.45, 1]),
     transform: [
       { scale: interpolate(opened.value, [0, 1], [motion.detailScale, 1]) },
@@ -315,81 +314,79 @@ const AwarenessDetail = ({
   return (
     <Animated.View
       testID={`awareness-detail-${item.candidateId}`}
-      style={[
-        styles.detail,
-        {
-          backgroundColor: colors.surface,
-          borderColor: colors.borderStrong,
-          borderRadius: RADIUS.md,
-        },
-        detailStyle,
-      ]}
+      style={[styles.detail, { borderTopColor: colors.divider }, detailStyle]}
     >
-      <Text style={[TYPOGRAPHY.eyebrow, { color: colors.accent }]}>觉察</Text>
+      <Text style={[TYPOGRAPHY.timestamp, { color: colors.textFaint }]}>
+        {formatCapturedAt(item.createdAt)}
+      </Text>
+      <Text style={[TYPOGRAPHY.eyebrow, { color: colors.accent, marginTop: SPACING.sm }]}>
+        觉察 · 打开
+      </Text>
       <Text style={[TYPOGRAPHY.lead, { color: colors.textPrimary, marginTop: SPACING.sm }]}>
         {item.candidate.observation}
       </Text>
       {item.candidate.reflectionQuestion === undefined ? null : (
-        <Text style={[TYPOGRAPHY.body, { color: colors.textPrimary, marginTop: SPACING.sm }]}>
+        <Text style={[TYPOGRAPHY.body, { color: colors.textPrimary, marginTop: SPACING.lg }]}>
           可以继续想一想：{item.candidate.reflectionQuestion}
         </Text>
       )}
 
-      <Text style={[TYPOGRAPHY.eyebrow, { color: colors.textMuted, marginTop: SPACING.md }]}>
+      <Text style={[TYPOGRAPHY.caption, { color: colors.textMuted, marginTop: SPACING.section }]}>
         相关记录
       </Text>
       {item.candidate.relatedRecords.map((record) => (
         <Text
           key={record.id}
-          style={[TYPOGRAPHY.meta, { color: colors.textSecondary, marginTop: SPACING.xs }]}
+          style={[TYPOGRAPHY.caption, { color: colors.textSecondary, marginTop: SPACING.sm }]}
         >
           · {record.verbatim}
         </Text>
       ))}
       {item.candidate.possibleExplanation === undefined ? null : (
-        <Text style={[TYPOGRAPHY.meta, { color: colors.textSecondary, marginTop: SPACING.sm }]}>
-          一种可能：{item.candidate.possibleExplanation}
-        </Text>
+        <View style={styles.detailBlock}>
+          <Text style={[TYPOGRAPHY.caption, { color: colors.textMuted }]}>一种可能</Text>
+          <Text style={[TYPOGRAPHY.body, { color: colors.textPrimary, marginTop: SPACING.sm }]}>
+            {item.candidate.possibleExplanation}
+          </Text>
+        </View>
       )}
       {item.candidate.uncertainty === undefined ? null : (
-        <Text style={[TYPOGRAPHY.meta, { color: colors.textMuted, marginTop: SPACING.sm }]}>
+        <Text style={[TYPOGRAPHY.caption, { color: colors.textMuted, marginTop: SPACING.lg }]}>
           需要留意：{item.candidate.uncertainty}
         </Text>
       )}
 
-      <Text style={[TYPOGRAPHY.eyebrow, { color: colors.textMuted, marginTop: SPACING.md }]}>
-        你的回应
-      </Text>
-      <View style={styles.choiceRow}>
-        {CHOICES.map(([value, label]) => {
-          const active = meaning === value;
-          return (
-            <Pressable
-              key={value}
-              testID={`awareness-choice-${item.candidateId}-${value}`}
-              accessibilityRole="button"
-              accessibilityState={{ selected: active }}
-              onPress={() => setMeaning(value)}
-              style={[
-                styles.choice,
-                {
-                  backgroundColor: active ? colors.accentSoft : colors.canvas,
-                  borderColor: active ? colors.accent : colors.borderSubtle,
-                  borderRadius: RADIUS.sm,
-                },
-              ]}
-            >
-              <Text
+      <View style={[styles.detailBlock, { borderTopColor: colors.dividerWeak, borderTopWidth: 1 }]}>
+        <Text style={[TYPOGRAPHY.caption, { color: colors.textMuted }]}>你的回应</Text>
+        <View style={styles.choiceRow}>
+          {CHOICES.map(([value, label]) => {
+            const active = meaning === value;
+            return (
+              <Pressable
+                key={value}
+                testID={`awareness-choice-${item.candidateId}-${value}`}
+                accessibilityRole="button"
+                accessibilityState={{ selected: active }}
+                onPress={() => setMeaning(value)}
                 style={[
-                  TYPOGRAPHY.meta,
-                  { color: active ? colors.accent : colors.textSecondary },
+                  styles.choice,
+                  {
+                    borderBottomColor: active ? colors.accent : colors.divider,
+                  },
                 ]}
               >
-                {label}
-              </Text>
-            </Pressable>
-          );
-        })}
+                <Text
+                  style={[
+                    TYPOGRAPHY.caption,
+                    { color: active ? colors.accent : colors.textSecondary },
+                  ]}
+                >
+                  {label}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
       </View>
 
       {meaning !== null && meaning !== 'not_my_experience' ? (
@@ -400,16 +397,7 @@ const AwarenessDetail = ({
           multiline
           placeholder="写下你自己的理解……"
           placeholderTextColor={colors.textMuted}
-          style={[
-            styles.reflectionInput,
-            TYPOGRAPHY.body,
-            {
-              color: colors.textPrimary,
-              backgroundColor: colors.sunken,
-              borderColor: colors.borderSubtle,
-              borderRadius: RADIUS.sm,
-            },
-          ]}
+          style={[styles.reflectionInput, TYPOGRAPHY.body, { color: colors.textPrimary }]}
         />
       ) : null}
 
@@ -422,13 +410,11 @@ const AwarenessDetail = ({
           style={[
             styles.secondaryButton,
             {
-              backgroundColor: meaning === null ? colors.borderSubtle : colors.accentSoft,
-              borderColor: colors.borderSubtle,
-              borderRadius: RADIUS.sm,
+              backgroundColor: meaning === null ? colors.dividerWeak : colors.accentSoft,
             },
           ]}
         >
-          <Text style={[TYPOGRAPHY.lead, { color: colors.textPrimary }]}>
+          <Text style={[TYPOGRAPHY.action, { color: colors.textPrimary }]}>
             {reflectionSaveLabel(saveState)}
           </Text>
         </Pressable>
@@ -438,7 +424,7 @@ const AwarenessDetail = ({
           onPress={close}
           style={styles.linkButton}
         >
-          <Text style={[TYPOGRAPHY.meta, { color: colors.textSecondary }]}>收起</Text>
+          <Text style={[TYPOGRAPHY.action, { color: colors.textSecondary }]}>收起</Text>
         </Pressable>
       </View>
 
@@ -446,13 +432,19 @@ const AwarenessDetail = ({
         <Text
           testID={`awareness-result-${item.candidateId}`}
           style={[
-            TYPOGRAPHY.meta,
-            { color: saveState === 'saved' ? colors.success : colors.textSecondary, marginTop: SPACING.sm },
+            TYPOGRAPHY.caption,
+            {
+              color: saveState === 'saved' ? colors.success : colors.textSecondary,
+              marginTop: SPACING.md,
+            },
           ]}
         >
           {result.message}
         </Text>
       ) : null}
+      <Text style={[TYPOGRAPHY.caption, { color: colors.textFaint, marginTop: SPACING.lg }]}>
+        不是你确认的结论；你的回应只表示立场，不会自动成为理解。
+      </Text>
     </Animated.View>
   );
 };
@@ -506,8 +498,7 @@ export const AwarenessSpace = ({ searchQuery = '' }: { readonly searchQuery?: st
       const next = await runtime.markAwarenessViewed(item.candidateId);
       await refreshHistory();
       setOpenItem(
-        next.find((candidate) => candidate.candidateId === item.candidateId) ??
-          item,
+        next.find((candidate) => candidate.candidateId === item.candidateId) ?? item,
       );
     },
     [refreshHistory, runtime],
@@ -585,7 +576,6 @@ export const AwarenessSpace = ({ searchQuery = '' }: { readonly searchQuery?: st
     reflectionRecordId: null,
   });
 
-
   return (
     <ScrollView
       testID="space-awareness"
@@ -606,77 +596,92 @@ export const AwarenessSpace = ({ searchQuery = '' }: { readonly searchQuery?: st
             style={[
               styles.rest,
               {
-                opacity: openItem === null ? 1 : 0.35,
+                opacity: openItem === null ? 1 : 0.28,
                 transform: [{ scale: openItem === null ? 1 : 0.985 }],
               },
             ]}
           >
-          {inbox.length === 0 ? (
-            <>
-              <View testID="awareness-stage" style={styles.stage}>
-                <Text
-                  testID="awareness-empty"
-                  style={[TYPOGRAPHY.body, { color: colors.textMuted, textAlign: 'center' }]}
-                >
-                  {searchQuery.trim().length > 0
-                    ? '没有找到相关内容'
-                    : '这里还没有新的觉察。你可以继续记录，或主动开始一次觉察。'}
-                </Text>
-              </View>
-
-              <Pressable
-                testID="awareness-start"
-                accessibilityRole="button"
-                disabled={latestRecordId === null || suggestion.kind === 'loading'}
-                onPress={() => void start()}
-                style={[
-                  styles.primaryButton,
-                  {
-                    backgroundColor:
-                      latestRecordId === null || suggestion.kind === 'loading'
-                        ? colors.borderSubtle
-                        : colors.accentCta,
-                    borderRadius: RADIUS.sm,
-                  },
-                ]}
-              >
-                {suggestion.kind === 'loading' ? (
-                  <ActivityIndicator color={colors.onAccent} />
-                ) : (
-                  <Text
+            {inbox.length === 0 ? (
+              <>
+                <View testID="awareness-stage" style={styles.stage}>
+                  <View
+                    pointerEvents="none"
                     style={[
-                      TYPOGRAPHY.lead,
-                      { color: latestRecordId === null ? colors.textMuted : colors.onAccent },
+                      styles.halo,
+                      styles.haloOuter,
+                      { borderColor: colors.awarenessHalo },
                     ]}
+                  />
+                  <View
+                    pointerEvents="none"
+                    style={[
+                      styles.halo,
+                      styles.haloInner,
+                      { borderColor: colors.awarenessEdge },
+                    ]}
+                  />
+                  <Text
+                    testID="awareness-empty"
+                    style={[TYPOGRAPHY.body, { color: colors.textMuted, textAlign: 'center' }]}
                   >
-                    开始一次觉察
+                    {searchQuery.trim().length > 0
+                      ? '没有找到相关内容'
+                      : '这里还没有新的觉察。你可以继续记录，或主动开始一次觉察。'}
                   </Text>
-                )}
-              </Pressable>
+                </View>
 
-              {suggestion.kind === 'result' &&
-              suggestion.experience.status !== 'candidates' ? (
-                <Text
-                  testID="awareness-status"
-                  style={[TYPOGRAPHY.body, { color: colors.textSecondary }]}
+                <Pressable
+                  testID="awareness-start"
+                  accessibilityRole="button"
+                  disabled={latestRecordId === null || suggestion.kind === 'loading'}
+                  onPress={() => void start()}
+                  style={[
+                    styles.primaryButton,
+                    {
+                      borderTopColor: colors.divider,
+                    },
+                  ]}
                 >
-                  {suggestion.experience.message}
-                </Text>
-              ) : null}
+                  {suggestion.kind === 'loading' ? (
+                    <ActivityIndicator color={colors.accent} />
+                  ) : (
+                    <Text
+                      style={[
+                        TYPOGRAPHY.action,
+                        {
+                          color:
+                            latestRecordId === null ? colors.textMuted : colors.accent,
+                        },
+                      ]}
+                    >
+                      开始一次觉察
+                    </Text>
+                  )}
+                </Pressable>
 
-              {manualCandidates.map((candidate) => (
-                <AwarenessBubble
-                  key={candidate.candidateId}
-                  item={openManualCandidate(candidate)}
-                  onOpen={(item) => setOpenItem(item)}
-                />
-              ))}
-            </>
-          ) : (
-            inbox.map((item) => (
-              <AwarenessBubble key={item.candidateId} item={item} onOpen={open} />
-            ))
-          )}
+                {suggestion.kind === 'result' &&
+                suggestion.experience.status !== 'candidates' ? (
+                  <Text
+                    testID="awareness-status"
+                    style={[TYPOGRAPHY.body, { color: colors.textSecondary }]}
+                  >
+                    {suggestion.experience.message}
+                  </Text>
+                ) : null}
+
+                {manualCandidates.map((candidate) => (
+                  <AwarenessBubble
+                    key={candidate.candidateId}
+                    item={openManualCandidate(candidate)}
+                    onOpen={(item) => setOpenItem(item)}
+                  />
+                ))}
+              </>
+            ) : (
+              inbox.map((item) => (
+                <AwarenessBubble key={item.candidateId} item={item} onOpen={open} />
+              ))
+            )}
           </Animated.View>
         </>
       )}
@@ -728,13 +733,13 @@ export const AwarenessHistoryView = ({ searchQuery = '' }: { readonly searchQuer
       style={[styles.root, { backgroundColor: colors.canvas }]}
       contentContainerStyle={styles.content}
     >
-      <Text style={[TYPOGRAPHY.title, { color: colors.textPrimary }]}>觉察历史</Text>
+      <Text style={[TYPOGRAPHY.navTitle, { color: colors.textPrimary }]}>觉察历史</Text>
       {loading ? (
         <ActivityIndicator color={colors.accent} />
       ) : historyItems.length === 0 ? (
         <Text
           testID="awareness-history-empty"
-          style={[TYPOGRAPHY.body, { color: colors.textMuted }]}
+          style={[TYPOGRAPHY.empty, { color: colors.textMuted }]}
         >
           {searchQuery.trim().length > 0 ? '没有找到相关内容' : '查看过的觉察会留在这里。'}
         </Text>
@@ -749,38 +754,62 @@ export const AwarenessHistoryView = ({ searchQuery = '' }: { readonly searchQuer
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  content: { padding: SPACING.lg, gap: SPACING.md, paddingBottom: SPACING.xxl },
-  rest: { gap: SPACING.md },
+  content: {
+    paddingHorizontal: SPACING.screen,
+    gap: SPACING.section,
+    paddingBottom: SPACING.xxl,
+  },
+  rest: { gap: SPACING.section },
   stage: {
-    minHeight: 220,
+    minHeight: 340,
     justifyContent: 'center',
     alignItems: 'center',
+    position: 'relative',
+    paddingHorizontal: SPACING.lg,
   },
+  halo: {
+    position: 'absolute',
+    borderRadius: 999,
+    borderWidth: 1,
+  },
+  haloOuter: { width: 300, height: 300 },
+  haloInner: { width: 218, height: 218 },
   primaryButton: {
-    paddingVertical: SPACING.md,
+    minHeight: 44,
+    borderTopWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
   secondaryButton: {
-    borderWidth: 1,
-    paddingVertical: SPACING.sm,
+    minHeight: 44,
+    paddingHorizontal: SPACING.lg,
     alignItems: 'center',
+    justifyContent: 'center',
   },
-  bubbleShell: { position: 'relative' },
+  bubbleShell: { position: 'relative', minHeight: 180, justifyContent: 'center' },
+  bubbleGhost: {
+    position: 'absolute',
+    left: SPACING.xl,
+    right: SPACING.xl,
+    top: SPACING.lg,
+    bottom: SPACING.lg,
+    borderRadius: RADIUS.pill,
+    borderWidth: 1,
+    transform: [{ scale: 0.94 }],
+  },
   ripple: {
     position: 'absolute',
     top: 0,
     right: 0,
     bottom: 0,
     left: 0,
-    borderRadius: RADIUS.lg,
+    borderRadius: RADIUS.pill,
     borderWidth: 1,
-    borderColor: 'transparent',
   },
   bubble: {
-    borderWidth: 1,
-    padding: SPACING.lg,
-    minHeight: 132,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.lg,
+    minHeight: 150,
     justifyContent: 'center',
   },
   bubbleHead: {
@@ -788,21 +817,41 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  dot: { width: 9, height: 9, borderRadius: 999 },
-  detail: { borderWidth: 1, padding: SPACING.md },
-  choiceRow: { flexDirection: 'row', gap: SPACING.sm, marginTop: SPACING.sm },
-  choice: { flex: 1, borderWidth: 1, paddingVertical: SPACING.sm, alignItems: 'center' },
+  dot: { width: 6, height: 6, borderRadius: 999 },
+  detail: {
+    borderTopWidth: 1,
+    paddingTop: SPACING.lg,
+    paddingBottom: SPACING.xl,
+  },
+  detailBlock: { marginTop: SPACING.section, paddingTop: SPACING.md },
+  choiceRow: { flexDirection: 'row', gap: SPACING.section, marginTop: SPACING.lg },
+  choice: {
+    flex: 1,
+    minHeight: 44,
+    justifyContent: 'center',
+    borderBottomWidth: 1,
+  },
   reflectionInput: {
-    minHeight: 88,
-    borderWidth: 1,
-    padding: SPACING.sm,
-    marginTop: SPACING.sm,
+    minHeight: 96,
+    borderLeftWidth: 1,
+    borderColor: 'transparent',
+    paddingLeft: SPACING.md,
+    paddingRight: SPACING.sm,
+    marginTop: SPACING.section,
     textAlignVertical: 'top',
   },
-  detailActions: { flexDirection: 'row', gap: SPACING.md, alignItems: 'center', marginTop: SPACING.md },
-  linkButton: { paddingVertical: SPACING.sm },
-  divider: { height: 1, backgroundColor: 'transparent', marginVertical: SPACING.sm },
-  historyCard: { borderWidth: 1, padding: SPACING.md },
+  detailActions: {
+    flexDirection: 'row',
+    gap: SPACING.lg,
+    alignItems: 'center',
+    marginTop: SPACING.section,
+  },
+  linkButton: { minHeight: 44, justifyContent: 'center' },
+  historyCard: {
+    borderBottomWidth: 1,
+    borderColor: 'transparent',
+    paddingVertical: SPACING.lg,
+  },
   historyHead: {
     flexDirection: 'row',
     justifyContent: 'space-between',

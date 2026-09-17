@@ -362,7 +362,7 @@ describe('M3.1.2 render-level Reflection and Search', () => {
     const collapsed = tree.root.findByProps({ testID: 'local-search-open' });
     const collapsedStyles = collapsed.props.style.flat();
     expect(collapsedStyles).toContainEqual(
-      expect.objectContaining({ width: 34, height: 34, borderRadius: 999 }),
+      expect.objectContaining({ width: 44, height: 44 }),
     );
   });
 });
