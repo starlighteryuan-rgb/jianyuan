@@ -218,7 +218,15 @@ Awareness, Understanding, and Exploration code was not touched.
 
 ## IOS BUILD
 
-Recorded after the unsigned iOS build completes.
+- Commit: f612b1eec7d0894e9036f21bd71e1104d9295245
+- Run ID: 35186211071
+- Run URL: https://github.com/starlighteryuan-rgb/jianyuan/actions/runs/35186211071
+- Status: completed / success (all workflow steps green)
+- Artifacts: Jianyuan-iOS-unsigned-ipa, Jianyuan-iOS-unsigned-app
+- IPA SHA256: 890bb8500a49973c69ea417c562366239293b94ea8620f556b6bb6cab8efa4eb
+- APP zip SHA256: 5a8f3d868b35082ba2b0f3afa5be3f652899dc88b5c0e7e73706442a221603e5
+- Local unsigned audit of the downloaded IPA: 0 embedded.mobileprovision,
+  0 `_CodeSignature`, 0 `CodeResources` (matches CI verification)
 
 ## TASK INTEGRATION
 
