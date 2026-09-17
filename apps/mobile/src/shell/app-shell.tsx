@@ -46,7 +46,7 @@ import { UnderstandingSpace } from '../spaces/understanding-space';
 import { useMotion } from '../theme/motion';
 import { useAwarenessUnreadCount, useRuntime } from './runtime-context';
 import { useTheme } from '../theme/theme-context';
-import { RADIUS, SPACING, TYPOGRAPHY } from '../theme/tokens';
+import { SPACING, TYPOGRAPHY } from '../theme/tokens';
 import {
   SETTINGS_SPACE,
   SPACE_LABELS,
@@ -90,7 +90,11 @@ const AnimatedTab = ({
 
   const tabStyle = useAnimatedStyle(() => ({
     color: interpolateColor(progress.value, [0, 1], [colors.textMuted, colors.accent]),
-    transform: [{ scale: interpolate(progress.value, [0, 1], [1, 1.02]) }],
+  }));
+
+  const indicatorStyle = useAnimatedStyle(() => ({
+    opacity: progress.value,
+    transform: [{ scaleX: progress.value }],
   }));
 
   const badgeStyle = useAnimatedStyle(() => ({
@@ -107,12 +111,16 @@ const AnimatedTab = ({
       accessibilityLabel={SPACE_LABELS[space]}
       style={styles.tab}
     >
-      <Animated.Text style={[TYPOGRAPHY.meta, tabStyle]}>
+      <Animated.Text style={[TYPOGRAPHY.tag, tabStyle]}>
         {SPACE_LABELS[space]}
-        <Animated.Text testID={`tab-badge-${space}`} style={[TYPOGRAPHY.meta, badgeStyle]}>
+        <Animated.Text testID={`tab-badge-${space}`} style={[TYPOGRAPHY.tag, badgeStyle]}>
           {unreadCount > 0 ? ` (${unreadCount})` : ''}
         </Animated.Text>
       </Animated.Text>
+      <Animated.View
+        pointerEvents="none"
+        style={[styles.tabIndicator, { backgroundColor: colors.accent }, indicatorStyle]}
+      />
     </AnimatedPressable>
   );
 };
@@ -194,7 +202,7 @@ export const AppShell = () => {
       <View
         style={[
           styles.header,
-          { borderBottomColor: colors.borderSubtle, backgroundColor: colors.canvas },
+          { borderBottomColor: colors.dividerWeak, backgroundColor: colors.canvas },
         ]}
       >
         {/*
@@ -205,7 +213,7 @@ export const AppShell = () => {
           mounted beside a fixed-width field.
         */}
         {searchOpen ? null : (
-          <Text testID="app-title" style={[TYPOGRAPHY.title, { color: colors.textPrimary }]}>
+          <Text testID="app-title" style={[TYPOGRAPHY.appTitle, { color: colors.textPrimary }]}>
             见渊
           </Text>
         )}
@@ -291,7 +299,7 @@ export const AppShell = () => {
           showsHorizontalScrollIndicator={false}
           testID="record-tag-filter"
           contentContainerStyle={styles.tagFilterContent}
-          style={[styles.tagFilter, { borderBottomColor: colors.borderHair }]}
+          style={[styles.tagFilter, { borderBottomColor: colors.dividerWeak }]}
         >
           {[null, ...recordTagVocabulary].map((tag) => {
             const active = tag === activeRecordTag;
@@ -303,18 +311,12 @@ export const AppShell = () => {
                 accessibilityState={{ selected: active }}
                 onPress={() => setActiveRecordTag(tag)}
                 hitSlop={6}
-                style={[
-                  styles.tagFilterItem,
-                  {
-                    backgroundColor: active ? colors.accentSoft : 'transparent',
-                    borderColor: active ? colors.borderStrong : colors.borderHair,
-                  },
-                ]}
+                style={styles.tagFilterItem}
               >
                 <Text
                   style={[
-                    TYPOGRAPHY.meta,
-                    { color: active ? colors.textPrimary : colors.textMuted },
+                    TYPOGRAPHY.tag,
+                    { color: active ? colors.accent : colors.textMuted },
                   ]}
                 >
                   {tag ?? '全部'}
@@ -348,7 +350,7 @@ export const AppShell = () => {
         testID="tab-bar"
         style={[
           styles.tabBar,
-          { borderTopColor: colors.borderSubtle, backgroundColor: colors.surface },
+          { borderTopColor: colors.dividerWeak, backgroundColor: colors.canvas },
         ]}
       >
         {TAB_SPACES.map((space) => (
@@ -371,11 +373,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.md,
+    minHeight: 52,
+    paddingHorizontal: SPACING.screen,
+    paddingVertical: SPACING.header,
     borderBottomWidth: 1,
   },
-  settingsEntry: { paddingVertical: SPACING.xs, paddingHorizontal: SPACING.sm },
+  settingsEntry: { minHeight: 44, justifyContent: 'center', paddingHorizontal: SPACING.sm },
   headerActions: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -386,13 +389,18 @@ const styles = StyleSheet.create({
   headerActionsSearch: { justifyContent: 'flex-start' },
   body: { flex: 1 },
   tagFilter: { borderBottomWidth: 1, flexGrow: 0 },
-  tagFilterContent: { paddingHorizontal: SPACING.lg, paddingVertical: SPACING.sm, gap: SPACING.sm },
-  tagFilterItem: { borderWidth: 1, borderRadius: RADIUS.sm, paddingHorizontal: SPACING.sm, paddingVertical: 3 },
+  tagFilterContent: {
+    paddingHorizontal: SPACING.screen,
+    paddingVertical: SPACING.sm,
+    gap: SPACING.lg,
+  },
+  tagFilterItem: { minHeight: 32, justifyContent: 'center' },
   tabBar: {
     flexDirection: 'row',
     borderTopWidth: 1,
-    paddingBottom: SPACING.sm,
+    paddingBottom: SPACING.bottomSafe,
     paddingTop: SPACING.sm,
   },
-  tab: { flex: 1, alignItems: 'center', paddingVertical: SPACING.xs },
+  tab: { flex: 1, alignItems: 'center', justifyContent: 'center', minHeight: 44 },
+  tabIndicator: { width: 14, height: 1, marginTop: SPACING.xs, transformOrigin: 'center' },
 });

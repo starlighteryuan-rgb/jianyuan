@@ -30,7 +30,7 @@ import {
 } from 'react-native';
 import Animated from 'react-native-reanimated';
 
-import { RADIUS, SPACING, TYPOGRAPHY } from '../theme/tokens';
+import { SPACING, TYPOGRAPHY } from '../theme/tokens';
 import { useTheme } from '../theme/theme-context';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
@@ -120,10 +120,10 @@ export const LocalSearchControl = ({
 
   const containerColorStyle = useMemo(
     () => ({
-      backgroundColor: colors.surface,
-      borderColor: colors.borderSubtle,
+      backgroundColor: 'transparent',
+      borderColor: colors.dividerWeak,
     }),
-    [colors.borderSubtle, colors.surface],
+    [colors.dividerWeak],
   );
 
   if (!open) {
@@ -136,7 +136,7 @@ export const LocalSearchControl = ({
         onPress={() => onOpenChange(true)}
         style={[styles.collapsedControl, containerColorStyle]}
       >
-        <Text style={[TYPOGRAPHY.lead, { color: colors.textSecondary }]}>⌕</Text>
+        <Text style={[TYPOGRAPHY.action, { color: colors.textSecondary }]}>⌕</Text>
       </AnimatedPressable>
     );
   }
@@ -170,7 +170,7 @@ export const LocalSearchControl = ({
           }}
           style={styles.action}
         >
-          <Text style={[TYPOGRAPHY.meta, { color: colors.textSecondary }]}>清空</Text>
+          <Text style={[TYPOGRAPHY.action, { color: colors.textSecondary }]}>清空</Text>
         </Pressable>
       ) : null}
       <Pressable
@@ -184,7 +184,7 @@ export const LocalSearchControl = ({
         }}
         style={styles.action}
       >
-        <Text style={[TYPOGRAPHY.meta, { color: colors.accent }]}>取消</Text>
+        <Text style={[TYPOGRAPHY.action, { color: colors.accent }]}>取消</Text>
       </Pressable>
     </Animated.View>
   );
@@ -192,25 +192,19 @@ export const LocalSearchControl = ({
 
 const styles = StyleSheet.create({
   collapsedControl: {
-    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    overflow: 'hidden',
-    borderRadius: 999,
-    width: 34,
-    height: 34,
+    width: 44,
+    height: 44,
   },
   expandedControl: {
-    borderWidth: 1,
+    borderBottomWidth: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    overflow: 'hidden',
-    borderRadius: RADIUS.md,
     width: 236,
     height: 38,
-    paddingHorizontal: SPACING.sm,
   },
   expandedControlFill: { flex: 1, width: 'auto' },
-  input: { flex: 1, minWidth: 80, paddingVertical: SPACING.xs },
-  action: { paddingHorizontal: SPACING.sm, paddingVertical: SPACING.xs },
+  input: { flex: 1, minWidth: 80, paddingVertical: 0 },
+  action: { minHeight: 44, justifyContent: 'center', paddingHorizontal: SPACING.sm },
 });

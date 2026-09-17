@@ -1,9 +1,13 @@
 /**
- * Phase M1-C verification: Pair A theme.
+ * Phase M1-C / M3.4 verification: Direction AB theme.
  *
  * Covers the pure resolution rules, the persistence boundary, and the claim the
  * spec cares about most: the appearance preference is a PRESENTATION concern and
  * never enters Core or the database.
+ *
+ * The values themselves moved to Direction AB. These tests therefore assert the
+ * token CONTRACT (shared geometry, required roles, readable body sizes) rather
+ * than pinning the old M1 palette hexes.
  */
 
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
@@ -17,7 +21,14 @@ import {
   resolveTheme,
   THEME_STORAGE_KEY,
 } from '../src/theme/theme-preference';
-import { DARK_THEME, LIGHT_THEME, SPACING, themeFor } from '../src/theme/tokens';
+import {
+  DARK_THEME,
+  LIGHT_THEME,
+  RADIUS,
+  SPACING,
+  TYPOGRAPHY,
+  themeFor,
+} from '../src/theme/tokens';
 import { openMobileTestRuntime } from './support/mobile-test-runtime';
 
 const temporaryDirectories: string[] = [];
@@ -34,7 +45,7 @@ afterEach(() => {
   }
 });
 
-describe('Mobile Pair A theme (M1-C)', () => {
+describe('Mobile Direction AB theme', () => {
   it('defaults to the system preference', () => {
     expect(parseThemePreference(null)).toBe('system');
     expect(parseThemePreference(undefined)).toBe('system');
@@ -57,15 +68,15 @@ describe('Mobile Pair A theme (M1-C)', () => {
     expect(resolveTheme('system', false)).toBe('light');
   });
 
-  it('resolves to the Deep Amber and Warm Paper palettes', () => {
+  it('resolves to the Direction AB Light and Dark themes', () => {
     expect(themeFor('dark')).toBe(DARK_THEME);
     expect(themeFor('light')).toBe(LIGHT_THEME);
 
-    // Values come from the Desktop tokens so the two platforms match.
-    expect(DARK_THEME.colors.canvas).toBe('#161512');
-    expect(LIGHT_THEME.colors.canvas).toBe('#f5f1e8');
-    expect(DARK_THEME.colors.accent).toBe('#d4a464');
-    expect(LIGHT_THEME.colors.accent).toBe('#8a683a');
+    // AB keeps A's warm Light identity and B2's refined warm-charcoal Dark.
+    expect(LIGHT_THEME.colors.canvas).toMatch(/^#f[0-9a-f]{5}$/);
+    expect(DARK_THEME.colors.canvas).toBe('#141312');
+    expect(LIGHT_THEME.colors.accent).toBe('#7c5c2f');
+    expect(DARK_THEME.colors.accent).toBe('#bd8a60');
   });
 
   it('keeps geometry identical across both themes', () => {
@@ -76,9 +87,12 @@ describe('Mobile Pair A theme (M1-C)', () => {
     );
     // And the shared spacing scale is a single object, not per-theme.
     expect(SPACING.md).toBe(12);
+    expect(SPACING.screen).toBe(22);
+    expect(RADIUS.sm).toBe(10);
+    expect(RADIUS.md).toBe(14);
   });
 
-  it('defines every required semantic colour in both themes', () => {
+  it('defines every required AB semantic colour in both themes', () => {
     for (const theme of [LIGHT_THEME, DARK_THEME]) {
       for (const key of [
         'canvas',
@@ -88,16 +102,43 @@ describe('Mobile Pair A theme (M1-C)', () => {
         'textPrimary',
         'textSecondary',
         'textMuted',
+        'textFaint',
         'accent',
         'accentCta',
+        'accentSoft',
+        'onAccent',
         'borderSubtle',
+        'borderHair',
         'borderStrong',
+        'divider',
+        'dividerWeak',
+        'connector',
+        'connectorStrong',
+        'focusIndicator',
+        'tagBackground',
+        'tagBorder',
+        'tagText',
+        'tagSelectedBackground',
+        'awarenessFill',
+        'awarenessEdge',
+        'awarenessHalo',
+        'awarenessRipple',
+        'nearSurface',
+        'farSurface',
         'success',
+        'warning',
         'danger',
       ] as const) {
         expect(theme.colors[key]).toMatch(/^(#|rgba?\()/);
       }
     }
+  });
+
+  it('keeps user writing readable and gives long-form text a dedicated role', () => {
+    expect(TYPOGRAPHY.body.fontSize).toBeGreaterThanOrEqual(16);
+    expect(TYPOGRAPHY.record.fontSize).toBeGreaterThanOrEqual(16);
+    expect(TYPOGRAPHY.reflection.fontSize).toBeGreaterThanOrEqual(16);
+    expect(TYPOGRAPHY.firstPerson.fontSize).toBeGreaterThanOrEqual(36);
   });
 
   it('never writes the theme preference into the database or Core', async () => {
