@@ -135,10 +135,35 @@ Confirmed not regressed: Awareness main has no Record list; only one
 Awareness, Bubble viewed persistence, Reflection into Understanding, the
 `见渊` headers, and Bottom Tab motion all still pass their existing suites.
 
+## PRODUCTION VALIDATION
+
+- Reinstalled dependencies with `npm ci` in `apps/mobile`; PASS.
+- Real production JS bundle via `npx expo export --platform ios`: PASS
+  (1104 modules, Hermes bytecode, 3.1 MB).
+- Re-ran Mobile typecheck and the full Mobile suite after the clean install.
+
 ## IOS BUILD
 
-The final run id, commit, status, artifact names, and SHA256 values are appended
-after the unsigned iOS build completes.
+- Workflow: iOS Unsigned Build (workflow_dispatch)
+- Run ID: 35166735165
+- Run URL: https://github.com/starlighteryuan-rgb/jianyuan/actions/runs/35166735165
+- Commit: 7d534c153dd074657ef12952d0f8c8d248ecddc1
+- Status: completed / success
+- Typecheck mobile: success
+- Run mobile tests: success
+- Build for iphoneos Release with signing disabled: success
+- Audit entitlements and signature state: success
+- Verify the unsigned IPA: success
+- Artifacts:
+  - Jianyuan-iOS-unsigned-ipa (10,819,740 bytes compressed upload)
+  - Jianyuan-iOS-unsigned-app (10,824,385 bytes compressed upload)
+- SHA256 (from CI SHA256SUMS.txt, matches local download):
+  - Jianyuan-iOS-unsigned.ipa:
+    850b080c183306d66e7640d9ae0725bac3270012747d5a04e57f380f3303c2ca
+  - Jianyuan-iOS-unsigned.app.zip:
+    4c85c62e198fb9abbc4f336ccfcd5cf8999159b678b263ae4537f56e673dfc1e
+- Local unsigned audit of the downloaded IPA: 0 embedded.mobileprovision,
+  0 `_CodeSignature` entries, 0 `CodeResources`.
 
 ## REAL DEVICE CHECKLIST
 
