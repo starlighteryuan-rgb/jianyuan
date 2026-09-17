@@ -23,9 +23,20 @@ import {
 
 import { RADIUS, SPACING, TYPOGRAPHY } from '../theme/tokens';
 import { useTheme } from '../theme/theme-context';
+import {
+  clampSwipeTranslation,
+  shouldRevealAfterSwipe,
+  SWIPE_ACTION_WIDTH,
+} from './swipe-delete-physics';
 
-const ACTION_WIDTH = 84;
-const SWIPE_THRESHOLD = 48;
+const SWIPE_SETTLE_SPRING = {
+  stiffness: 310,
+  damping: 34,
+  mass: 0.82,
+  overshootClamping: true,
+  restDisplacementThreshold: 0.5,
+  restSpeedThreshold: 0.5,
+} as const;
 
 export const SwipeToDelete = ({
   children,
@@ -45,19 +56,21 @@ export const SwipeToDelete = ({
 
   const close = () => {
     open.current = false;
-    Animated.timing(translateX, {
+    Animated.spring(translateX, {
       toValue: 0,
-      duration: 160,
+      velocity: 0,
       useNativeDriver: true,
+      ...SWIPE_SETTLE_SPRING,
     }).start();
   };
 
   const reveal = () => {
     open.current = true;
-    Animated.timing(translateX, {
-      toValue: -ACTION_WIDTH,
-      duration: 180,
+    Animated.spring(translateX, {
+      toValue: -SWIPE_ACTION_WIDTH,
+      velocity: 0,
       useNativeDriver: true,
+      ...SWIPE_SETTLE_SPRING,
     }).start();
   };
 
@@ -67,15 +80,17 @@ export const SwipeToDelete = ({
         onMoveShouldSetPanResponder: (_event, gesture) =>
           Math.abs(gesture.dx) > 8 && Math.abs(gesture.dx) > Math.abs(gesture.dy),
         onPanResponderMove: (_event, gesture) => {
-          const start = open.current ? -ACTION_WIDTH : 0;
-          const next = Math.max(-ACTION_WIDTH, Math.min(0, start + gesture.dx));
+          const start = open.current ? -SWIPE_ACTION_WIDTH : 0;
+          const next = clampSwipeTranslation(start + gesture.dx);
           translateX.setValue(next);
         },
         onPanResponderRelease: (_event, gesture) => {
-          const start = open.current ? -ACTION_WIDTH : 0;
-          const next = start + gesture.dx;
-          if (next < -SWIPE_THRESHOLD) reveal();
-          else close();
+          const start = open.current ? -SWIPE_ACTION_WIDTH : 0;
+          if (shouldRevealAfterSwipe({ start, dx: gesture.dx, velocityX: gesture.vx })) {
+            reveal();
+          } else {
+            close();
+          }
         },
         onPanResponderTerminate: close,
       }),
@@ -121,7 +136,7 @@ const styles = StyleSheet.create({
     top: 0,
     right: 0,
     bottom: 0,
-    width: ACTION_WIDTH,
+    width: SWIPE_ACTION_WIDTH,
     alignItems: 'stretch',
     justifyContent: 'center',
   },

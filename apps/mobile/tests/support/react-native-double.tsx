@@ -62,6 +62,9 @@ export const Animated = {
   View: primitive('Animated.View'),
   Text: primitive('Animated.Text'),
   timing: (_value: unknown, _config: unknown) => ({ start: (callback?: () => void) => callback?.() }),
+  spring: (_value: unknown, _config: unknown) => ({
+    start: (callback?: () => void) => callback?.(),
+  }),
 };
 
 export const PanResponder = {
