@@ -233,6 +233,140 @@ describe('M3.1.1 manual Awareness coverage', () => {
   });
 });
 
+describe('M3.1.2 render-level Reflection and Search', () => {
+  it('renders 正在保存 then 已保存到「理解」 then stops showing 正在保存', async () => {
+    vi.useFakeTimers();
+    const fake = provider();
+    const opened = await open(fake.fetcher);
+    await opened.runtime.capture('渲染链路 A。');
+    await opened.runtime.capture('渲染链路 B。');
+    const tree = renderShell(opened);
+    await flush();
+    await press(tree, 'tab-awareness');
+    await press(tree, 'awareness-start');
+    const [item] = await opened.runtime.awarenessHistory();
+    if (item === undefined) throw new Error('expected item');
+    await press(tree, `awareness-bubble-${item.candidateId}`);
+    await press(tree, `awareness-choice-${item.candidateId}-connected`);
+    const input = tree.root.findByProps({ testID: `awareness-reflection-${item.candidateId}` });
+    await act(async () => {
+      input.props.onChangeText('这条回应必须走完整状态机。');
+      await Promise.resolve();
+    });
+
+    // Resolve the save without awaiting so the visible saving label can be
+    // observed before the promise settles.
+    let resolveSave: (() => void) | null = null;
+    const gate = new Promise<void>((resolve) => {
+      resolveSave = resolve;
+    });
+    const originalSubmit = opened.runtime.submitObservationReflection.bind(opened.runtime);
+    vi.spyOn(opened.runtime, 'submitObservationReflection').mockImplementation(async (value) => {
+      await gate;
+      return originalSubmit(value);
+    });
+
+    const submit = tree.root.findByProps({ testID: `awareness-submit-${item.candidateId}` });
+    await act(async () => {
+      submit.props.onPress?.();
+      await Promise.resolve();
+    });
+    expect(
+      tree.root.findAll((node) => node.props.children === '正在保存……').length,
+    ).toBeGreaterThan(0);
+
+    await act(async () => {
+      resolveSave?.();
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(
+      tree.root.findAll((node) => node.props.children === '已保存到「理解」').length,
+    ).toBeGreaterThan(0);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1_200);
+    });
+    expect(
+      tree.root.findAll((node) => node.props.children === '正在保存……').length,
+    ).toBe(0);
+    vi.useRealTimers();
+  });
+
+  it('shows 已保存到「理解」 even when Relation evaluation never resolves', async () => {
+    const fake = provider();
+    const opened = await open(fake.fetcher);
+    await opened.runtime.capture('慢评估 A。');
+    await opened.runtime.capture('慢评估 B。');
+    const tree = renderShell(opened);
+    await flush();
+    await press(tree, 'tab-awareness');
+    await press(tree, 'awareness-start');
+    const [item] = await opened.runtime.awarenessHistory();
+    if (item === undefined) throw new Error('expected item');
+    await press(tree, `awareness-bubble-${item.candidateId}`);
+    await press(tree, `awareness-choice-${item.candidateId}-connected`);
+    const input = tree.root.findByProps({ testID: `awareness-reflection-${item.candidateId}` });
+    await act(async () => {
+      input.props.onChangeText('这段文字已经保存，但评估很慢。');
+      await Promise.resolve();
+    });
+
+    // Simulate the real-device stall: persist the Reflection, then hand the UI
+    // an onPersisted signal, but never resolve the overall save promise.
+    const original = opened.runtime.submitObservationReflection.bind(opened.runtime);
+    vi.spyOn(opened.runtime, 'submitObservationReflection').mockImplementation(
+      async (value) => {
+        value.onPersisted?.('reflection-record-slow');
+        await new Promise(() => undefined);
+        return original(value);
+      },
+    );
+
+    const submit = tree.root.findByProps({ testID: `awareness-submit-${item.candidateId}` });
+    await act(async () => {
+      submit.props.onPress?.();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(
+      tree.root.findAll((node) => node.props.children === '已保存到「理解」').length,
+    ).toBeGreaterThan(0);
+  });
+
+  it('collapses the real expanded container back to the circular control', async () => {
+    const opened = await open();
+    const tree = renderShell(opened);
+    await flush();
+
+    expect(tree.root.findAllByProps({ testID: 'local-search-input' })).toHaveLength(0);
+    await press(tree, 'local-search-open');
+
+    const expanded = tree.root.findByProps({ testID: 'local-search-control' });
+    const expandedStyles = expanded.props.style.flat();
+    expect(expandedStyles).toContainEqual(
+      expect.objectContaining({ width: 236, height: 38 }),
+    );
+
+    await act(async () => {
+      __emitKeyboardEvent('keyboardDidHide');
+      await Promise.resolve();
+    });
+
+    // The expanded wrapper and its input must both be gone; only the circular
+    // control may remain.
+    expect(tree.root.findAllByProps({ testID: 'local-search-control' })).toHaveLength(0);
+    expect(tree.root.findAllByProps({ testID: 'local-search-input' })).toHaveLength(0);
+    const collapsed = tree.root.findByProps({ testID: 'local-search-open' });
+    const collapsedStyles = collapsed.props.style.flat();
+    expect(collapsedStyles).toContainEqual(
+      expect.objectContaining({ width: 34, height: 34, borderRadius: 999 }),
+    );
+  });
+});
+
 describe('M3.1.1 provider failure and retry', () => {
   it('does not mark coverage on failure and allows a retry', async () => {
     let chatRequests = 0;

@@ -12,7 +12,7 @@
  * focusing that Bubble into Detail, and closing returns the item to History.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -38,6 +38,10 @@ import type {
   RelationSuggestionExperience,
 } from '../runtime/awareness-session';
 import { useRuntime } from '../shell/runtime-context';
+import {
+  reflectionSaveLabel,
+  reflectionSaveReducer,
+} from './reflection-save-state';
 import { matchesLocalQuery } from '../shell/local-search';
 import { MOTION_DURATION, useMotion } from '../theme/motion';
 import { useTheme } from '../theme/theme-context';
@@ -213,6 +217,7 @@ const AwarenessDetail = ({
     item: AwarenessHistoryItem,
     meaning: ObservationMeaning,
     reflectionText: string,
+    onPersisted?: (reflectionRecordId: string) => void,
   ) => Promise<CandidateDecisionResult>;
 }) => {
   const { theme } = useTheme();
@@ -221,7 +226,8 @@ const AwarenessDetail = ({
   const opened = useSharedValue(0);
   const [meaning, setMeaning] = useState<ObservationMeaning | null>(item.meaning);
   const [reflectionText, setReflectionText] = useState(item.reflectionText ?? '');
-  const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved' | 'settled' | 'error'>(
+  const [saveState, dispatchSave] = useReducer(
+    reflectionSaveReducer,
     item.status === 'reflected' || item.status === 'dismissed' ? 'settled' : 'idle',
   );
   const [result, setResult] = useState<CandidateDecisionResult | null>(null);
@@ -238,19 +244,29 @@ const AwarenessDetail = ({
     [],
   );
 
-  const close = () => {
-    if (opened.value === 0) return;
-    opened.value = withTiming(0, motion.timing('normal', motion.reduceMotion));
-    onClose();
-  };
-
-  const settleAfterSaved = () => {
+  const settleAfterSaved = useCallback(() => {
     if (settlementTimer.current !== null) clearTimeout(settlementTimer.current);
     settlementTimer.current = setTimeout(() => {
       settlementTimer.current = null;
       setReflectionText('');
-      setSaveState('settled');
+      dispatchSave({ type: 'settled' });
     }, 1_000);
+  }, []);
+
+  // The durable item is the authority on whether the Reflection was persisted.
+  // Whatever a local race does, a reflected/dismissed item can never render as
+  // `saving`; this is the guard that closes the real-device stuck state.
+  const persisted = item.status === 'reflected' || item.status === 'dismissed';
+  useEffect(() => {
+    if (!persisted) return;
+    dispatchSave({ type: 'outcome', persisted: true, validationFailed: false });
+    settleAfterSaved();
+  }, [persisted, settleAfterSaved]);
+
+  const close = () => {
+    if (opened.value === 0) return;
+    opened.value = withTiming(0, motion.timing('normal', motion.reduceMotion));
+    onClose();
   };
 
   const submit = async () => {
@@ -260,24 +276,35 @@ const AwarenessDetail = ({
         status: 'reflection_required',
         message: '请先写下你的理解；快捷选择本身不会创建关系。',
       });
-      setSaveState('idle');
+      dispatchSave({ type: 'outcome', persisted: false, validationFailed: true });
       return;
     }
-    setSaveState('saving');
+    dispatchSave({ type: 'begin' });
     try {
-      const next = await onRespond(item, meaning, reflectionText);
-      setResult(next);
-      if (next.status === 'discovery' || next.status === 'reflection_saved') {
-        setSaveState('saved');
+      const next = await onRespond(item, meaning, reflectionText, () => {
+        // Reflection is durable now; settle the visible feedback immediately
+        // instead of waiting for Relation / Discovery evaluation.
+        dispatchSave({ type: 'outcome', persisted: true, validationFailed: false });
         settleAfterSaved();
-      } else {
-        setSaveState(next.status === 'reflection_required' ? 'idle' : 'error');
-      }
-    } catch {
-      setSaveState('error');
+      });
+      setResult(next);
+      const nextStatus = next?.status;
+      const persistedOutcome =
+        nextStatus === 'discovery' || nextStatus === 'reflection_saved';
+      dispatchSave({
+        type: 'outcome',
+        persisted: persistedOutcome,
+        validationFailed: nextStatus === 'reflection_required',
+      });
+      if (persistedOutcome) settleAfterSaved();
+    } catch (caught) {
+      setResult({
+        status: 'unavailable',
+        message: caught instanceof Error ? caught.message : '保存失败，请重试。',
+      });
+      dispatchSave({ type: 'outcome', persisted: false, validationFailed: false });
     }
-  };
-  const detailStyle = useAnimatedStyle(() => ({
+  };  const detailStyle = useAnimatedStyle(() => ({
     opacity: interpolate(opened.value, [0, 0.35, 1], [0, 0.45, 1]),
     transform: [
       { scale: interpolate(opened.value, [0, 1], [motion.detailScale, 1]) },
@@ -402,11 +429,7 @@ const AwarenessDetail = ({
           ]}
         >
           <Text style={[TYPOGRAPHY.lead, { color: colors.textPrimary }]}>
-            {saveState === 'saving'
-              ? '正在保存……'
-              : saveState === 'saved'
-                ? '已保存到「理解」'
-                : '确认我的回应'}
+            {reflectionSaveLabel(saveState)}
           </Text>
         </Pressable>
         <Pressable
@@ -512,12 +535,14 @@ export const AwarenessSpace = ({ searchQuery = '' }: { readonly searchQuery?: st
       item: AwarenessHistoryItem,
       meaning: ObservationMeaning,
       reflectionText: string,
+      onPersisted?: (reflectionRecordId: string) => void,
     ) => {
       try {
         const result = await runtime.submitObservationReflection({
           candidateId: item.candidateId,
           meaning,
           ...(reflectionText.length === 0 ? {} : { reflectionText }),
+          ...(onPersisted === undefined ? {} : { onPersisted }),
         });
         await refreshHistory();
         return result;

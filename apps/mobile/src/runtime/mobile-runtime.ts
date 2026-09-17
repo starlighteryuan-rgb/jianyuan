@@ -575,6 +575,7 @@ export class MobileRuntime {
     readonly meaning: ObservationMeaning;
     readonly reflectionText?: string;
     readonly now?: Date;
+    readonly onPersisted?: (reflectionRecordId: string) => void;
   }): Promise<CandidateDecisionResult> {
     return submitObservationReflection(
       this.composition,
@@ -587,6 +588,7 @@ export class MobileRuntime {
         now: input.now ?? new Date(),
       },
       this.candidates,
+      input.onPersisted,
     ).then(async (result) => {
       const current = await this.awarenessHistory();
       // Only terminal outcomes update durable history. A validation error

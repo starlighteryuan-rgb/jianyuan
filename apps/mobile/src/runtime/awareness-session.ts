@@ -608,6 +608,12 @@ export const submitObservationReflection = async (
     readonly now: Date;
   },
   registry: RelationCandidateRegistry,
+  /**
+   * Called the moment the user's Reflection is durably persisted, before any
+   * Relation / Discovery evaluation runs. Presentation can settle its save
+   * feedback on this signal instead of waiting for evaluation to finish.
+   */
+  onPersisted?: (reflectionRecordId: string) => void,
 ): Promise<CandidateDecisionResult> => {
   const stored = registry.get(input.candidateId);
   if (stored === null) {
@@ -687,6 +693,11 @@ export const submitObservationReflection = async (
       message: '你的理解没有保存完成；请重试。',
     };
   }
+
+  // The Reflection is durably stored at this point. Signal presentation
+  // immediately: Relation / Discovery evaluation below may be slow or fail,
+  // and neither outcome changes the fact that the user's words are saved.
+  onPersisted?.(reflectionRecordId);
 
   const resolved = await Promise.all(
     stored.suggestion.recordRefs.map((id) => composition.records.getById(id)),

@@ -5,11 +5,22 @@
  * It only controls a transient query string; each space decides what local
  * collection is filtered.
  *
- * M3 morph: the circle and field are one animated container. The input is only
- * mounted while expanded so closed search never owns focus or editable state.
+ * M3.1.2 RENDER MODE CONTRACT
+ *   The visual container is chosen by one React boolean (`open`). Collapsed and
+ *   expanded are two separate render branches with their own literal styles, so
+ *   the visual width cannot diverge from the logical state.
+ *
+ *   This replaces the previous shared `progress` driven container. That earlier
+ *   design let the logic collapse while the Reanimated-driven width stayed at
+ *   the expanded value, which is exactly the residual rectangle seen on device.
+ *
+ * Valid states only:
+ *   - collapsed:           query empty, keyboard hidden, circular button
+ *   - expanded-empty:      query empty, keyboard shown / input focused
+ *   - expanded-with-query: query non-empty, keyboard shown or hidden
  */
 
-import { useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import {
   Keyboard,
   Pressable,
@@ -17,18 +28,21 @@ import {
   Text,
   TextInput,
 } from 'react-native';
-import Animated, {
-  interpolate,
-  useAnimatedStyle,
-  useSharedValue,
-  withTiming,
-} from 'react-native-reanimated';
+import Animated from 'react-native-reanimated';
 
-import { useMotion } from '../theme/motion';
-import { useTheme } from '../theme/theme-context';
 import { RADIUS, SPACING, TYPOGRAPHY } from '../theme/tokens';
+import { useTheme } from '../theme/theme-context';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+
+export const matchesLocalQuery = (
+  query: string,
+  values: readonly (string | null | undefined)[],
+): boolean => {
+  const needle = query.trim().toLocaleLowerCase();
+  if (needle.length === 0) return true;
+  return values.some((value) => (value ?? '').toLocaleLowerCase().includes(needle));
+};
 
 export const LocalSearchControl = ({
   testID,
@@ -47,76 +61,58 @@ export const LocalSearchControl = ({
 }) => {
   const { theme } = useTheme();
   const { colors } = theme;
-  const motion = useMotion();
   const inputRef = useRef<TextInput | null>(null);
-  const focusedRef = useRef(false);
   const queryRef = useRef(query);
-  const progress = useSharedValue(open ? 1 : 0);
+  const keyboardVisibleRef = useRef(false);
 
-  useEffect(() => {
-    progress.value = withTiming(open ? 1 : 0, motion.timing('normal', motion.reduceMotion));
-  }, [motion, open, progress]);
-
-  useEffect(() => {
-    if (!open) return;
-    inputRef.current?.focus();
-  }, [open]);
-
-  // iOS can hide the keyboard without delivering a reliable TextInput blur.
-  // Keyboard events are the authoritative signal; focus/query refs keep the
-  // decision out of stale closures.
   useEffect(() => {
     queryRef.current = query;
   }, [query]);
 
   useEffect(() => {
     if (!open) return;
-    const collapseIfEmpty = () => {
-      // Keyboard absence plus an empty query is the invalid state the spec
-      // calls out. Do not gate this on TextInput focus: iOS may keep the
-      // input focused after the keyboard is dismissed.
-      if (queryRef.current.trim().length === 0) {
-        onOpenChange(false);
-      }
-    };
-    const show = Keyboard.addListener('keyboardWillShow', () => {
-      focusedRef.current = true;
-      keyboardVisibleRef.current = true;
-    });
+    inputRef.current?.focus();
+  }, [open]);
+
+  /**
+   * A single collapse funnel. Every path that decides the search interaction
+   * has ended calls this, so the render branch and the keyboard/focus state
+   * cannot drift apart.
+   */
+  const collapse = useCallback(() => {
+    keyboardVisibleRef.current = false;
+    onOpenChange(false);
+  }, [onOpenChange]);
+
+  useEffect(() => {
+    if (!open) return;
+    const isEmptyQuery = () => queryRef.current.trim().length === 0;
+
+    // iOS may dismiss the keyboard without blurring the input. Keyboard events
+    // are the authoritative "search interaction ended" signal.
     const hide = Keyboard.addListener('keyboardDidHide', () => {
       keyboardVisibleRef.current = false;
-      collapseIfEmpty();
+      if (isEmptyQuery()) collapse();
     });
+    const show = Keyboard.addListener('keyboardWillShow', () => {
+      keyboardVisibleRef.current = true;
+    });
+
     return () => {
-      show.remove();
       hide.remove();
+      show.remove();
     };
-  }, [onOpenChange, open]);
-
-  const containerStyle = useAnimatedStyle(() => ({
-    borderRadius: interpolate(progress.value, [0, 1], [999, RADIUS.md]),
-    width: interpolate(progress.value, [0, 1], [34, 236]),
-    height: interpolate(progress.value, [0, 1], [34, 38]),
-  }));
-
-  const collapsedStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(progress.value, [0, 0.45, 1], [1, 0, 0]),
-    transform: [{ translateX: interpolate(progress.value, [0, 1], [0, -8]) }],
-  }));
-
-  const expandedStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(progress.value, [0, 0.45, 1], [0, 0, 1]),
-    transform: [{ translateX: interpolate(progress.value, [0, 1], [10, 0]) }],
-  }));
-
-  const keyboardVisibleRef = useRef(false);
+  }, [collapse, open]);
 
   const handleQueryChange = (value: string) => {
     queryRef.current = value;
     onChangeQuery(value);
-    if (value.trim().length === 0 && !keyboardVisibleRef.current) {
-      onOpenChange(false);
-    }
+    // Clearing after the keyboard is already gone is a finished search.
+    if (value.trim().length === 0 && !keyboardVisibleRef.current) collapse();
+  };
+
+  const handleBlur = () => {
+    if (queryRef.current.trim().length === 0) collapse();
   };
 
   const containerColorStyle = useMemo(
@@ -135,7 +131,7 @@ export const LocalSearchControl = ({
         accessibilityLabel="搜索"
         accessibilityState={{ expanded: false }}
         onPress={() => onOpenChange(true)}
-        style={[styles.control, containerColorStyle, styles.collapsed]}
+        style={[styles.collapsedControl, containerColorStyle]}
       >
         <Text style={[TYPOGRAPHY.lead, { color: colors.textSecondary }]}>⌕</Text>
       </AnimatedPressable>
@@ -143,105 +139,72 @@ export const LocalSearchControl = ({
   }
 
   return (
-    <AnimatedPressable
+    <Animated.View
       testID={`${testID}-control`}
-      accessibilityRole="button"
-      accessibilityLabel="搜索"
-      accessibilityState={{ expanded: true }}
-      style={[styles.control, containerColorStyle, containerStyle]}
+      style={[styles.expandedControl, containerColorStyle]}
     >
-      <Animated.View
-        testID={`${testID}-open`}
-        aria-hidden
-        style={[styles.face, collapsedStyle]}
-        pointerEvents="none"
-      >
-        <Text style={[TYPOGRAPHY.lead, { color: colors.textSecondary }]}>⌕</Text>
-      </Animated.View>
-
-      <Animated.View style={[styles.field, expandedStyle]} pointerEvents="box-none">
-        <TextInput
-          testID={`${testID}-input`}
-          ref={inputRef}
-          value={query}
-          onChangeText={handleQueryChange}
-          onFocus={() => {
-            focusedRef.current = true;
-          }}
-          onEndEditing={() => {
-            focusedRef.current = false;
-            if (queryRef.current.trim().length === 0) onOpenChange(false);
-          }}
-          onBlur={() => {
-            focusedRef.current = false;
-            if (queryRef.current.trim().length === 0) onOpenChange(false);
-          }}
-          autoFocus
-          placeholder={placeholder}
-          placeholderTextColor={colors.textMuted}
-          accessibilityLabel={placeholder}
-          style={[styles.input, TYPOGRAPHY.body, { color: colors.textPrimary }]}
-        />
-        {query.length > 0 ? (
-          <Pressable
-            testID={`${testID}-clear`}
-            accessibilityRole="button"
-            accessibilityLabel="清空搜索"
-            onPress={() => onChangeQuery('')}
-            style={styles.action}
-          >
-            <Text style={[TYPOGRAPHY.meta, { color: colors.textSecondary }]}>清空</Text>
-          </Pressable>
-        ) : null}
+      <TextInput
+        testID={`${testID}-input`}
+        ref={inputRef}
+        value={query}
+        onChangeText={handleQueryChange}
+        onBlur={handleBlur}
+        autoFocus
+        placeholder={placeholder}
+        placeholderTextColor={colors.textMuted}
+        accessibilityLabel={placeholder}
+        style={[styles.input, TYPOGRAPHY.body, { color: colors.textPrimary }]}
+      />
+      {query.length > 0 ? (
         <Pressable
-          testID={`${testID}-cancel`}
+          testID={`${testID}-clear`}
           accessibilityRole="button"
-          accessibilityLabel="取消搜索"
+          accessibilityLabel="清空搜索"
           onPress={() => {
             onChangeQuery('');
-            onOpenChange(false);
+            queryRef.current = '';
+            if (!keyboardVisibleRef.current) collapse();
           }}
           style={styles.action}
         >
-          <Text style={[TYPOGRAPHY.meta, { color: colors.accent }]}>取消</Text>
+          <Text style={[TYPOGRAPHY.meta, { color: colors.textSecondary }]}>清空</Text>
         </Pressable>
-      </Animated.View>
-    </AnimatedPressable>
+      ) : null}
+      <Pressable
+        testID={`${testID}-cancel`}
+        accessibilityRole="button"
+        accessibilityLabel="取消搜索"
+        onPress={() => {
+          onChangeQuery('');
+          queryRef.current = '';
+          collapse();
+        }}
+        style={styles.action}
+      >
+        <Text style={[TYPOGRAPHY.meta, { color: colors.accent }]}>取消</Text>
+      </Pressable>
+    </Animated.View>
   );
 };
 
-export const matchesLocalQuery = (query: string, values: readonly (string | null | undefined)[]): boolean => {
-  const needle = query.trim().toLocaleLowerCase();
-  if (needle.length === 0) return true;
-  return values.some((value) => (value ?? '').toLocaleLowerCase().includes(needle));
-};
-
 const styles = StyleSheet.create({
-  control: {
+  collapsedControl: {
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
-  },
-  collapsed: {
     borderRadius: 999,
     width: 34,
     height: 34,
   },
-  face: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: '100%',
-    height: '100%',
-  },
-  field: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    bottom: 0,
-    left: 0,
+  expandedControl: {
+    borderWidth: 1,
     flexDirection: 'row',
     alignItems: 'center',
+    overflow: 'hidden',
+    borderRadius: RADIUS.md,
+    width: 236,
+    height: 38,
     paddingHorizontal: SPACING.sm,
   },
   input: { flex: 1, minWidth: 80, paddingVertical: SPACING.xs },
