@@ -1,0 +1,354 @@
+/* 见渊 M3.3 Direction B — board + spatial component language. */
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  padding: 40px 32px 80px;
+  background: #d3d8d2;
+  color: #1b1e1c;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
+    'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.board-head { max-width: 1440px; margin: 0 auto 30px; }
+.board-head h1 { font-size: 25px; font-weight: 600; margin: 0 0 8px; }
+.board-head p { margin: 0 0 5px; max-width: 880px; color: #474d48; }
+.board-head .meta { font-size: 12px; color: #6f756f; }
+
+.section { max-width: 1440px; margin: 0 auto 46px; }
+.section > h2 {
+  font-size: 15px; font-weight: 600; margin: 0 0 6px;
+  padding-bottom: 9px; border-bottom: 1px solid #bcc3bb;
+}
+.section > .note { margin: 0 0 20px; font-size: 13px; color: #474d48; max-width: 960px; }
+
+.pair { display: flex; gap: 26px; align-items: flex-start; flex-wrap: wrap; }
+
+/* ── Device ───────────────────────────────────────────────────────── */
+.device { width: 390px; flex: 0 0 390px; }
+.device.small { width: 320px; flex: 0 0 320px; }
+.device.mini { width: 300px; flex: 0 0 300px; }
+.device-label {
+  display: flex; gap: 8px; align-items: baseline;
+  margin: 0 0 8px 4px; font-size: 12px; color: #3f4540;
+}
+.device-label b { font-weight: 600; }
+.device-label span { color: #6f756f; }
+
+.phone {
+  position: relative; display: flex; flex-direction: column;
+  height: 844px; overflow: hidden;
+  border-radius: 12px; background: var(--base); color: var(--ink);
+  box-shadow: 0 12px 34px rgba(0,0,0,.18);
+}
+.device.small .phone { height: 700px; }
+.device.mini .phone { height: 620px; }
+
+/* Atmospheric background: a very light radial tone, no wallpaper gradient. */
+.phone::before {
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(120% 62% at 50% 8%, var(--echo-1), transparent 62%),
+              radial-gradient(90% 46% at 12% 96%, var(--echo-2), transparent 60%);
+}
+
+/* ── Chrome (interaction contract unchanged) ─────────────────────── */
+.statusbar {
+  position: relative; display: flex; justify-content: space-between;
+  padding: 12px 22px 2px; font-size: 12px; color: var(--ink-4); flex: 0 0 auto;
+}
+.topbar {
+  position: relative; display: flex; align-items: baseline; justify-content: space-between;
+  padding: 10px var(--page-x) 12px; flex: 0 0 auto;
+}
+.topbar .brand { font-size: 20px; font-weight: 600; color: var(--ink); }
+.topbar .acts { display: flex; gap: 15px; font-size: 12px; color: var(--ink-3); }
+.topbar .acts .on { color: var(--accent); }
+
+.searchline {
+  position: relative; display: flex; align-items: center; gap: 10px; flex: 1;
+  height: 36px; padding: 0 12px; border-radius: var(--r-pill);
+  background: var(--l-active); color: var(--ink-3); font-size: 14px;
+}
+.searchline .q { flex: 1; color: var(--ink); }
+.searchline .x { color: var(--accent); font-size: 12px; }
+
+/* ── Depth field ─────────────────────────────────────────────────── */
+.field {
+  position: relative; flex: 1 1 auto; overflow: hidden;
+  padding: 0 var(--page-x);
+  perspective: 900px; /* only to allow tiny translateZ; never visible perspective */
+}
+
+/* A plane is the ONLY container shape in Direction B, and it is used for depth,
+   not for decoration. Planes overlap slightly so depth is visible at rest. */
+.plane {
+  position: relative; border-radius: var(--r-plane);
+  padding: 14px 16px;
+  transform-origin: 50% 0%;
+}
+.plane.rest {
+  background: var(--l-rest);
+  color: var(--ink-2);
+  transform: translateY(var(--far-y)) scale(var(--far-scale));
+  margin: 0 10px;               /* narrower: further away */
+  border: 1px solid var(--hair);
+}
+.plane.rest.deep {
+  background: var(--base);
+  color: var(--ink-3);
+  transform: translateY(calc(var(--far-y) * 1.6)) scale(calc(var(--far-scale) - .015));
+  margin: 0 20px;
+  border-color: transparent;
+}
+.plane.active {
+  background: var(--l-active);
+  color: var(--ink);
+  transform: translateY(var(--mid-y)) scale(var(--mid-scale));
+  margin: 0 5px;
+  border: 1px solid var(--hair-2);
+}
+.plane.emerge {
+  background: var(--l-emerge);
+  color: var(--ink);
+  transform: translateY(var(--near-y)) scale(var(--near-scale));
+  margin: 0;
+  border: 1px solid var(--hair-2);
+}
+/* Overlap: each plane tucks under the one in front of it. */
+.plane + .plane { margin-top: -10px; }
+.plane.rest + .plane.rest.deep { margin-top: -14px; }
+
+.plane .k-time { font-size: 11px; color: var(--ink-4); font-variant-numeric: tabular-nums; }
+.plane .k-dot {
+  position: absolute; right: 16px; top: 18px;
+  width: 5px; height: 5px; border-radius: 50%; background: var(--accent);
+}
+.body-text { margin-top: 6px; font-size: 16px; line-height: 26px; }
+.plane.rest .body-text { font-size: 15px; line-height: 24px; }
+
+/* Anchor tag: a small marker pinned to the plane edge, not a pill cloud */
+.anchors { display: flex; gap: 12px; margin-top: 10px; }
+.anchor {
+  font-size: 11px; color: var(--ink-3); position: relative; padding-left: 10px;
+}
+.anchor::before {
+  content: ''; position: absolute; left: 0; top: 6px;
+  width: 5px; height: 1px; background: var(--accent);
+}
+.anchor.on { color: var(--accent); }
+
+/* Depth ruler: a quiet vertical index on the left that encodes the layer */
+.depth-gauge {
+  position: absolute; left: 2px; top: 0; bottom: 0; width: 12px;
+  display: flex; flex-direction: column; justify-content: center; gap: 6px;
+}
+.depth-gauge i { display: block; width: 8px; height: 1px; background: var(--hair-2); }
+.depth-gauge i.on { width: 12px; background: var(--accent); }
+
+/* ── Record ──────────────────────────────────────────────────────── */
+.compose-line {
+  position: relative; margin: 4px 0 18px;
+  padding: 12px 14px; border-radius: var(--r-soft);
+  background: var(--l-active); border: 1px solid var(--hair-2);
+}
+.compose-line .hint { color: var(--ink-4); font-size: 15px; }
+.compose-line .go { margin-top: 8px; text-align: right; font-size: 13px; color: var(--accent); }
+
+.daycoord {
+  display: flex; align-items: baseline; gap: 10px;
+  margin: 16px 0 10px; font-size: 11px; color: var(--ink-4);
+}
+.daycoord b { font-weight: 500; color: var(--ink-2); }
+.daycoord .rule { flex: 1; height: 1px; background: var(--hair); }
+
+/* ── Awareness: entering the foreground ──────────────────────────── */
+.depth-stage {
+  position: relative; flex: 1 1 auto; display: flex;
+  align-items: center; justify-content: center; overflow: hidden;
+}
+/* Ghost planes behind the emerging object. Low contrast, small, lower, offset. */
+.ghost {
+  position: absolute; border-radius: var(--r-plane);
+  background: var(--l-rest); border: 1px solid var(--hair-2);
+}
+/* The ghosts must be plainly visible in a static frame: bigger tone step,
+   larger offsets, and they tuck under the emerging object so the front/back
+   relationship is legible without any explanation. */
+/* Offsets are asymmetric so each ghost clearly extends past the emerging
+   object: the depth reads from the visible overlap, not from a caption. */
+.ghost.g1 {
+  width: 276px; height: 112px; top: 30%; left: 50%;
+  transform: translate(-54%, 52px) scale(.94); opacity: .95;
+}
+.ghost.g2 {
+  width: 244px; height: 104px; top: 30%; left: 50%;
+  transform: translate(-30%, 96px) scale(.87); opacity: .72;
+}
+.ghost.g3 {
+  width: 208px; height: 96px; top: 30%; left: 50%;
+  transform: translate(-62%, 138px) scale(.8); opacity: .5;
+}
+
+.emerge-object {
+  position: relative; z-index: 3;
+  width: 288px; padding: 22px 22px 20px;
+  border-radius: var(--r-plane);
+  background: var(--l-emerge); border: 1px solid var(--hair-2);
+  /* Quiet dimensionality: ONE soft ambient shadow, nothing stacked. */
+  box-shadow: 0 18px 40px rgba(0,0,0,.16), 0 2px 6px rgba(0,0,0,.06);
+  transform: translateY(-34px);
+}
+.phone[data-theme='dark'] .emerge-object,
+.phone[data-theme='neutraldark'] .emerge-object { box-shadow: 0 20px 44px rgba(0,0,0,.5); }
+.emerge-object .k {
+  font-size: 10px; letter-spacing: .16em; text-transform: uppercase; color: var(--accent);
+}
+.emerge-object .said {
+  margin-top: 12px; font-size: 18px; line-height: 30px; color: var(--ink);
+}
+.emerge-object .aside {
+  margin-top: 14px; font-size: 11px; color: var(--ink-4);
+}
+.emerge-action { position: relative; flex: 0 0 auto; padding: 10px var(--page-x) 14px; }
+.emerge-action .act {
+  text-align: center; font-size: 14px; color: var(--accent);
+  padding: 12px; border-radius: var(--r-soft); background: var(--l-active);
+}
+
+/* Open: the object moves to the near layer; everything else drops back */
+.focus-field {
+  position: relative; flex: 1 1 auto; overflow: hidden; padding: 0 var(--page-x);
+}
+.behind-strip {
+  position: absolute; left: var(--page-x); right: var(--page-x); top: 8px;
+  transform: scale(.93) translateY(-6px); opacity: .3;
+  border-radius: var(--r-plane); background: var(--l-rest);
+  border: 1px solid var(--hair); padding: 12px 14px; color: var(--ink-3);
+}
+.foreground {
+  position: relative; z-index: 4; margin-top: 44px;
+  border-radius: var(--r-plane); background: var(--l-emerge);
+  border: 1px solid var(--hair-2); padding: 20px;
+  transform: scale(1.015);
+  box-shadow: 0 22px 48px rgba(0,0,0,.12);
+}
+.phone[data-theme='dark'] .foreground,
+.phone[data-theme='neutraldark'] .foreground { box-shadow: 0 24px 52px rgba(0,0,0,.55); }
+.foreground .said { font-size: 21px; line-height: 33px; color: var(--ink); }
+.detail-layer { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--hair); }
+.detail-layer .k {
+  font-size: 10px; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-4);
+}
+.detail-layer .v { margin-top: 6px; font-size: 14px; line-height: 23px; color: var(--ink-2); }
+.evidence-strip { display: flex; gap: 6px; margin-top: 12px; }
+.evidence-strip i {
+  display: block; height: 3px; flex: 1; border-radius: 2px; background: var(--hair-2);
+}
+.evidence-strip i.on { background: var(--accent); }
+.responses { display: flex; gap: 8px; margin-top: 16px; }
+.responses .r {
+  flex: 1; text-align: center; font-size: 12px; padding: 10px 0;
+  border-radius: var(--r-soft); background: var(--base); color: var(--ink-3);
+  border: 1px solid var(--hair);
+}
+.responses .r.on { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); }
+.write-note {
+  margin-top: 14px; padding: 12px 14px; border-radius: var(--r-soft);
+  background: var(--l-rest); border: 1px dashed var(--hair-2);
+  color: var(--ink-4); font-size: 13px;
+}
+
+/* ── Understanding: settled into a stable layer ──────────────────── */
+.settled-plate {
+  position: relative; border-radius: var(--r-plane);
+  background: var(--l-active); border: 1px solid var(--hair);
+  padding: 20px; margin-top: 16px;
+}
+.settled-plate.deep {
+  background: var(--l-rest); transform: scale(.985); margin: 0 12px;
+  margin-top: -8px; opacity: .82;
+}
+.settled-plate .quote { font-size: 17px; line-height: 29px; color: var(--ink); }
+.settled-plate.deep .quote { font-size: 15px; line-height: 26px; color: var(--ink-2); }
+.settled-meta {
+  display: flex; align-items: center; gap: 10px;
+  margin-top: 14px; font-size: 11px; color: var(--ink-4);
+}
+.settled-meta .from { color: var(--ink-3); }
+.settled-meta .dot { width: 3px; height: 3px; border-radius: 50%; background: var(--ink-4); }
+.layer-label {
+  align-self: flex-start; font-size: 10px; letter-spacing: .16em;
+  text-transform: uppercase; color: var(--ink-4); margin-top: 20px;
+}
+
+/* ── Exploration: distance between things ───────────────────────── */
+.constellation { position: relative; height: 420px; margin-top: 8px; }
+.node {
+  position: absolute; border-radius: var(--r-soft);
+  background: var(--l-active); border: 1px solid var(--hair-2);
+  padding: 10px 12px; font-size: 13px; line-height: 19px; color: var(--ink);
+}
+.node .sub { margin-top: 4px; font-size: 10px; color: var(--ink-4); }
+.node.far {
+  background: var(--l-rest); border-color: var(--hair); color: var(--ink-2);
+  transform: scale(.94);
+}
+.node.near { background: var(--l-emerge); transform: scale(1.02); }
+.link {
+  position: absolute; height: 1px; background: var(--hair-2); transform-origin: 0 0;
+}
+.link.hot { background: var(--accent); }
+.link-label {
+  position: absolute; font-size: 10px; color: var(--ink-4);
+  background: var(--base); padding: 0 4px;
+}
+.cluster-caption {
+  margin-top: 14px; font-size: 11px; color: var(--ink-3);
+}
+.cluster-caption b { color: var(--ink-2); font-weight: 500; }
+
+/* ── Tab bar ─────────────────────────────────────────────────────── */
+.tabbar {
+  position: relative; display: flex; align-items: center;
+  background: var(--l-active); border-top: 1px solid var(--hair);
+  padding: 12px 0 22px; flex: 0 0 auto;
+}
+.tabbar .tab { flex: 1; text-align: center; font-size: 12px; color: var(--ink-4); }
+.tabbar .tab.on { color: var(--ink); }
+.tabbar .tab.on::after {
+  content: ''; display: block; width: 16px; height: 2px; border-radius: 2px;
+  background: var(--accent); margin: 5px auto 0;
+}
+.tabbar .tab .dot {
+  display: inline-block; width: 4px; height: 4px; margin-left: 4px;
+  border-radius: 50%; background: var(--danger); vertical-align: middle;
+}
+
+/* ── Comparison board A vs B ────────────────────────────────────── */
+.versus { display: flex; gap: 24px; flex-wrap: wrap; align-items: flex-start; }
+.versus .side { flex: 1 1 460px; }
+.versus .side h3 {
+  font-size: 13px; margin: 0 0 8px; padding-bottom: 6px;
+  border-bottom: 1px solid #bcc3bb;
+}
+.versus .side h3 span { font-weight: 400; color: #6f756f; }
+.a-swatch { display: flex; gap: 6px; margin: 10px 0 14px; }
+.a-swatch i, .b-swatch i {
+  width: 30px; height: 22px; border-radius: 4px; border: 1px solid rgba(0,0,0,.1);
+}
+.b-swatch { display: flex; gap: 6px; margin: 10px 0 14px; }
+
+/* ── Spec tables ────────────────────────────────────────────────── */
+table.spec { width: 100%; border-collapse: collapse; font-size: 13px; background: #f6f8f5; }
+table.spec th, table.spec td {
+  text-align: left; padding: 8px 10px; border-bottom: 1px solid #d5dbd3; vertical-align: top;
+}
+table.spec th { font-weight: 600; background: #eaece7; }
+code { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; }
+.swatch {
+  display: inline-block; width: 14px; height: 14px; border-radius: 3px;
+  margin-right: 6px; vertical-align: -2px; border: 1px solid rgba(0,0,0,.12);
+}

@@ -1,0 +1,115 @@
+/*
+ * 见渊 · M3.3 Direction B — Spatial / Depth
+ *
+ * DESIGN tokens for review, not runtime code.
+ *
+ * Direction B is NOT Direction A with more roundness. Its organising principle
+ * is depth: content lives on a small number of layers, and the meaning of a
+ * space is carried by where its content sits between them.
+ *
+ * DEPTH GRAMMAR (four layers, deliberately restrained)
+ *   base      the quiet ground; atmosphere only, no content
+ *   rest      long-lived, stable content — recedes
+ *   active    what the user is reading or operating on now
+ *   emerge    what has just come forward and needs attention
+ *
+ * Depth is expressed WITHOUT relying on shadow:
+ *   - tone          (each layer has a slightly different ground tone)
+ *   - contrast      (far layers use lower-contrast ink)
+ *   - scale         (small, 0.97–1.03 — never perspective)
+ *   - position      (horizontal and vertical offsets between planes)
+ *   - overlap       (planes sit slightly over one another)
+ *
+ * Colour is a cooled mineral family — clearly separate from Direction A's warm
+ * paper/amber, so the two directions are not confused. Accent is a muted moss.
+ */
+
+.phone {
+  /* ── Light · Mineral ──────────────────────────────────────────────── */
+  --base: #e9ece8;
+  --l-rest: #f1f3ef;
+  --l-active: #f8faf7;
+  --l-emerge: #fcfefb;
+
+  --ink: #1b1e1c;
+  --ink-2: #4a504b;
+  --ink-3: #6d736d;
+  --ink-4: #979c96;
+
+  --hair: #d8ddd6;
+  --hair-2: #c2c8c1;
+
+  --accent: #4f6b4e;
+  --accent-soft: rgba(79, 107, 78, 0.09);
+  --on-accent: #f8faf7;
+
+  --echo-1: rgba(27, 30, 28, 0.06);
+  --echo-2: rgba(27, 30, 28, 0.035);
+
+  --danger: #93483c;
+}
+
+.phone[data-theme='dark'] {
+  /* ── Dark · Dusk ─────────────────────────────────────────────────── */
+  --base: #111413;
+  --l-rest: #171b19;
+  --l-active: #1e2321;
+  --l-emerge: #252b28;
+
+  --ink: #e6e9e5;
+  --ink-2: #adb3ac;
+  --ink-3: #878d87;
+  --ink-4: #62675f;
+
+  --hair: #262b28;
+  --hair-2: #343a36;
+
+  --accent: #9dbc93;
+  --accent-soft: rgba(157, 188, 147, 0.13);
+  --on-accent: #12150f;
+
+  --echo-1: rgba(230, 233, 229, 0.05);
+  --echo-2: rgba(230, 233, 229, 0.03);
+
+  --danger: #dc9a8b;
+}
+
+/* De-colourised proof: keep the depth, remove all hue. */
+.phone[data-theme='neutral'] {
+  --base: #e8e8e8; --l-rest: #f1f1f1; --l-active: #f8f8f8; --l-emerge: #fdfdfd;
+  --ink: #1b1b1b; --ink-2: #4a4a4a; --ink-3: #6d6d6d; --ink-4: #999;
+  --hair: #d8d8d8; --hair-2: #c2c2c2;
+  --accent: #555; --accent-soft: rgba(0,0,0,.07); --on-accent: #fafafa;
+  --echo-1: rgba(0,0,0,.06); --echo-2: rgba(0,0,0,.035);
+  --danger: #666;
+}
+.phone[data-theme='neutraldark'] {
+  --base: #111; --l-rest: #171717; --l-active: #1e1e1e; --l-emerge: #252525;
+  --ink: #e6e6e6; --ink-2: #adadad; --ink-3: #878787; --ink-4: #626262;
+  --hair: #262626; --hair-2: #343434;
+  --accent: #cfcfcf; --accent-soft: rgba(255,255,255,.12); --on-accent: #121212;
+  --echo-1: rgba(255,255,255,.05); --echo-2: rgba(255,255,255,.03);
+  --danger: #bbb;
+}
+
+/* ── Shared geometry ─────────────────────────────────────────────── */
+.phone {
+  --page-x: 20px;
+
+  /* Depth offsets. Small on purpose: depth, not perspective. */
+  --far-y: 10px;         /* far content sits slightly lower */
+  --mid-y: 4px;
+  --near-y: 0px;
+  --far-scale: 0.965;
+  --mid-scale: 0.985;
+  --near-scale: 1;
+
+  /* Layer tone steps */
+  --tone-1: var(--l-rest);
+  --tone-2: var(--l-active);
+  --tone-3: var(--l-emerge);
+
+  --r-plane: 18px;
+  --r-soft: 12px;
+  --r-pill: 999px;
+}
