@@ -128,6 +128,14 @@ Automated verification:
   - `_expo/static/js/ios/index-19437d94b72e3b94adafbc0a56b5d4b7.hbc`
   - 3.2 MB
   - 1110 modules
+- iOS Unsigned Build: PASS
+  - Run: [35232347269](https://github.com/starlighteryuan-rgb/jianyuan/actions/runs/35232347269)
+  - Head SHA: `17cd107dece26500b21f5236dee5f6c30cea60fd`
+  - Unsigned IPA verification: PASS
+  - IPA artifact ID: `10501599247`
+  - App zip artifact ID: `10501838912`
+  - IPA SHA256: `c54bf6360956b0116364332c7b32572412b0d06ef08703cd09a295492616f048`
+  - App zip SHA256: `ec7c42d40f7d85cff8bdf3adc384fd485380daf75d14b2ae12a87bb074d722ad`
 
 New coverage:
 
