@@ -210,8 +210,11 @@ describe('Mobile M3.1 Awareness Space', () => {
     const [item] = await runtime.runtime.awarenessHistory();
     if (item === undefined) throw new Error('expected a manual awareness item');
     expect(
-      tree.root.findAllByProps({ testID: `awareness-bubble-${item.candidateId}` }).length,
+      tree.root.findAllByProps({ testID: `awareness-result-${item.candidateId}` }).length,
     ).toBeGreaterThan(0);
+    expect(
+      tree.root.findAllByProps({ testID: `awareness-bubble-${item.candidateId}` }).length,
+    ).toBe(0);
   });
 
   it('moves viewed awareness out of the stage and into a separate History view', async () => {

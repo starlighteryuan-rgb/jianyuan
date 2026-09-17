@@ -246,7 +246,7 @@ describe('M3.1.2 render-level Reflection and Search', () => {
     await press(tree, 'awareness-start');
     const [item] = await opened.runtime.awarenessHistory();
     if (item === undefined) throw new Error('expected item');
-    await press(tree, `awareness-bubble-${item.candidateId}`);
+    await press(tree, `awareness-result-${item.candidateId}`);
     await press(tree, `awareness-choice-${item.candidateId}-connected`);
     const input = tree.root.findByProps({ testID: `awareness-reflection-${item.candidateId}` });
     await act(async () => {
@@ -305,7 +305,7 @@ describe('M3.1.2 render-level Reflection and Search', () => {
     await press(tree, 'awareness-start');
     const [item] = await opened.runtime.awarenessHistory();
     if (item === undefined) throw new Error('expected item');
-    await press(tree, `awareness-bubble-${item.candidateId}`);
+    await press(tree, `awareness-result-${item.candidateId}`);
     await press(tree, `awareness-choice-${item.candidateId}-connected`);
     const input = tree.root.findByProps({ testID: `awareness-reflection-${item.candidateId}` });
     await act(async () => {
@@ -444,7 +444,7 @@ describe('M3.1.1 reflection settlement', () => {
     await press(tree, 'awareness-start');
     const [item] = await opened.runtime.awarenessHistory();
     if (item === undefined) throw new Error('expected item');
-    await press(tree, `awareness-bubble-${item.candidateId}`);
+    await press(tree, `awareness-result-${item.candidateId}`);
     await press(tree, `awareness-choice-${item.candidateId}-connected`);
     const input = tree.root.findByProps({ testID: `awareness-reflection-${item.candidateId}` });
     await act(async () => {

@@ -15,6 +15,24 @@
  * Main is A: a large quiet stage, concentric halo, one current observation.
  * B2 contributes only a faint background recede. Open keeps A's reading order
  * and uses B2's foreground focus without becoming a large response card.
+ *
+ * FROZEN UI
+ * Awareness Main may keep a soft circular stage / halo, but only as stage
+ * atmosphere: an attention center and emergence field, never a bubble, card,
+ * or object shell.
+ *
+ * Awareness Result is text-first. The observation is a sentence that surfaces;
+ * it is not an object. It may use whitespace, a focus line, and tonal emphasis,
+ * but must not add a closed container, card surface, bubble, or floating panel.
+ *
+ * FROZEN UI
+ * Awareness Main may keep a soft circular stage / halo, but only as stage
+ * atmosphere: an attention center and emergence field, never a bubble, card,
+ * or object shell.
+ *
+ * Awareness Result is text-first. The observation is a sentence that surfaces;
+ * it is not an object. It may use whitespace, a focus line, and tonal emphasis,
+ * but must not add a closed container, card surface, bubble, or floating panel.
  */
 
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
@@ -74,6 +92,53 @@ const CHOICES: readonly [ObservationMeaning, string][] = [
 ];
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+
+/**
+ * One manually surfaced observation.
+ *
+ * This is deliberately not a Bubble. It is the text-first Awareness Result:
+ * a quiet focus line, a small eyebrow and one observation. There is no closed
+ * border, no card surface and no floating object.
+ */
+const AwarenessResult = ({
+  item,
+  onOpen,
+}: {
+  readonly item: AwarenessHistoryItem;
+  readonly onOpen: (item: AwarenessHistoryItem) => void;
+}) => {
+  const { theme } = useTheme();
+  const { colors } = theme;
+  const motion = useMotion();
+  const entered = useSharedValue(0);
+
+  useEffect(() => {
+    entered.value = withTiming(1, motion.timing('bubble', motion.reduceMotion));
+  }, [entered, motion]);
+
+  const resultStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(entered.value, [0, 1], [0, 1]),
+    transform: [{ translateY: interpolate(entered.value, [0, 1], [8, 0]) }],
+  }));
+
+  return (
+    <AnimatedPressable
+      testID={`awareness-result-${item.candidateId}`}
+      accessibilityRole="button"
+      accessibilityLabel="新的觉察"
+      onPress={() => onOpen(item)}
+      style={[styles.result, resultStyle]}
+    >
+      <View style={[styles.resultFocus, { backgroundColor: colors.accent }]} />
+      <View style={styles.resultCopy}>
+        <Text style={[TYPOGRAPHY.eyebrow, { color: colors.textFaint }]}>新的觉察</Text>
+        <Text style={[TYPOGRAPHY.lead, { color: colors.textPrimary, marginTop: SPACING.sm }]}>
+          {item.candidate.observation}
+        </Text>
+      </View>
+    </AnimatedPressable>
+  );
+};
 
 const AwarenessBubble = ({
   item,
@@ -478,6 +543,9 @@ export const AwarenessSpace = ({ searchQuery = '' }: { readonly searchQuery?: st
   const [suggestion, setSuggestion] = useState<SuggestionState>({ kind: 'idle' });
   const [history, setHistory] = useState<readonly AwarenessHistoryItem[]>([]);
   const [openItem, setOpenItem] = useState<AwarenessHistoryItem | null>(null);
+  // A manual result is a transient sentence that surfaced. It is not an
+  // inbox object until the user chooses to open and respond to it.
+  const [manualResult, setManualResult] = useState<RelationCandidateView | null>(null);
   const [loading, setLoading] = useState(true);
   const closing = useRef(false);
 
@@ -588,10 +656,9 @@ export const AwarenessSpace = ({ searchQuery = '' }: { readonly searchQuery?: st
         .filter((item) => matchesLocalQuery(searchQuery, [item.candidate.observation])),
     [history, searchQuery],
   );
-  const manualCandidates =
-    result?.candidates.filter((candidate) =>
-      history.every((item) => item.candidateId !== candidate.candidateId),
-    ) ?? [];
+  const manualCandidates = result?.candidates ?? [];
+  const manualIds = new Set(manualCandidates.map((candidate) => candidate.candidateId));
+  const visibleInbox = inbox.filter((item) => !manualIds.has(item.candidateId));
   const openManualCandidate = (candidate: RelationCandidateView): AwarenessHistoryItem => ({
     candidateId: candidate.candidateId,
     status: 'pending',
@@ -631,7 +698,7 @@ export const AwarenessSpace = ({ searchQuery = '' }: { readonly searchQuery?: st
               },
             ]}
           >
-            {inbox.length === 0 ? (
+            {visibleInbox.length === 0 ? (
               <>
                 <View testID="awareness-stage" style={styles.stage}>
                   <View
@@ -700,16 +767,15 @@ export const AwarenessSpace = ({ searchQuery = '' }: { readonly searchQuery?: st
                 ) : null}
 
                 {manualCandidates.map((candidate) => (
-                  <AwarenessBubble
+                  <AwarenessResult
                     key={candidate.candidateId}
                     item={openManualCandidate(candidate)}
                     onOpen={(item) => setOpenItem(item)}
-                    onDelete={deleteAwarenessItem}
                   />
                 ))}
               </>
             ) : (
-              inbox.map((item) => (
+              visibleInbox.map((item) => (
                 <AwarenessBubble
                   key={item.candidateId}
                   item={item}
@@ -833,6 +899,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  result: {
+    minHeight: 220,
+    justifyContent: 'center',
+    paddingVertical: SPACING.xl,
+    paddingLeft: SPACING.md,
+  },
+  resultFocus: {
+    position: 'absolute',
+    left: 0,
+    top: SPACING.sm,
+    bottom: SPACING.section,
+    width: 1,
+    opacity: 0.52,
+  },
+  resultCopy: { paddingLeft: SPACING.md },
   secondaryButton: {
     minHeight: 44,
     paddingHorizontal: SPACING.lg,

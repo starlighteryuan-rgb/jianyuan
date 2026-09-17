@@ -65,7 +65,7 @@ should feel.
 | Space | Meaning | Verb | Feel |
 | --- | --- | --- | --- |
 | Record / 记录 | 我留下了什么 | 落下 / capture | quiet, personal, direct, text-first |
-| Awareness / 觉察 | 有什么值得现在注意 | 浮现 / surface | emergence, bubble, ripple, transient |
+| Awareness / 觉察 | 有什么值得现在注意 | 浮现 / surface | emergence, stage, ripple, transient |
 | Understanding / 理解 | 我自己留下的理解 | 沉淀 / sink | stable, owned by the user, sedimented |
 | Exploration / 探索 | 长期形成的结构与关系 | 连接 / connect | relation, trajectory, structure, longitudinal |
 
@@ -75,11 +75,29 @@ Do not render these as the same card with four different titles.
 
 Before introducing a Card container, answer: **does this information actually
 need a Card?** Consider whitespace, grouping, typography, dividers, timeline,
-floating object, bubble, spatial placement, and subtle surface first.
+spatial placement, and subtle surface first.
 
 Use a Card only when there is a real need for grouping, hierarchy, or an
 interaction boundary. Card-as-default produces a dashboard, and 见渊 is not a
 dashboard.
+
+## Observation Is Not Object
+
+AI Observation / Awareness Result defaults to text, not a visual object. It is
+closer to a discovered sentence, a surfaced observation, or a judgment clue
+worth pausing for than to an AI card, bubble, or generated panel.
+
+Prefer typography, whitespace, focus line, tonal shift, and subtle emergence.
+Do not default to card, bubble, panel, or closed container.
+
+## Awareness Main Is Stage, Not Bubble
+
+The center circle / halo in Awareness Main is stage language: attention center,
+emergence field, quiet anticipation. It is not a bubble, content container, or
+object shell.
+
+Only light halo and tonal field are allowed. Heavy outlines and solid object
+shapes are not.
 
 ## Visual character
 
@@ -102,8 +120,10 @@ Motion is not decoration. Motion is the visible form of a state change.
 Base timings: fast 120–180 ms, normal 200–300 ms, slow 320–450 ms. Treat these
 as reference, not mechanical law. Real-device feel wins.
 
-The accepted Awareness Bubble emergence is frozen: Bubble ≈520 ms, content
-≈420 ms, ripple ≈820 ms. Do not speed it up without an explicit request.
+The accepted automatic Awareness Bubble emergence is frozen: Bubble ≈520 ms,
+content ≈420 ms, ripple ≈820 ms. Do not speed it up without an explicit request.
+The text-first manual Awareness Result reuses the emergence timing without
+reusing the Bubble object shape.
 
 Accessibility is part of motion: follow iOS Reduce Motion, keep Dynamic Type
 usable, keep touch targets reasonable, keep contrast reasonable, never use color

@@ -29,9 +29,47 @@ not like a tool that evaluates them.
 ## Card is not the default answer
 
 Ask first: **does this information actually need a Card container?** Prefer
-whitespace, grouping, typography, dividers, timeline, floating objects, bubbles,
-spatial placement, and subtle surface. Use a Card only when there is a genuine
-need for grouping, hierarchy, or an interaction boundary.
+whitespace, grouping, typography, dividers, timeline, spatial placement, and
+subtle surface. Use a Card only when there is a genuine need for grouping,
+hierarchy, or an interaction boundary.
+
+## Observation Is Not Object
+
+AI Observation / Awareness Result defaults to text, not a visual object. It
+should read like a sentence that was discovered, a surfaced observation, or a
+judgment clue worth pausing for.
+
+It must not default to an AI card, a bubble object, a generated panel, or a
+closed container.
+
+Prefer:
+
+- typography;
+- whitespace;
+- focus line;
+- tonal shift;
+- subtle emergence.
+
+Do not use:
+
+- card;
+- bubble;
+- panel;
+- closed container.
+
+## Awareness Main Is Stage, Not Bubble
+
+The circular center / halo in Awareness Main is stage language only. Its
+meaning is:
+
+- attention center;
+- emergence field;
+- quiet anticipation.
+
+It is not a bubble, a content container, or an object shell.
+
+Only light halo and tonal field are allowed. Heavy outlines and solid object
+shapes are not.
 
 ## Surfaces and depth
 
