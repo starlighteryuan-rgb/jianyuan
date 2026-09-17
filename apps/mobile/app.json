@@ -19,6 +19,7 @@
     "android": {
       "package": "com.jianyuan.personalawareness",
       "versionCode": 2,
+      "icon": "./assets/icon.png",
       "adaptiveIcon": {
         "backgroundColor": "#161512",
         "foregroundImage": "./assets/android-icon-foreground.png",
