@@ -1,0 +1,571 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>见渊 · M3.3 Direction A — Editorial / Quiet Archive</title>
+<link rel="stylesheet" href="./tokens.css" />
+<link rel="stylesheet" href="./board.css" />
+</head>
+<body>
+
+<div class="board-head">
+  <h1>见渊 · M3.3 Direction A — Editorial / Quiet Archive</h1>
+  <p>一个安静的个人档案，不像 AI 产品，不像效率工具，不像笔记数据库。</p>
+  <p>这一版改的是<strong>构图、空间秩序、信息形态和组件语言</strong>，不是颜色。颜色刻意留在和上一版相同的暖色系里 —— 就是为了让你只判断结构变化。板子最后有一段「去色彩证明」：同样的构图全部换成中性灰，用来验证变化在去掉颜色后仍然成立。</p>
+  <p class="meta">设计评审稿 · 未改动任何运行时 UI · Awareness 浮现时序 520 / 420 / 820 ms 保持不变</p>
+</div>
+
+<!-- ══ 0. BEFORE / AFTER ══════════════════════════════════════════ -->
+<div class="section">
+  <h2>0 · Before / Direction A — 这版真正改变了什么</h2>
+  <p class="note">左边是当前线上风格（每条记录一张有边框、有填充的圆角卡片，时间在正文上方，标签是胶囊，输入是一个盒子）。右边是 Direction A：时间移到左侧索引栏，正文成为一段落文字，标签变成页边索引记号，输入变成一条书写线。</p>
+  <div class="compare">
+    <div class="old">
+      <div class="colhead">Current <span>· 线上风格快照</span></div>
+      <div class="device">
+        <div class="phone">
+          <div class="statusbar" style="color:#6f685d"><span>9:41</span><span>5G 100%</span></div>
+          <div class="topbar-old"><div class="brand-old">见渊</div><div class="acts-old"><span>搜索</span><span>设置</span></div></div>
+          <div class="pad">
+            <div class="well">写下此刻的一句话……</div>
+            <div class="save">记下来</div>
+            <div class="divider"></div>
+            <div class="card"><div class="t">2026-09-17 09:42</div><div class="b">今天把之前一直回避的那件事重新想了一遍，好像没有当时那么重了。</div><div class="chips"><span class="chip">重新适应</span></div></div>
+            <div class="card"><div class="t">2026-09-17 08:15</div><div class="b">早上出门前还是停了一下，等那股急的劲儿过去才走。</div></div>
+            <div class="card"><div class="t">2026-09-16 23:18</div><div class="b">晚上和她把话说开了一些，没有想象中那么难。</div></div>
+          </div>
+          <div class="tab-old"><div class="on">记录</div><div>觉察</div><div>理解</div><div>探索</div></div>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="colhead">Direction A <span>· Editorial / Quiet Archive</span></div>
+      <div class="device">
+        <div class="phone" data-theme="light">
+          <div class="statusbar"><span>9:41</span><span>5G 100%</span></div>
+          <div class="topbar"><div class="brand">见渊</div><div class="acts"><span>搜索</span><span>设置</span></div></div>
+          <div class="scroller">
+            <div class="composer">
+              <div class="hint">写下此刻的一句话……</div>
+              <div class="underline"></div>
+              <div class="go">记下来 —</div>
+            </div>
+            <div class="dayrule"><span class="d">今天</span><span class="y">九月十七</span><span class="line"></span></div>
+            <div class="entry">
+              <div class="rail"><span class="stamp">09:42</span><span class="mark"></span></div>
+              <div class="col">
+                <div class="rtext">今天把之前一直回避的那件事重新想了一遍，好像没有当时那么重了。</div>
+                <span class="margin-tag">重新适应</span>
+              </div>
+            </div>
+            <div class="entry">
+              <div class="rail"><span class="stamp">08:15</span><span class="mark"></span></div>
+              <div class="col">
+                <div class="rtext">早上出门前还是停了一下，等那股急的劲儿过去才走。这个停顿以前让我觉得自己很慢，现在更像是给自己留了一点余地。</div>
+              </div>
+            </div>
+            <div class="entry">
+              <div class="rail"><span class="stamp">07:20</span><span class="mark"></span></div>
+              <div class="col"><div class="rtext">醒得比闹钟早，躺着没动。</div></div>
+            </div>
+          </div>
+          <div class="tabbar"><div class="tab on">记录</div><div class="tab">觉察</div><div class="tab">理解</div><div class="tab">探索</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <table class="spec" style="margin-top:26px">
+    <tr><th>维度</th><th>Current</th><th>Direction A</th></tr>
+    <tr><td><b>composition</b></td><td>单栏垂直堆叠：输入框 → 分隔线 → 卡片列表</td><td>页边索引栏 + 正文栏的双栏结构；时间住在索引栏里</td></tr>
+    <tr><td><b>surface</b></td><td>每条记录一张有边框、有填充的圆角卡片</td><td>记录静止时无容器，只用细规则线和留白分隔；surface 只留给真正需要交互边界的对象</td></tr>
+    <tr><td><b>hierarchy</b></td><td>时间在正文上方，同一条卡片里；标签是胶囊</td><td>时间在左侧索引位；标签降为页边记号（§ 重新适应）；正文独占一栏</td></tr>
+    <tr><td><b>rhythm</b></td><td>卡片等高、等间距，读起来像列表</td><td>留白承担分组：条目之间 26px，日期之间 40px，形成阅读段落而不是列表行</td></tr>
+    <tr><td><b>metaphor</b></td><td>内容管理系统：一条 = 一张卡</td><td>安静的个人档案：一页一页被保存下来的段落</td></tr>
+  </table>
+</div>
+
+<!-- ══ 1. RECORD ══════════════════════════════════════════════════ -->
+<div class="section">
+  <h2>1 · Record — 原始文字流 + 页边索引</h2>
+  <p class="note">正文是段落，时间退到左栏，标签是索引记号。没有一条记录被矩形包起来。输入不是盒子，是一条带下划线的书写线。</p>
+  <div class="pair">
+    <div class="device">
+      <div class="device-label"><b>Light</b><span>Warm Paper · 索引栏</span></div>
+      <div class="phone" data-theme="light">
+        <div class="statusbar"><span>9:41</span><span>5G 100%</span></div>
+        <div class="topbar"><div class="brand">见渊</div><div class="acts"><span>搜索</span><span>设置</span></div></div>
+        <div class="scroller">
+          <div class="composer"><div class="hint">写下此刻的一句话……</div><div class="underline"></div><div class="go">记下来 —</div></div>
+          <div class="dayrule"><span class="d">今天</span><span class="y">九月十七</span><span class="line"></span></div>
+          <div class="entry">
+            <div class="rail"><span class="stamp">09:42</span><span class="mark"></span></div>
+            <div class="col"><div class="rtext">今天把之前一直回避的那件事重新想了一遍，好像没有当时那么重了。</div><span class="margin-tag">重新适应</span></div>
+          </div>
+          <div class="entry">
+            <div class="rail"><span class="stamp">08:15</span><span class="mark"></span></div>
+            <div class="col"><div class="rtext">早上出门前还是停了一下，等那股急的劲儿过去才走。这个停顿以前让我觉得自己很慢，现在更像是给自己留了一点余地。</div><span class="margin-tag">前任</span></div>
+          </div>
+
+          <div class="dayrule"><span class="d">昨天</span><span class="y">九月十六</span><span class="line"></span></div>
+          <div class="entry">
+            <div class="rail"><span class="stamp">23:18</span><span class="mark"></span></div>
+            <div class="col"><div class="rtext">晚上和她把话说开了一些，没有想象中那么难。</div></div>
+          </div>
+        </div>
+        <div class="tabbar"><div class="tab on">记录</div><div class="tab">觉察</div><div class="tab">理解</div><div class="tab">探索</div></div>
+      </div>
+    </div>
+    <div class="device">
+      <div class="device-label"><b>Dark</b><span>Deep Amber</span></div>
+      <div class="phone" data-theme="dark">
+        <div class="statusbar"><span>9:41</span><span>5G 100%</span></div>
+        <div class="topbar"><div class="brand">见渊</div><div class="acts"><span>搜索</span><span>设置</span></div></div>
+        <div class="scroller">
+          <div class="composer"><div class="hint">写下此刻的一句话……</div><div class="underline"></div><div class="go">记下来 —</div></div>
+          <div class="dayrule"><span class="d">今天</span><span class="y">九月十七</span><span class="line"></span></div>
+          <div class="entry">
+            <div class="rail"><span class="stamp">09:42</span><span class="mark"></span></div>
+            <div class="col"><div class="rtext">今天把之前一直回避的那件事重新想了一遍，好像没有当时那么重了。</div><span class="margin-tag">重新适应</span></div>
+          </div>
+          <div class="entry">
+            <div class="rail"><span class="stamp">08:15</span><span class="mark"></span></div>
+            <div class="col"><div class="rtext">早上出门前还是停了一下，等那股急的劲儿过去才走。这个停顿以前让我觉得自己很慢，现在更像是给自己留了一点余地。</div><span class="margin-tag">前任</span></div>
+          </div>
+
+          <div class="dayrule"><span class="d">昨天</span><span class="y">九月十六</span><span class="line"></span></div>
+          <div class="entry">
+            <div class="rail"><span class="stamp">23:18</span><span class="mark"></span></div>
+            <div class="col"><div class="rtext">晚上和她把话说开了一些，没有想象中那么难。</div></div>
+          </div>
+        </div>
+        <div class="tabbar"><div class="tab on">记录</div><div class="tab">觉察</div><div class="tab">理解</div><div class="tab">探索</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ 2. AWARENESS MAIN ══════════════════════════════════════════ -->
+<div class="section">
+  <h2>2 · Awareness — 一段从留白里被提出来的话</h2>
+  <p class="note">不用矩形卡片。觉察是舞台正中一段被提出的文字，外面只有极轻的同心 halo。整个空间中大部分是空的 —— 空本身就是「还没有别的东西浮出来」。</p>
+  <div class="pair">
+    <div class="device">
+      <div class="device-label"><b>Light</b><span>statement in space</span></div>
+      <div class="phone" data-theme="light">
+        <div class="statusbar"><span>9:41</span><span>5G 100%</span></div>
+        <div class="topbar"><div class="brand">见渊</div><div class="acts"><span>历史</span><span>搜索</span><span>设置</span></div></div>
+        <div class="awareness-stage">
+          <div class="halo"></div>
+          <div class="halo inner"></div>
+          <div class="statement">
+            <div class="tagline">新的觉察</div>
+            <div class="said">你最近几次都提到，开始之前会先停一下。</div>
+            <div class="glass">这不是结论，只是一个可能的方向。</div>
+          </div>
+        </div>
+        <div class="awareness-action"><div class="act">开始一次觉察</div></div>
+        <div class="tabbar"><div class="tab">记录</div><div class="tab on">觉察<span class="dot"></span></div><div class="tab">理解</div><div class="tab">探索</div></div>
+      </div>
+    </div>
+    <div class="device">
+      <div class="device-label"><b>Dark</b><span>statement in space</span></div>
+      <div class="phone" data-theme="dark">
+        <div class="statusbar"><span>9:41</span><span>5G 100%</span></div>
+        <div class="topbar"><div class="brand">见渊</div><div class="acts"><span>历史</span><span>搜索</span><span>设置</span></div></div>
+        <div class="awareness-stage">
+          <div class="halo"></div>
+          <div class="halo inner"></div>
+          <div class="statement">
+            <div class="tagline">新的觉察</div>
+            <div class="said">你最近几次都提到，开始之前会先停一下。</div>
+            <div class="glass">这不是结论，只是一个可能的方向。</div>
+          </div>
+        </div>
+        <div class="awareness-action"><div class="act">开始一次觉察</div></div>
+        <div class="tabbar"><div class="tab">记录</div><div class="tab on">觉察<span class="dot"></span></div><div class="tab">理解</div><div class="tab">探索</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ 3. AWARENESS OPEN ═════════════════════════════════════════ -->
+<div class="section">
+  <h2>3 · Awareness — 打开：对象本身展开，周围退后</h2>
+  <p class="note">打开不跳页、不弹窗、不是手风琴。被提出的那句话在原地变大，index 与 halo 退到很低的存在感；解释、证据、回应按编辑段落排列，用规则线分隔而不是卡片。</p>
+  <div class="pair">
+    <div class="device">
+      <div class="device-label"><b>Light</b><span>object in focus</span></div>
+      <div class="phone" data-theme="light">
+        <div class="statusbar"><span>9:41</span><span>5G 100%</span></div>
+        <div class="topbar"><div class="brand">见渊</div><div class="acts"><span>历史</span><span>搜索</span><span>设置</span></div></div>
+        <div class="scroller">
+          <div class="open-wrap">
+            <div class="tagline" style="font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:var(--accent)">觉察 · 打开</div>
+            <div class="open-said">你最近几次都提到，开始之前会先停一下。</div>
+            <div class="open-block">
+              <div class="k">一种可能</div>
+              <div class="v">这个停顿更像是给自己留出余地，而不是拖延。</div>
+            </div>
+            <div class="open-block">
+              <div class="k">它来自</div>
+              <div class="v">4 条记录 · 09月03日 — 09月17日</div>
+            </div>
+            <div class="open-block">
+              <div class="k">你的回应</div>
+              <div class="reply"><div class="r on">很接近</div><div class="r">有一点像</div><div class="r">不是我的体验</div></div>
+            </div>
+            <div class="margin-note">写下你自己的理解……</div>
+          </div>
+        </div>
+        <div class="tabbar"><div class="tab">记录</div><div class="tab on">觉察</div><div class="tab">理解</div><div class="tab">探索</div></div>
+      </div>
+    </div>
+    <div class="device">
+      <div class="device-label"><b>Dark</b><span>object in focus</span></div>
+      <div class="phone" data-theme="dark">
+        <div class="statusbar"><span>9:41</span><span>5G 100%</span></div>
+        <div class="topbar"><div class="brand">见渊</div><div class="acts"><span>历史</span><span>搜索</span><span>设置</span></div></div>
+        <div class="scroller">
+          <div class="open-wrap">
+            <div class="tagline" style="font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:var(--accent)">觉察 · 打开</div>
+            <div class="open-said">你最近几次都提到，开始之前会先停一下。</div>
+            <div class="open-block">
+              <div class="k">一种可能</div>
+              <div class="v">这个停顿更像是给自己留出余地，而不是拖延。</div>
+            </div>
+            <div class="open-block">
+              <div class="k">它来自</div>
+              <div class="v">4 条记录 · 09月03日 — 09月17日</div>
+            </div>
+            <div class="open-block">
+              <div class="k">你的回应</div>
+              <div class="reply"><div class="r on">很接近</div><div class="r">有一点像</div><div class="r">不是我的体验</div></div>
+            </div>
+            <div class="margin-note">写下你自己的理解……</div>
+          </div>
+        </div>
+        <div class="tabbar"><div class="tab">记录</div><div class="tab on">觉察</div><div class="tab">理解</div><div class="tab">探索</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ 4. UNDERSTANDING ══════════════════════════════════════════ -->
+<div class="section">
+  <h2>4 · Understanding — 用户自己的话，作为文章片段</h2>
+  <p class="note">比 Record 更完整、更稳定。用户的理解用更大的衬线正文和首字下沉呈现，像一页自己的短文章；AI 的来源只以极小字排在下方，绝不与用户的话平级。</p>
+  <div class="pair">
+    <div class="device">
+      <div class="device-label"><b>Light</b><span>essay fragment</span></div>
+      <div class="phone" data-theme="light">
+        <div class="statusbar"><span>9:41</span><span>5G 100%</span></div>
+        <div class="topbar"><div class="brand">见渊</div><div class="acts"><span>搜索</span><span>设置</span></div></div>
+        <div class="scroller">
+          <div class="masthead" style="padding-left:0">
+            <div class="kicker">理解 · 你自己的话</div>
+            <div class="rule"></div>
+          </div>
+          <div class="entry">
+            <div class="rail"><span class="stamp">今天</span><span class="mark"></span></div>
+            <div class="col">
+              <div class="essay"><span class="drop">我</span>好像不是因为懒，是因为怕开始之后达不到自己想的那个样子。</div>
+              <div class="attrib"><span>来自「开始之前的停顿」</span><span class="dot"></span><span class="asis">已形成长期联系</span></div>
+            </div>
+          </div>
+          <div class="entry">
+            <div class="rail"><span class="stamp">昨天</span><span class="mark"></span></div>
+            <div class="col">
+              <div class="essay" style="font-size:18px;line-height:32px">这件事我需要先允许它做得不完整。</div>
+              <div class="attrib"><span>来自「把话说完」</span><span class="dot"></span><span class="asis">仅保存理解</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="tabbar"><div class="tab">记录</div><div class="tab">觉察</div><div class="tab on">理解</div><div class="tab">探索</div></div>
+      </div>
+    </div>
+    <div class="device">
+      <div class="device-label"><b>Dark</b><span>essay fragment</span></div>
+      <div class="phone" data-theme="dark">
+        <div class="statusbar"><span>9:41</span><span>5G 100%</span></div>
+        <div class="topbar"><div class="brand">见渊</div><div class="acts"><span>搜索</span><span>设置</span></div></div>
+        <div class="scroller">
+          <div class="masthead" style="padding-left:0">
+            <div class="kicker">理解 · 你自己的话</div>
+            <div class="rule"></div>
+          </div>
+          <div class="entry">
+            <div class="rail"><span class="stamp">今天</span><span class="mark"></span></div>
+            <div class="col">
+              <div class="essay"><span class="drop">我</span>好像不是因为懒，是因为怕开始之后达不到自己想的那个样子。</div>
+              <div class="attrib"><span>来自「开始之前的停顿」</span><span class="dot"></span><span class="asis">已形成长期联系</span></div>
+            </div>
+          </div>
+          <div class="entry">
+            <div class="rail"><span class="stamp">昨天</span><span class="mark"></span></div>
+            <div class="col">
+              <div class="essay" style="font-size:18px;line-height:32px">这件事我需要先允许它做得不完整。</div>
+              <div class="attrib"><span>来自「把话说完」</span><span class="dot"></span><span class="asis">仅保存理解</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="tabbar"><div class="tab">记录</div><div class="tab">觉察</div><div class="tab on">理解</div><div class="tab">探索</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ 5. EXPLORATION ════════════════════════════════════════════ -->
+<div class="section">
+  <h2>5 · Exploration — 关系索引，不是列表，也不是图谱</h2>
+  <p class="note">用「条目编号 + 轴线 + 织线 + 交叉引用」表达连接：编号像档案索引，织线表达跨记录的结构，交叉引用把线索连到别处。没有任何节点被画成确定事实，支持程度始终明写。</p>
+  <div class="pair">
+    <div class="device">
+      <div class="device-label"><b>Light</b><span>index of threads</span></div>
+      <div class="phone" data-theme="light">
+        <div class="statusbar"><span>9:41</span><span>5G 100%</span></div>
+        <div class="topbar"><div class="brand">见渊</div><div class="acts"><span>搜索</span><span>设置</span></div></div>
+        <div class="scroller">
+          <div class="masthead" style="padding-left:0">
+            <div class="kicker">探索 · 长期结构</div>
+            <div class="rule"></div>
+          </div>
+          <div class="thread-index">
+            <div class="thread-row">
+              <div class="no">01</div>
+              <div class="body">
+                <div class="axis">开始之前的停顿</div>
+                <div class="span">09月03日 — 09月17日 · 4 条记录</div>
+                <div class="weave"><span class="n"></span><span class="l"></span><span class="n"></span><span class="l"></span><span class="n"></span><span class="l short"></span><span class="n"></span></div>
+                <div class="support">支持程度：中等 · 这是可能的结构，不是结论</div>
+                <div class="crossref">交叉引用 → <b>把话说完</b> · <b>重新适应</b></div>
+              </div>
+            </div>
+            <div class="thread-row">
+              <div class="no">02</div>
+              <div class="body">
+                <div class="axis">把话说完</div>
+                <div class="span">08月28日 — 09月16日 · 3 条记录</div>
+                <div class="weave"><span class="n"></span><span class="l short"></span><span class="n"></span><span class="l"></span><span class="n"></span></div>
+                <div class="support">支持程度：偏弱 · 仍需更多记录</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="tabbar"><div class="tab">记录</div><div class="tab">觉察</div><div class="tab">理解</div><div class="tab on">探索</div></div>
+      </div>
+    </div>
+    <div class="device">
+      <div class="device-label"><b>Dark</b><span>index of threads</span></div>
+      <div class="phone" data-theme="dark">
+        <div class="statusbar"><span>9:41</span><span>5G 100%</span></div>
+        <div class="topbar"><div class="brand">见渊</div><div class="acts"><span>搜索</span><span>设置</span></div></div>
+        <div class="scroller">
+          <div class="masthead" style="padding-left:0">
+            <div class="kicker">探索 · 长期结构</div>
+            <div class="rule"></div>
+          </div>
+          <div class="thread-index">
+            <div class="thread-row">
+              <div class="no">01</div>
+              <div class="body">
+                <div class="axis">开始之前的停顿</div>
+                <div class="span">09月03日 — 09月17日 · 4 条记录</div>
+                <div class="weave"><span class="n"></span><span class="l"></span><span class="n"></span><span class="l"></span><span class="n"></span><span class="l short"></span><span class="n"></span></div>
+                <div class="support">支持程度：中等 · 这是可能的结构，不是结论</div>
+                <div class="crossref">交叉引用 → <b>把话说完</b> · <b>重新适应</b></div>
+              </div>
+            </div>
+            <div class="thread-row">
+              <div class="no">02</div>
+              <div class="body">
+                <div class="axis">把话说完</div>
+                <div class="span">08月28日 — 09月16日 · 3 条记录</div>
+                <div class="weave"><span class="n"></span><span class="l short"></span><span class="n"></span><span class="l"></span><span class="n"></span></div>
+                <div class="support">支持程度：偏弱 · 仍需更多记录</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="tabbar"><div class="tab">记录</div><div class="tab">觉察</div><div class="tab">理解</div><div class="tab on">探索</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ 6. SEARCH MODE ════════════════════════════════════════════ -->
+<div class="section">
+  <h2>6 · Search Mode — 搜索时顶栏退出，搜索成为一条编辑线</h2>
+  <p class="note">Search Mode 与上一版一致的交互契约：品牌与操作退出布局，搜索占满整行，不可能遮挡标题。Direction A 只改样式 —— 搜索框改成一条带下划线的编辑线，标签筛选降为一行极轻的索引词。</p>
+  <div class="pair">
+    <div class="device small">
+      <div class="device-label"><b>Light</b><span>small iPhone · search</span></div>
+      <div class="phone" data-theme="light">
+        <div class="statusbar"><span>9:41</span><span>5G</span></div>
+        <div class="topbar"><div class="searchline"><span class="q">前任</span><span class="x">取消</span></div></div>
+        <div class="masthead" style="padding-top:0">
+          <div class="kicker" style="margin-bottom:10px">按索引筛选</div>
+          <div style="display:flex;gap:14px;font-size:12px;color:var(--ink-4)">
+            <span style="color:var(--accent)">全部</span><span>§ 关系</span><span>§ 学习</span><span>§ 生活</span>
+          </div>
+          <div class="rule" style="margin-top:12px"></div>
+        </div>
+        <div class="scroller">
+          <div class="entry" style="padding-top:20px">
+            <div class="rail"><span class="stamp">09:42</span><span class="mark"></span></div>
+            <div class="col"><div class="rtext">关于前任的一段记录。</div><span class="margin-tag">关系</span></div>
+          </div>
+        </div>
+        <div class="tabbar"><div class="tab on">记录</div><div class="tab">觉察</div><div class="tab">理解</div><div class="tab">探索</div></div>
+      </div>
+    </div>
+    <div class="device small">
+      <div class="device-label"><b>Dark</b><span>small iPhone · search</span></div>
+      <div class="phone" data-theme="dark">
+        <div class="statusbar"><span>9:41</span><span>5G</span></div>
+        <div class="topbar"><div class="searchline"><span class="q">前任</span><span class="x">取消</span></div></div>
+        <div class="masthead" style="padding-top:0">
+          <div class="kicker" style="margin-bottom:10px">按索引筛选</div>
+          <div style="display:flex;gap:14px;font-size:12px;color:var(--ink-4)">
+            <span style="color:var(--accent)">全部</span><span>§ 关系</span><span>§ 学习</span><span>§ 生活</span>
+          </div>
+          <div class="rule" style="margin-top:12px"></div>
+        </div>
+        <div class="scroller">
+          <div class="entry" style="padding-top:20px">
+            <div class="rail"><span class="stamp">09:42</span><span class="mark"></span></div>
+            <div class="col"><div class="rtext">关于前任的一段记录。</div><span class="margin-tag">关系</span></div>
+          </div>
+        </div>
+        <div class="tabbar"><div class="tab on">记录</div><div class="tab">觉察</div><div class="tab">理解</div><div class="tab">探索</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ 7. DE-COLOUR PROOF ════════════════════════════════════════ -->
+<div class="section">
+  <h2>7 · 去色彩证明 — 把颜色全部拿掉，结构是否还成立</h2>
+  <p class="note">同样的构图，全部换成中性灰。如果差异主要来自颜色，这里就会退化成普通列表。这里的四页即使没有色彩，仍然能一眼区分：Record 是索引栏 + 段落流，Awareness 是居中声明 + 同心 halo，Understanding 是首字下沉的文章，Exploration 是编号索引 + 织线。</p>
+  <div class="pair">
+    <div class="device mini">
+      <div class="device-label"><b>Neutral</b><span>Record</span></div>
+      <div class="phone" data-theme="neutral">
+        <div class="statusbar"><span>9:41</span><span>5G</span></div>
+        <div class="topbar"><div class="brand">见渊</div><div class="acts"><span>搜索</span><span>设置</span></div></div>
+        <div class="scroller">
+          <div class="dayrule" style="margin-top:14px"><span class="d">今天</span><span class="y">九月十七</span><span class="line"></span></div>
+          <div class="entry" style="padding-top:16px">
+            <div class="rail"><span class="stamp">09:42</span><span class="mark"></span></div>
+            <div class="col"><div class="rtext" style="font-size:15px;line-height:26px">今天把之前一直回避的那件事重新想了一遍。</div><span class="margin-tag">重新适应</span></div>
+          </div>
+          <div class="entry" style="padding-top:18px">
+            <div class="rail"><span class="stamp">08:15</span><span class="mark"></span></div>
+            <div class="col"><div class="rtext" style="font-size:15px;line-height:26px">早上出门前还是停了一下。</div></div>
+          </div>
+        </div>
+        <div class="tabbar"><div class="tab on">记录</div><div class="tab">觉察</div><div class="tab">理解</div><div class="tab">探索</div></div>
+      </div>
+    </div>
+    <div class="device mini">
+      <div class="device-label"><b>Neutral</b><span>Awareness</span></div>
+      <div class="phone" data-theme="neutral">
+        <div class="statusbar"><span>9:41</span><span>5G</span></div>
+        <div class="topbar"><div class="brand">见渊</div><div class="acts"><span>历史</span><span>搜索</span></div></div>
+        <div class="awareness-stage">
+          <div class="halo" style="width:220px;height:220px"></div>
+          <div class="halo inner" style="width:160px;height:160px"></div>
+          <div class="statement">
+            <div class="tagline">新的觉察</div>
+            <div class="said" style="font-size:17px;line-height:28px">你最近几次都提到，开始之前会先停一下。</div>
+          </div>
+        </div>
+        <div class="awareness-action"><div class="act">开始一次觉察</div></div>
+        <div class="tabbar"><div class="tab">记录</div><div class="tab on">觉察</div><div class="tab">理解</div><div class="tab">探索</div></div>
+      </div>
+    </div>
+    <div class="device mini">
+      <div class="device-label"><b>Neutral</b><span>Understanding</span></div>
+      <div class="phone" data-theme="neutral">
+        <div class="statusbar"><span>9:41</span><span>5G</span></div>
+        <div class="topbar"><div class="brand">见渊</div><div class="acts"><span>搜索</span><span>设置</span></div></div>
+        <div class="scroller">
+          <div class="masthead" style="padding-left:0"><div class="kicker">理解 · 你自己的话</div><div class="rule"></div></div>
+          <div class="entry" style="padding-top:18px">
+            <div class="rail"><span class="stamp">今天</span><span class="mark"></span></div>
+            <div class="col">
+              <div class="essay" style="font-size:16px;line-height:30px"><span class="drop" style="font-size:36px;line-height:34px">我</span>好像不是因为懒，是因为怕开始之后达不到自己想的那个样子。</div>
+              <div class="attrib"><span>来自一条觉察</span><span class="dot"></span><span class="asis">已形成长期联系</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="tabbar"><div class="tab">记录</div><div class="tab">觉察</div><div class="tab on">理解</div><div class="tab">探索</div></div>
+      </div>
+    </div>
+    <div class="device mini">
+      <div class="device-label"><b>Neutral</b><span>Exploration</span></div>
+      <div class="phone" data-theme="neutral">
+        <div class="statusbar"><span>9:41</span><span>5G</span></div>
+        <div class="topbar"><div class="brand">见渊</div><div class="acts"><span>搜索</span><span>设置</span></div></div>
+        <div class="scroller">
+          <div class="masthead" style="padding-left:0"><div class="kicker">探索 · 长期结构</div><div class="rule"></div></div>
+          <div class="thread-index">
+            <div class="thread-row" style="padding:16px 0">
+              <div class="no">01</div>
+              <div class="body">
+                <div class="axis" style="font-size:15px">开始之前的停顿</div>
+                <div class="span">4 条记录 · 两周</div>
+                <div class="weave"><span class="n"></span><span class="l"></span><span class="n"></span><span class="l"></span><span class="n"></span><span class="l short"></span><span class="n"></span></div>
+                <div class="support">支持程度：中等</div>
+              </div>
+            </div>
+            <div class="thread-row" style="padding:16px 0">
+              <div class="no">02</div>
+              <div class="body">
+                <div class="axis" style="font-size:15px">把话说完</div>
+                <div class="span">3 条记录</div>
+                <div class="weave"><span class="n"></span><span class="l short"></span><span class="n"></span><span class="l"></span><span class="n"></span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="tabbar"><div class="tab">记录</div><div class="tab">觉察</div><div class="tab">理解</div><div class="tab on">探索</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ 8. SURFACE AUDIT ══════════════════════════════════════════ -->
+<div class="section">
+  <h2>8 · 去卡片化自检 — 每一处容器是否必要</h2>
+  <table class="spec">
+    <tr><th>画面</th><th>用到的容器</th><th>是否必要</th></tr>
+    <tr><td>Record 列表</td><td>无。细规则线 + 留白</td><td>不需要容器：内容是段落流，分隔靠规则线即可</td></tr>
+    <tr><td>Record 输入</td><td>无。一条下划线</td><td>不需要盒子：书写线比输入框更安静，也更像「留下」</td></tr>
+    <tr><td>Record 标签</td><td>无。页边索引记号 §</td><td>不需要胶囊：标签是索引，不是按钮</td></tr>
+    <tr><td>Awareness 主页</td><td>无矩形。同心 halo（1px 圆环）</td><td>halo 承担「浮现」语义，且不是卡片</td></tr>
+    <tr><td>Awareness 打开</td><td>无。段落 + 规则线 + 竖线引注</td><td>不需要卡片：对象本身就是主体</td></tr>
+    <tr><td>Understanding</td><td>无。文章 + 首字下沉</td><td>不需要卡片：这是用户自己的话</td></tr>
+    <tr><td>Exploration</td><td>无。编号索引 + 织线</td><td>不需要卡片：结构由线和编号表达</td></tr>
+    <tr><td>Search</td><td>1 条下划线 + 1 条规则线</td><td>搜索是编辑行为，不是面板</td></tr>
+    <tr><td>Tab bar</td><td>1 条顶部分隔线</td><td>导航契约不变，只保留必要的边界</td></tr>
+  </table>
+  <p class="note"><b>结论：Direction A 中没有任何内容条目被装在矩形卡片里。</b>仅存的矩形/线条是导航边界、搜索线和输入下划线。</p>
+</div>
+
+<!-- ══ 9. MOTION (concept) ══════════════════════════════════════ -->
+<div class="section">
+  <h2>9 · Motion — 概念层（不实现）</h2>
+  <table class="spec">
+    <tr><th>空间</th><th>语义</th><th>Direction A 下的表达</th><th>Reduce Motion</th></tr>
+    <tr><td>Record</td><td>落下 settle</td><td>新段落以极轻的淡入 + 2px 下移落位；不弹跳</td><td>仅淡入</td></tr>
+    <tr><td>Awareness</td><td>浮现 surface</td><td>halo 由内向外极慢扩散一次后停住；文字最后出现。沿用冻结的 520 / 420 / 820ms</td><td>halo 不扩散，仅淡入</td></tr>
+    <tr><td>Understanding</td><td>沉淀 sink</td><td>文章片段更慢地落位，无庆祝动效</td><td>仅淡入</td></tr>
+    <tr><td>Exploration</td><td>连接 connect</td><td>织线从左向右缓慢画出，节点随后出现</td><td>线直接呈现</td></tr>
+    <tr><td>Search Mode</td><td>模式切换</td><td>品牌与操作淡出，搜索线淡入；无位移</td><td>同</td></tr>
+  </table>
+</div>
+
+</body>
+</html>

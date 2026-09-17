@@ -1,0 +1,128 @@
+/*
+ * 见渊 · M3.3 Direction A — Editorial / Quiet Archive
+ *
+ * This is a DESIGN token sheet for review, not runtime code.
+ *
+ * The point of this direction is NOT colour. Colour is deliberately kept in the
+ * same warm family as the previous board so the structural change is what you
+ * judge. A de-colourised proof section at the end of the board renders the same
+ * composition in neutral greys, to show the difference survives without colour.
+ *
+ * Structural departures from the current UI are carried by layout tokens, not
+ * by colour tokens:
+ *   --rail            width of the left margin index column
+ *   --measure         reading measure of the body column
+ *   --gutter          space between margin index and body
+ *   --breath          inter-entry vertical space (the main grouping device)
+ */
+
+.phone {
+  /* ── Surface / ink ────────────────────────────────────────────────── */
+  --canvas: #f4f0e7;
+  --paper: #fbf9f3;
+  --band: #e7e0d1;
+
+  --ink: #1f1c17;
+  --ink-2: #4f4a40;
+  --ink-3: #6d675b;
+  --ink-4: #948d7e;
+
+  --rule: #ddd4c3;
+  --rule-strong: #c6bba6;
+
+  --accent: #7c5c2f;
+  --accent-soft: rgba(124, 92, 47, 0.08);
+  --on-accent: #fbf9f3;
+
+  --bubble-line: rgba(124, 92, 47, 0.28);
+  --bubble-halo: rgba(124, 92, 47, 0.12);
+
+  --mark: rgba(124, 92, 47, 0.55);
+
+  --danger: #993f31;
+}
+
+.phone[data-theme='dark'] {
+  --canvas: #131209;
+  --paper: #1a1912;
+  --band: #24221a;
+
+  --ink: #ece8dd;
+  --ink-2: #b6b1a4;
+  --ink-3: #928c7f;
+  --ink-4: #6c665b;
+
+  --rule: #2b281f;
+  --rule-strong: #3b372c;
+
+  --accent: #d9ad72;
+  --accent-soft: rgba(217, 173, 114, 0.12);
+  --on-accent: #16140e;
+
+  --bubble-line: rgba(217, 173, 114, 0.34);
+  --bubble-halo: rgba(217, 173, 114, 0.16);
+
+  --mark: rgba(217, 173, 114, 0.6);
+
+  --danger: #e19b8a;
+}
+
+/* De-colourised proof: same composition, no hue at all. */
+.phone[data-theme='neutral'] {
+  --canvas: #f2f2f2;
+  --paper: #fbfbfb;
+  --band: #e4e4e4;
+  --ink: #1c1c1c;
+  --ink-2: #4d4d4d;
+  --ink-3: #6b6b6b;
+  --ink-4: #949494;
+  --rule: #dcdcdc;
+  --rule-strong: #c4c4c4;
+  --accent: #4a4a4a;
+  --accent-soft: rgba(0, 0, 0, 0.06);
+  --on-accent: #fbfbfb;
+  --bubble-line: rgba(0, 0, 0, 0.28);
+  --bubble-halo: rgba(0, 0, 0, 0.12);
+  --mark: rgba(0, 0, 0, 0.5);
+  --danger: #555;
+}
+
+.phone[data-theme='neutraldark'] {
+  --canvas: #141414;
+  --paper: #1b1b1b;
+  --band: #252525;
+  --ink: #ececec;
+  --ink-2: #b4b4b4;
+  --ink-3: #909090;
+  --ink-4: #6a6a6a;
+  --rule: #2b2b2b;
+  --rule-strong: #3b3b3b;
+  --accent: #d6d6d6;
+  --accent-soft: rgba(255, 255, 255, 0.1);
+  --on-accent: #161616;
+  --bubble-line: rgba(255, 255, 255, 0.34);
+  --bubble-halo: rgba(255, 255, 255, 0.16);
+  --mark: rgba(255, 255, 255, 0.6);
+  --danger: #bbb;
+}
+
+/* ── Shared geometry ─────────────────────────────────────────────── */
+.phone {
+  /* Editorial grid: a margin index rail plus a body column. This is the single
+     biggest structural change — time and markers live OUTSIDE the text block. */
+  --rail: 52px;
+  --gutter: 14px;
+  --page-x: 22px;
+
+  /* The body column is a reading measure, not a full-width box. */
+  --measure: calc(100% - var(--rail) - var(--gutter));
+
+  /* Whitespace is the grouping device. */
+  --breath: 26px;
+  --breath-lg: 40px;
+
+  /* Rhythm of type. Serif carries editorial statements; sans carries the rest. */
+  --serif: 'Songti SC', 'Source Han Serif SC', 'Noto Serif CJK SC', Georgia, serif;
+  --sans: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB',
+    'Microsoft YaHei', sans-serif;
+}
