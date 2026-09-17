@@ -2,7 +2,7 @@
  * Record space — the user's own original expression, settled in time.
  *
  * DESIGN INTENT
- * The Record feed is a weakly-carded time stream, not a column of cards. The
+ * The Record feed is an editorial time stream, not a column of cards. The
  * user's own text is the primary visual layer; time and tags are quiet
  * metadata. Card is not the default answer here, so a Record is separated by
  * whitespace and a hairline, and a surface only appears on interaction.
@@ -38,7 +38,7 @@ import { useRuntime } from '../shell/runtime-context';
 import { matchesLocalQuery } from '../shell/local-search';
 import { RECORD_SAVED_MESSAGE, type CaptureFailure } from '../runtime/mobile-runtime';
 import { useTheme } from '../theme/theme-context';
-import { RADIUS, SPACING, TYPOGRAPHY } from '../theme/tokens';
+import { DEPTH, RADIUS, SPACING, TYPOGRAPHY } from '../theme/tokens';
 import type { RecordReadModel } from '../../../../packages/core/index';
 
 type SaveState =
@@ -66,6 +66,27 @@ const formatRecordTime = (value: Date, now: Date = new Date()): string => {
   if (dayDelta === 0) return clock;
   if (dayDelta === 1) return `昨天 ${clock}`;
   return `${date.getMonth() + 1}月${date.getDate()}日 ${clock}`;
+};
+
+const formatRailTime = (value: Date, now: Date = new Date()): string => {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  const startOfDay = (input: Date) =>
+    new Date(input.getFullYear(), input.getMonth(), input.getDate()).getTime();
+  const dayDelta = Math.round((startOfDay(now) - startOfDay(date)) / 86_400_000);
+  const clock = `${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  return dayDelta === 0 ? clock : `${date.getMonth() + 1}/${date.getDate()}`;
+};
+
+const formatDayMarker = (value: Date, now: Date = new Date()): string => {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  const startOfDay = (input: Date) =>
+    new Date(input.getFullYear(), input.getMonth(), input.getDate()).getTime();
+  const delta = Math.round((startOfDay(now) - startOfDay(date)) / 86_400_000);
+  if (delta === 0) return '今天';
+  if (delta === 1) return '昨天';
+  return `${date.getMonth() + 1}月${date.getDate()}日`;
 };
 
 const dayKeyOf = (value: Date): string =>
@@ -98,6 +119,17 @@ const groupByDay = (
     groups.push({ key, label: dayLabelOf(date, now), records: [record] });
   }
   return groups;
+};
+
+/**
+ * B2 is only used as a focus capability: the newest visible Record is near,
+ * the next few are mid, and older records recede. Nothing here changes the
+ * Record's stored wording or order.
+ */
+const depthForIndex = (index: number): 'near' | 'mid' | 'far' => {
+  if (index === 0) return 'near';
+  if (index < 3) return 'mid';
+  return 'far';
 };
 
 export const RecordSpace = ({
@@ -192,160 +224,186 @@ export const RecordSpace = ({
   const canSave = draft.trim().length > 0 && saveState.kind !== 'saving';
   const filtered = searchQuery.trim().length > 0 || activeTag !== null;
 
+  let visibleIndex = -1;
+
   return (
     <KeyboardAvoidingView
       style={[styles.root, { backgroundColor: colors.canvas }]}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-    <ScrollView
-      testID="space-records"
-      style={[styles.root, { backgroundColor: colors.canvas }]}
-      contentContainerStyle={styles.scrollContent}
-      keyboardShouldPersistTaps="handled"
-    >
-      <View
-        style={[
-          styles.well,
-          {
-            backgroundColor: colors.sunken,
-            borderColor: colors.borderSubtle,
-            borderRadius: RADIUS.md,
-          },
-        ]}
+      <ScrollView
+        testID="space-records"
+        style={[styles.root, { backgroundColor: colors.canvas }]}
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
       >
-        <TextInput
-          testID="record-input"
-          value={draft}
-          onChangeText={setDraft}
-          multiline
-          placeholder="写下此刻的一句话……"
-          placeholderTextColor={colors.textMuted}
-          accessibilityLabel="记录输入"
-          style={[styles.input, TYPOGRAPHY.body, { color: colors.textPrimary }]}
-        />
-        <View style={styles.actions}>
-          <Pressable
-            testID="record-save"
-            accessibilityRole="button"
-            accessibilityLabel="记下来"
-            disabled={!canSave}
-            onPress={save}
-            style={[styles.saveButton, { opacity: canSave ? 1 : 0.5 }]}
-            hitSlop={{ top: 6, bottom: 6, left: 8, right: 8 }}
-          >
-            {saveState.kind === 'saving' ? (
-              <ActivityIndicator color={colors.accent} />
-            ) : (
-              <Text style={[TYPOGRAPHY.lead, { color: canSave ? colors.accent : colors.textMuted }]}>
-                记下来
-              </Text>
-            )}
-          </Pressable>
-          {saveState.kind === 'saved' ? (
-            <Text
-              testID="record-saved-message"
-              style={[TYPOGRAPHY.meta, { color: colors.success }]}
-            >
-              {RECORD_SAVED_MESSAGE}
-            </Text>
-          ) : null}
-          {saveState.kind === 'failed' ? (
-            <Text testID="record-error" style={[TYPOGRAPHY.meta, { color: colors.danger }]}>
-              {saveState.failure.message}
-            </Text>
-          ) : null}
-        </View>
-      </View>
-
-      {loading ? (
-        <ActivityIndicator color={colors.accent} />
-      ) : groups.length === 0 ? (
-        <Text
-          testID="record-empty"
-          style={[TYPOGRAPHY.body, { color: colors.textMuted, marginTop: SPACING.xl }]}
+        <View
+          style={[
+            styles.composer,
+            {
+              borderColor: colors.divider,
+              backgroundColor: 'transparent',
+            },
+          ]}
         >
-          {filtered
-            ? '没有找到相关内容。'
-            : '写下一些此刻想留下的东西。'}
-        </Text>
-      ) : (
-        <View testID="record-timeline" style={styles.timeline}>
-          {groups.map((group) => (
-            <View key={group.key} style={styles.group}>
-              <Text style={[styles.dayLabel, { color: colors.textMuted }]}>{group.label}</Text>
-              {group.records.map((record) => {
-                const tags = tagsFor(record.id);
-                const open = openRecordId === record.id;
-                return (
-                  <View
-                    key={record.id}
-                    testID={`record-item-${record.id}`}
-                    style={[
-                      styles.recordItem,
-                      open && { backgroundColor: colors.surface, borderRadius: RADIUS.sm },
-                    ]}
-                  >
-                    <Pressable
-                      testID={`record-toggle-${record.id}`}
-                      accessibilityRole="button"
-                      accessibilityLabel={open ? '收起记录' : '展开记录'}
-                      onPress={() => setOpenRecordId(open ? null : record.id)}
-                      style={styles.recordPressable}
-                    >
-                      <Text
-                        style={[
-                          styles.recordBody,
-                          { color: colors.textPrimary },
-                          !open && styles.recordBodyCollapsed,
-                        ]}
-                        numberOfLines={open ? undefined : 4}
-                      >
-                        {record.verbatim ?? ''}
-                      </Text>
-                      <Text style={[styles.recordTime, { color: colors.textMuted }]}>
-                        {formatRecordTime(record.capturedAt)}
-                      </Text>
-                    </Pressable>
-
-                    {tags.length > 0 ? (
-                      <View style={styles.tagRow}>
-                        {tags.map((tag) => (
-                          <View
-                            key={tag}
-                            testID={`record-tag-${record.id}-${tag}`}
-                            style={[
-                              styles.tag,
-                              {
-                                backgroundColor: colors.accentSoft,
-                                borderColor: colors.borderSubtle,
-                              },
-                            ]}
-                          >
-                            <Text style={[styles.tagText, { color: colors.textSecondary }]}>
-                              {tag}
-                            </Text>
-                          </View>
-                        ))}
-                      </View>
-                    ) : null}
-
-                    {open ? (
-                      <TagEditor
-                        recordId={record.id}
-                        tags={tags}
-                        vocabulary={tagVocabulary}
-                        onAdd={addTag}
-                        onRemove={removeTag}
-                      />
-                    ) : null}
-                  </View>
-                );
-              })}
-            </View>
-          ))}
+          <TextInput
+            testID="record-input"
+            value={draft}
+            onChangeText={setDraft}
+            multiline
+            placeholder="写下此刻的一句话……"
+            placeholderTextColor={colors.textMuted}
+            accessibilityLabel="记录输入"
+            style={[styles.input, TYPOGRAPHY.record, { color: colors.textPrimary }]}
+          />
+          <View style={styles.actions}>
+            <Pressable
+              testID="record-save"
+              accessibilityRole="button"
+              accessibilityLabel="记下来"
+              disabled={!canSave}
+              onPress={save}
+              style={[styles.saveButton, { opacity: canSave ? 1 : 0.5 }]}
+              hitSlop={{ top: 8, bottom: 8, left: 10, right: 10 }}
+            >
+              {saveState.kind === 'saving' ? (
+                <ActivityIndicator color={colors.accent} />
+              ) : (
+                <Text style={[TYPOGRAPHY.action, { color: canSave ? colors.accent : colors.textMuted }]}>
+                  记下来
+                </Text>
+              )}
+            </Pressable>
+            {saveState.kind === 'saved' ? (
+              <Text
+                testID="record-saved-message"
+                style={[TYPOGRAPHY.caption, { color: colors.success }]}
+              >
+                {RECORD_SAVED_MESSAGE}
+              </Text>
+            ) : null}
+            {saveState.kind === 'failed' ? (
+              <Text testID="record-error" style={[TYPOGRAPHY.caption, { color: colors.danger }]}>
+                {saveState.failure.message}
+              </Text>
+            ) : null}
+          </View>
         </View>
-      )}
-    </ScrollView>
+
+        {loading ? (
+          <ActivityIndicator color={colors.accent} />
+        ) : groups.length === 0 ? (
+          <Text
+            testID="record-empty"
+            style={[TYPOGRAPHY.empty, { color: colors.textMuted, marginTop: SPACING.xl }]}
+          >
+            {filtered ? '没有找到相关内容。' : '写下一些此刻想留下的东西。'}
+          </Text>
+        ) : (
+          <View testID="record-timeline" style={styles.timeline}>
+            {groups.map((group) => (
+              <View key={group.key} style={styles.group}>
+                <View style={styles.dayRule}>
+                  <Text style={[styles.dayLabel, { color: colors.textMuted }]}>
+                    {group.label}
+                  </Text>
+                  <View style={[styles.dayLine, { backgroundColor: colors.dividerWeak }]} />
+                </View>
+                {group.records.map((record) => {
+                  visibleIndex += 1;
+                  const tags = tagsFor(record.id);
+                  const open = openRecordId === record.id;
+                  const depth = depthForIndex(visibleIndex);
+                  const recede = depth === 'far' ? DEPTH.recedeOpacity : depth === 'mid' ? 0.92 : 1;
+                  return (
+                    <View
+                      key={record.id}
+                      testID={`record-item-${record.id}`}
+                      style={[
+                        styles.entry,
+                        depth === 'far' && styles.entryFar,
+                        open && styles.entryFocus,
+                        open && styles.entryOpenSurface,
+                        open && { borderLeftColor: colors.focusIndicator },
+                        open && { backgroundColor: colors.nearSurface },
+                      ]}
+                    >
+                      <View style={styles.rail}>
+                        <Text style={[styles.recordTime, { color: colors.textFaint }]}>
+                          {formatRailTime(record.capturedAt)}
+                        </Text>
+                        <View
+                          style={[
+                            styles.railMark,
+                            { backgroundColor: open ? colors.accent : colors.divider },
+                          ]}
+                        />
+                      </View>
+                      <View style={styles.entryBody}>
+                        <Pressable
+                          testID={`record-toggle-${record.id}`}
+                          accessibilityRole="button"
+                          accessibilityLabel={open ? '收起记录' : '展开记录'}
+                          onPress={() => setOpenRecordId(open ? null : record.id)}
+                          style={styles.recordPressable}
+                        >
+                          <Text
+                            style={[
+                              styles.recordBody,
+                              { color: depth === 'far' ? colors.textMuted : colors.textPrimary },
+                              { opacity: recede },
+                            ]}
+                            numberOfLines={open ? undefined : 4}
+                          >
+                            {record.verbatim ?? ''}
+                          </Text>
+                          {open ? (
+                            <Text style={[styles.fullTime, { color: colors.textFaint }]}>
+                              {formatRecordTime(record.capturedAt)}
+                            </Text>
+                          ) : null}
+                        </Pressable>
+
+                        {tags.length > 0 ? (
+                          <View style={styles.tagRow}>
+                            {tags.map((tag) => (
+                              <View
+                                key={tag}
+                                testID={`record-tag-${record.id}-${tag}`}
+                                style={[
+                                  styles.tag,
+                                  {
+                                    backgroundColor: colors.tagBackground,
+                                    borderColor: colors.tagBorder,
+                                  },
+                                ]}
+                              >
+                                <Text style={[styles.tagText, { color: colors.tagText }]}>
+                                  {tag}
+                                </Text>
+                              </View>
+                            ))}
+                          </View>
+                        ) : null}
+
+                        {open ? (
+                          <TagEditor
+                            recordId={record.id}
+                            tags={tags}
+                            vocabulary={tagVocabulary}
+                            onAdd={addTag}
+                            onRemove={removeTag}
+                          />
+                        ) : null}
+                      </View>
+                    </View>
+                  );
+                })}
+              </View>
+            ))}
+          </View>
+        )}
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 };
@@ -392,11 +450,11 @@ const TagEditor = ({
               onPress={() => void onRemove(recordId, tag)}
               style={[
                 styles.tag,
-                { backgroundColor: colors.accentSoft, borderColor: colors.borderSubtle },
+                { backgroundColor: colors.tagBackground, borderColor: colors.tagBorder },
               ]}
               hitSlop={6}
             >
-              <Text style={[styles.tagText, { color: colors.textSecondary }]}>
+              <Text style={[styles.tagText, { color: colors.tagText }]}>
                 {tag} ×
               </Text>
             </Pressable>
@@ -415,7 +473,7 @@ const TagEditor = ({
             accessibilityLabel="新建标签"
             style={[
               styles.tagInput,
-              { color: colors.textPrimary, borderColor: colors.borderSubtle },
+              { color: colors.textPrimary, borderColor: colors.divider },
             ]}
             onSubmitEditing={() => void submit()}
             autoFocus
@@ -425,9 +483,10 @@ const TagEditor = ({
             accessibilityRole="button"
             accessibilityLabel="保存标签"
             onPress={() => void submit()}
-            hitSlop={6}
+            hitSlop={8}
+            style={styles.touchAction}
           >
-            <Text style={[TYPOGRAPHY.meta, { color: colors.accent }]}>保存</Text>
+            <Text style={[TYPOGRAPHY.action, { color: colors.accent }]}>保存</Text>
           </Pressable>
         </View>
       ) : (
@@ -437,9 +496,9 @@ const TagEditor = ({
           accessibilityLabel="添加标签"
           onPress={() => setAdding(true)}
           style={styles.tagAdd}
-          hitSlop={6}
+          hitSlop={8}
         >
-          <Text style={[TYPOGRAPHY.meta, { color: colors.textMuted }]}>+ 添加标签</Text>
+          <Text style={[TYPOGRAPHY.caption, { color: colors.textMuted }]}>+ 添加标签</Text>
         </Pressable>
       )}
 
@@ -454,7 +513,7 @@ const TagEditor = ({
               onPress={() => void onAdd(recordId, tag)}
               style={[
                 styles.tag,
-                { backgroundColor: colors.canvas, borderColor: colors.borderSubtle },
+                { backgroundColor: 'transparent', borderColor: colors.tagBorder },
               ]}
               hitSlop={6}
             >
@@ -469,9 +528,12 @@ const TagEditor = ({
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  scrollContent: { padding: SPACING.lg, paddingBottom: 96 },
-  well: { borderWidth: 1, padding: SPACING.md },
-  input: { minHeight: 88, textAlignVertical: 'top' },
+  scrollContent: { paddingHorizontal: SPACING.screen, paddingBottom: 96 },
+  composer: {
+    borderBottomWidth: 1,
+    paddingTop: SPACING.sm,
+  },
+  input: { minHeight: 72, textAlignVertical: 'top', paddingVertical: SPACING.sm },
   actions: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -480,27 +542,74 @@ const styles = StyleSheet.create({
     marginTop: SPACING.sm,
     minHeight: 44,
   },
-  saveButton: { paddingVertical: SPACING.sm, paddingHorizontal: SPACING.xs },
-  timeline: { marginTop: SPACING.xl },
-  group: { gap: SPACING.xs },
-  dayLabel: { fontSize: 12, letterSpacing: 0, marginTop: SPACING.lg, marginBottom: SPACING.xs },
-  recordItem: { paddingVertical: SPACING.md, paddingHorizontal: SPACING.sm },
+  saveButton: { minHeight: 44, justifyContent: 'center' },
+  timeline: { marginTop: SPACING.section },
+  group: { gap: 0 },
+  dayRule: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.md,
+    marginTop: SPACING.section,
+    marginBottom: SPACING.md,
+  },
+  dayLabel: { ...TYPOGRAPHY.caption },
+  dayLine: { flex: 1, height: 1 },
+  entry: {
+    flexDirection: 'row',
+    gap: SPACING.lg,
+    paddingVertical: SPACING.item,
+    paddingRight: SPACING.xs,
+  },
+  entryFar: { opacity: DEPTH.recedeOpacity },
+  entryFocus: {
+    marginLeft: -SPACING.sm,
+    paddingLeft: SPACING.md,
+    borderLeftWidth: 2,
+    paddingVertical: SPACING.md,
+  },
+  entryOpenSurface: {
+    borderTopRightRadius: RADIUS.sm,
+    borderBottomRightRadius: RADIUS.sm,
+  },
+  rail: {
+    width: 40,
+    alignItems: 'flex-start',
+    paddingTop: 3,
+  },
+  railMark: {
+    width: 14,
+    height: 1,
+    marginTop: SPACING.xs,
+  },
+  recordTime: { ...TYPOGRAPHY.timestamp },
+  entryBody: { flex: 1, minWidth: 0 },
   recordPressable: { gap: SPACING.xs },
-  recordBody: { fontSize: 16, lineHeight: 26, letterSpacing: 0 },
-  recordBodyCollapsed: { opacity: 0.98 },
-  recordTime: { fontSize: 12, letterSpacing: 0, marginTop: SPACING.xs },
-  tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.xs, marginTop: SPACING.sm },
-  tag: { borderWidth: 1, borderRadius: RADIUS.sm, paddingHorizontal: SPACING.sm, paddingVertical: 2 },
-  tagText: { fontSize: 12, letterSpacing: 0 },
+  recordBody: { ...TYPOGRAPHY.record },
+  fullTime: { ...TYPOGRAPHY.timestamp, marginTop: SPACING.xs },
+  tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm, marginTop: SPACING.sm },
+  tag: {
+    borderRadius: RADIUS.xs,
+    borderWidth: 1,
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: 3,
+  },
+  tagText: { ...TYPOGRAPHY.tag },
   tagEditor: { marginTop: SPACING.sm },
-  tagAdd: { paddingVertical: SPACING.xs, alignSelf: 'flex-start' },
-  tagAddRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, marginTop: SPACING.sm },
+  tagAdd: { minHeight: 44, justifyContent: 'center', alignSelf: 'flex-start' },
+  tagAddRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+    marginTop: SPACING.sm,
+  },
   tagInput: {
     flex: 1,
     borderWidth: 1,
-    borderRadius: RADIUS.sm,
+    borderRadius: RADIUS.xs,
     paddingHorizontal: SPACING.sm,
     paddingVertical: SPACING.xs,
-    minHeight: 36,
+    minHeight: 44,
+    ...TYPOGRAPHY.body,
   },
+  touchAction: { minHeight: 44, justifyContent: 'center' },
 });
