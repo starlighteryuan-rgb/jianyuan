@@ -237,10 +237,23 @@ Commands and results:
   — PASS
 - Production iOS JS bundle: `_expo/static/js/ios/index-12088a226dafa0772e1d8d2762d7611f.hbc`
   (3.2 MB, 1107 modules)
+- GitHub Actions `iOS Unsigned Build`: run `35221200069`, PASS on commit
+  `b203c6d09c91f8eb06b19b185d6b1ad1985dd892`.
+- Unsigned IPA verification: PASS, with zero nested signature artifacts and
+  zero CodeResources artifacts.
+- IPA SHA256: `dccf5cc184d78934319f917e2d026eef8fe302443e132e6a248ac8b0bfd9d3ef`.
+- App zip SHA256: `02bb03719d7dceacef9975b29b34fa8ee316cbddb387d642833fc70d8a8666ff`.
 
-## COMMITS
+The downloaded local artifacts were hashed again and matched the CI-recorded
+
+CI artifact IDs:
+
+- IPA artifact: `10497737281`
+- App zip artifact: `10497407553`
 
 Direction AB work is split into reviewable commits:
+
+## COMMITS
 
 - `docs(mobile): freeze Direction AB visual baseline`
 - `refactor(mobile): add Direction AB visual foundation`
