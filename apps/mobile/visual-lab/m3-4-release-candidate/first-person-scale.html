@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <title>Jianyuan M3.4 Understanding First-Person Scale</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 40px;
+      background: #d8d2c7;
+      color: #1f1c17;
+      font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    }
+    h1 { margin: 0 0 8px; font-size: 24px; font-weight: 600; }
+    p { margin: 0 0 28px; color: #524c41; font-size: 14px; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; max-width: 1040px; }
+    .column { }
+    .label { font-size: 13px; font-weight: 600; margin-bottom: 8px; }
+    .label span { font-weight: 400; color: #6d675b; }
+    .phone {
+      width: 390px; height: 260px; padding: 26px 24px 24px;
+      border-radius: 10px; overflow: hidden;
+      box-shadow: 0 10px 30px rgba(0,0,0,.14);
+    }
+    .phone.dark { background: #141312; color: #ebe7df; }
+    .phone.light { background: #f2eee5; color: #1f1c17; }
+    .kicker { font-size: 10px; letter-spacing: .22em; color: #948d7e; }
+    .dark .kicker { color: #68625b; }
+    .rule { height: 1px; margin: 14px 0 30px; background: rgba(109,103,91,.13); }
+    .dark .rule { background: rgba(180,174,165,.12); }
+    .essay { font-family: 'Songti SC', Georgia, serif; font-size: 17px; line-height: 28px; }
+    .drop-current { font-size: 44px; line-height: 40px; color: #7c5c2f; }
+    .drop-revised { font-size: 34px; line-height: 32px; color: #7c5c2f; }
+    .dark .drop-current, .dark .drop-revised { color: #bd8a60; }
+    .meta { margin-top: 22px; font-size: 11px; color: #948d7e; }
+    .dark .meta { color: #68625b; }
+    .note { margin-top: 10px; font-size: 12px; color: #6d675b; }
+    .dark .note { color: #b4aea5; }
+  </style>
+</head>
+<body>
+  <h1>Understanding · 首字比例收敛</h1>
+  <p>只比较首字比例变化。页面结构、rail、来源 metadata 均未重新设计。</p>
+  <div class="grid">
+    <div class="column">
+      <div class="label">Current <span>· first-person 44 / 40</span></div>
+      <div class="phone light">
+        <div class="kicker">理解 · 你自己的话</div>
+        <div class="rule"></div>
+        <div class="essay"><span class="drop-current">我</span>好像不是因为懒，是因为怕开始之后达不到自己想的那个样子。</div>
+        <div class="meta">今天 · 来自「开始之前的停顿」</div>
+        <div class="note">首字抢占注意力，正文被削弱。</div>
+      </div>
+      <div class="label" style="margin-top:20px">Current · Dark</div>
+      <div class="phone dark">
+        <div class="kicker">理解 · 你自己的话</div>
+        <div class="rule"></div>
+        <div class="essay"><span class="drop-current">我</span>好像不是因为懒，是因为怕开始之后达不到自己想的那个样子。</div>
+        <div class="meta">今天 · 来自「开始之前的停顿」</div>
+      </div>
+    </div>
+    <div class="column">
+      <div class="label">Revised <span>· first-person 34 / 32</span></div>
+      <div class="phone light">
+        <div class="kicker">理解 · 你自己的话</div>
+        <div class="rule"></div>
+        <div class="essay"><span class="drop-revised">我</span>好像不是因为懒，是因为怕开始之后达不到自己想的那个样子。</div>
+        <div class="meta">今天 · 来自「开始之前的停顿」</div>
+        <div class="note">首字仍是入口，正文重新成为主体。</div>
+      </div>
+      <div class="label" style="margin-top:20px">Revised · Dark</div>
+      <div class="phone dark">
+        <div class="kicker">理解 · 你自己的话</div>
+        <div class="rule"></div>
+        <div class="essay"><span class="drop-revised">我</span>好像不是因为懒，是因为怕开始之后达不到自己想的那个样子。</div>
+        <div class="meta">今天 · 来自「开始之前的停顿」</div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

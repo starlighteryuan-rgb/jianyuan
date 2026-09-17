@@ -35,6 +35,7 @@ import {
 } from 'react-native';
 
 import { useRuntime } from '../shell/runtime-context';
+import { SwipeToDelete } from '../shell/swipe-to-delete';
 import { matchesLocalQuery } from '../shell/local-search';
 import { RECORD_SAVED_MESSAGE, type CaptureFailure } from '../runtime/mobile-runtime';
 import { useTheme } from '../theme/theme-context';
@@ -198,6 +199,15 @@ export const RecordSpace = ({
     [refresh, runtime],
   );
 
+  const hideRecord = useCallback(
+    async (recordId: string) => {
+      await runtime.hideRecordFromMobile(recordId);
+      setOpenRecordId((current) => (current === recordId ? null : current));
+      await refresh();
+    },
+    [refresh, runtime],
+  );
+
   const removeTag = useCallback(
     async (recordId: string, name: string) => {
       await runtime.removeRecordTag(recordId, name);
@@ -316,9 +326,12 @@ export const RecordSpace = ({
                   const depth = depthForIndex(visibleIndex);
                   const recede = depth === 'far' ? DEPTH.recedeOpacity : depth === 'mid' ? 0.92 : 1;
                   return (
-                    <View
+                    <SwipeToDelete
                       key={record.id}
                       testID={`record-item-${record.id}`}
+                      onDelete={() => hideRecord(record.id)}
+                    >
+                    <View
                       style={[
                         styles.entry,
                         depth === 'far' && styles.entryFar,
@@ -397,6 +410,7 @@ export const RecordSpace = ({
                         ) : null}
                       </View>
                     </View>
+                    </SwipeToDelete>
                   );
                 })}
               </View>

@@ -37,6 +37,7 @@ import {
 } from './awareness-automation-storage';
 import { createMobileAwarenessHistoryStorage } from './awareness-history-storage';
 import { createMobileRecordTagStorage } from './record-tags-storage';
+import { createMobileUserContentVisibilityStorage } from './user-content-visibility-storage';
 
 export interface MobileBootstrapResult {
   readonly runtime: MobileRuntime;
@@ -81,6 +82,7 @@ export const bootstrapMobileRuntime = async (
     awarenessAutomation: createMobileAwarenessAutomationStorage(),
     awarenessManual: createMobileAwarenessManualStorage(),
     recordTags: createMobileRecordTagStorage(),
+    userContentVisibility: createMobileUserContentVisibilityStorage(),
   });
   await runtime.hydrateAwarenessAutomation();
 

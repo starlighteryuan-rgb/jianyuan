@@ -13,6 +13,12 @@
  * first-person "我" as the anchor. B2 contributes only a quiet near / far
  * hierarchy; older reflections recede by contrast and spacing, not by stacking
  * more cards.
+ *
+ * DELETE
+ * A Reflection is Core-backed and may be relation-bound. The Mobile delete
+ * action therefore hides it from the Mobile read model through the shared
+ * visibility store; the Core row and its relation/evidence lineage remain
+ * intact.
  */
 
 import { useCallback, useEffect, useState } from 'react';
@@ -28,6 +34,7 @@ import {
 import type { RecordReadModel } from '../../../../packages/core/index';
 import type { ReflectionTargetReadModel } from '../../../../packages/core/application/reflection-flow-service';
 import { useRuntime } from '../shell/runtime-context';
+import { SwipeToDelete } from '../shell/swipe-to-delete';
 import { matchesLocalQuery } from '../shell/local-search';
 import { useTheme } from '../theme/theme-context';
 import { DEPTH, SPACING, TYPOGRAPHY } from '../theme/tokens';
@@ -70,6 +77,7 @@ export const UnderstandingSpace = ({ searchQuery = '' }: { readonly searchQuery?
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [hiddenKeys, setHiddenKeys] = useState<ReadonlySet<string>>(() => new Set());
 
   const load = useCallback(async () => {
     try {
@@ -111,6 +119,17 @@ export const UnderstandingSpace = ({ searchQuery = '' }: { readonly searchQuery?
     void load();
   }, [load]);
 
+  const hideItem = useCallback(
+    async (item: UnderstandingItem) => {
+      await runtime.hideUnderstandingReflection(item.reflectionId);
+      setHiddenKeys((current) => new Set(current).add(item.key));
+      setExpanded((current) => (current === item.key ? null : current));
+    },
+    [runtime],
+  );
+
+  const visibleItems = items.filter((item) => !hiddenKeys.has(item.key));
+
   return (
     <ScrollView
       testID="space-reflection"
@@ -128,106 +147,110 @@ export const UnderstandingSpace = ({ searchQuery = '' }: { readonly searchQuery?
         <Text testID="understanding-error" style={[TYPOGRAPHY.body, { color: colors.danger }]}>
           {error}
         </Text>
-      ) : items.length === 0 ? (
+      ) : visibleItems.length === 0 ? (
         <Text testID="understanding-empty" style={[TYPOGRAPHY.empty, { color: colors.textMuted }]}>
           {searchQuery.trim().length > 0
             ? '没有找到相关内容'
             : '还没有可以理解的内容。你在觉察里写下的理解会保存在这里。'}
         </Text>
       ) : (
-        items.map((item, index) => {
+        visibleItems.map((item, index) => {
           const isOpen = expanded === item.key;
           const near = index === 0;
           const anchor = firstCharacter(item.verbatim);
           const body = item.verbatim.trim().slice(1);
           return (
-            <View
+            <SwipeToDelete
               key={item.key}
               testID={`understanding-item-${item.key}`}
-              style={[
-                styles.entry,
-                !near && styles.entryFar,
-                near && { backgroundColor: colors.nearSurface },
-                isOpen && { borderLeftColor: colors.focusIndicator },
-                isOpen && styles.entryOpen,
-              ]}
+              onDelete={() => hideItem(item)}
             >
-              <View style={styles.rail}>
-                <Text style={[TYPOGRAPHY.timestamp, { color: colors.textFaint }]}>
-                  {formatDay(item.createdAt)}
-                </Text>
-                <View
-                  style={[
-                    styles.railMark,
-                    { backgroundColor: near ? colors.accent : colors.divider },
-                  ]}
-                />
-              </View>
-              <View style={styles.entryBody}>
-                <Text
-                  testID={`understanding-reflection-${item.reflectionId}`}
-                  style={[
-                    styles.essay,
-                    { color: near ? colors.textPrimary : colors.textSecondary },
-                  ]}
-                >
-                  <Text style={[styles.firstPerson, { color: colors.accent }]}>
-                    {anchor}
+              <View
+                style={[
+                  styles.entry,
+                  !near && styles.entryFar,
+                  near && { backgroundColor: colors.nearSurface },
+                  isOpen && { borderLeftColor: colors.focusIndicator },
+                  isOpen && styles.entryOpen,
+                ]}
+              >
+                <View style={styles.rail}>
+                  <Text style={[TYPOGRAPHY.timestamp, { color: colors.textFaint }]}>
+                    {formatDay(item.createdAt)}
                   </Text>
-                  {body}
-                </Text>
-
-                <View style={styles.attrib}>
-                  <Text style={[TYPOGRAPHY.caption, { color: colors.textMuted }]}>
-                    {item.relation === null
-                      ? `写下于 ${formatDate(item.createdAt)}`
-                      : `来自「${item.relation.relation.dimension}」`}
-                  </Text>
-                  <View style={[styles.attribDot, { backgroundColor: colors.divider }]} />
-                  <Text style={[TYPOGRAPHY.caption, { color: colors.textFaint }]}>
-                    {item.relation === null ? '仅保存理解' : '已形成长期联系'}
-                  </Text>
+                  <View
+                    style={[
+                      styles.railMark,
+                      { backgroundColor: near ? colors.accent : colors.divider },
+                    ]}
+                  />
                 </View>
-
-                {item.relation === null ? null : (
-                  <Text style={[TYPOGRAPHY.caption, { color: colors.textMuted, marginTop: SPACING.sm }]}>
-                    当时的问题：{item.relation.relation.question}
+                <View style={styles.entryBody}>
+                  <Text
+                    testID={`understanding-reflection-${item.reflectionId}`}
+                    style={[
+                      styles.essay,
+                      { color: near ? colors.textPrimary : colors.textSecondary },
+                    ]}
+                  >
+                    <Text style={[styles.firstPerson, { color: colors.accent }]}>
+                      {anchor}
+                    </Text>
+                    {body}
                   </Text>
-                )}
 
-                {item.relation === null ? null : (
-                  <>
-                    <Pressable
-                      testID={`understanding-toggle-${item.key}`}
-                      accessibilityRole="button"
-                      accessibilityState={{ expanded: isOpen }}
-                      onPress={() => setExpanded(isOpen ? null : item.key)}
-                      style={styles.toggle}
-                    >
-                      <Text style={[TYPOGRAPHY.caption, { color: colors.accent }]}>
-                        {isOpen ? '收起来源记录' : '查看来源记录'}
-                      </Text>
-                    </Pressable>
+                  <View style={styles.attrib}>
+                    <Text style={[TYPOGRAPHY.caption, { color: colors.textMuted }]}>
+                      {item.relation === null
+                        ? `写下于 ${formatDate(item.createdAt)}`
+                        : `来自「${item.relation.relation.dimension}」`}
+                    </Text>
+                    <View style={[styles.attribDot, { backgroundColor: colors.divider }]} />
+                    <Text style={[TYPOGRAPHY.caption, { color: colors.textFaint }]}>
+                      {item.relation === null ? '仅保存理解' : '已形成长期联系'}
+                    </Text>
+                  </View>
 
-                    {isOpen ? (
-                      <View testID={`understanding-sources-${item.key}`} style={styles.sources}>
-                        {item.sourceRecords.map((record) => (
-                          <Text
-                            key={record.id}
-                            style={[
-                              TYPOGRAPHY.caption,
-                              { color: colors.textSecondary, lineHeight: 22 },
-                            ]}
-                          >
-                            · {record.verbatim ?? '（没有可显示的原话）'}
-                          </Text>
-                        ))}
-                      </View>
-                    ) : null}
-                  </>
-                )}
+                  {item.relation === null ? null : (
+                    <Text style={[TYPOGRAPHY.caption, { color: colors.textMuted, marginTop: SPACING.sm }]}>
+                      当时的问题：{item.relation.relation.question}
+                    </Text>
+                  )}
+
+                  {item.relation === null ? null : (
+                    <>
+                      <Pressable
+                        testID={`understanding-toggle-${item.key}`}
+                        accessibilityRole="button"
+                        accessibilityState={{ expanded: isOpen }}
+                        onPress={() => setExpanded(isOpen ? null : item.key)}
+                        style={styles.toggle}
+                      >
+                        <Text style={[TYPOGRAPHY.caption, { color: colors.accent }]}>
+                          {isOpen ? '收起来源记录' : '查看来源记录'}
+                        </Text>
+                      </Pressable>
+
+                      {isOpen ? (
+                        <View testID={`understanding-sources-${item.key}`} style={styles.sources}>
+                          {item.sourceRecords.map((record) => (
+                            <Text
+                              key={record.id}
+                              style={[
+                                TYPOGRAPHY.caption,
+                                { color: colors.textSecondary, lineHeight: 22 },
+                              ]}
+                            >
+                              · {record.verbatim ?? '（没有可显示的原话）'}
+                            </Text>
+                          ))}
+                        </View>
+                      ) : null}
+                    </>
+                  )}
+                </View>
               </View>
-            </View>
+            </SwipeToDelete>
           );
         })
       )}

@@ -257,7 +257,7 @@ export const SettingsSpace = () => {
     },
     { label: '连接状态', value: status.ai.connectionStatus },
     { label: '模型数量', value: String(status.ai.modelCount) },
-    { label: '应用版本', value: '0.2.0' },
+    { label: '应用版本', value: '0.4.0' },
   ];
 
   return (

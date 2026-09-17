@@ -43,6 +43,7 @@ import type {
   RelationSuggestionExperience,
 } from '../runtime/awareness-session';
 import { useRuntime } from '../shell/runtime-context';
+import { SwipeToDelete } from '../shell/swipe-to-delete';
 import {
   reflectionSaveLabel,
   reflectionSaveReducer,
@@ -77,9 +78,11 @@ const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 const AwarenessBubble = ({
   item,
   onOpen,
+  onDelete,
 }: {
   readonly item: AwarenessHistoryItem;
   readonly onOpen: (item: AwarenessHistoryItem) => void;
+  readonly onDelete: (candidateId: string) => void;
 }) => {
   const { theme } = useTheme();
   const { colors } = theme;
@@ -118,52 +121,59 @@ const AwarenessBubble = ({
   const unread = item.status === 'pending';
 
   return (
-    <View style={styles.bubbleShell}>
-      <View
-        pointerEvents="none"
-        style={[styles.bubbleGhost, { borderColor: colors.awarenessHalo }]}
-      />
-      <Animated.View
-        style={[styles.ripple, { borderColor: colors.awarenessRipple }, rippleStyle]}
-        pointerEvents="none"
-      />
-      <AnimatedPressable
-        testID={`awareness-bubble-${item.candidateId}`}
-        accessibilityRole="button"
-        accessibilityLabel="新的觉察"
-        onPress={() => onOpen(item)}
-        style={[styles.bubble, bubbleStyle]}
-      >
-        <View style={styles.bubbleHead}>
+    <SwipeToDelete
+      testID={`awareness-bubble-swipe-${item.candidateId}`}
+      onDelete={() => onDelete(item.candidateId)}
+    >
+      <View style={styles.bubbleShell}>
+        <View
+          pointerEvents="none"
+          style={[styles.bubbleGhost, { borderColor: colors.awarenessHalo }]}
+        />
+        <Animated.View
+          style={[styles.ripple, { borderColor: colors.awarenessRipple }, rippleStyle]}
+          pointerEvents="none"
+        />
+        <AnimatedPressable
+          testID={`awareness-bubble-${item.candidateId}`}
+          accessibilityRole="button"
+          accessibilityLabel="新的觉察"
+          onPress={() => onOpen(item)}
+          style={[styles.bubble, bubbleStyle]}
+        >
+          <View style={styles.bubbleHead}>
+            <Animated.View style={textStyle}>
+              <Text style={[TYPOGRAPHY.eyebrow, { color: colors.accent }]}>新的觉察</Text>
+            </Animated.View>
+            {unread ? (
+              <View
+                testID={`awareness-unread-${item.candidateId}`}
+                style={[styles.dot, { backgroundColor: colors.accent }]}
+              />
+            ) : null}
+          </View>
           <Animated.View style={textStyle}>
-            <Text style={[TYPOGRAPHY.eyebrow, { color: colors.accent }]}>新的觉察</Text>
+            <Text style={[TYPOGRAPHY.lead, { color: colors.textPrimary, marginTop: SPACING.sm }]}>
+              {item.candidate.observation}
+            </Text>
+            <Text style={[TYPOGRAPHY.timestamp, { color: colors.textFaint, marginTop: SPACING.md }]}>
+              {formatCapturedAt(item.createdAt)}
+            </Text>
           </Animated.View>
-          {unread ? (
-            <View
-              testID={`awareness-unread-${item.candidateId}`}
-              style={[styles.dot, { backgroundColor: colors.accent }]}
-            />
-          ) : null}
-        </View>
-        <Animated.View style={textStyle}>
-          <Text style={[TYPOGRAPHY.lead, { color: colors.textPrimary, marginTop: SPACING.sm }]}>
-            {item.candidate.observation}
-          </Text>
-          <Text style={[TYPOGRAPHY.timestamp, { color: colors.textFaint, marginTop: SPACING.md }]}>
-            {formatCapturedAt(item.createdAt)}
-          </Text>
-        </Animated.View>
-      </AnimatedPressable>
-    </View>
+        </AnimatedPressable>
+      </View>
+    </SwipeToDelete>
   );
 };
 
 const AwarenessHistoryCard = ({
   item,
   onOpen,
+  onDelete,
 }: {
   readonly item: AwarenessHistoryItem;
   readonly onOpen: (item: AwarenessHistoryItem) => void;
+  readonly onDelete: (candidateId: string) => void;
 }) => {
   const { theme } = useTheme();
   const { colors } = theme;
@@ -180,26 +190,31 @@ const AwarenessHistoryCard = ({
   }));
 
   return (
-    <AnimatedPressable
-      key={item.candidateId}
-      testID={`awareness-history-${item.candidateId}`}
-      onPress={() => void onOpen(item)}
-      style={[styles.historyCard, cardStyle]}
+    <SwipeToDelete
+      testID={`awareness-history-swipe-${item.candidateId}`}
+      onDelete={() => onDelete(item.candidateId)}
     >
-      <View style={styles.historyHead}>
-        <Text style={[TYPOGRAPHY.eyebrow, { color: colors.textMuted }]}>历史觉察</Text>
-        <Text style={[TYPOGRAPHY.timestamp, { color: colors.textFaint }]}>
-          {item.status === 'reflected'
-            ? '已回应'
-            : item.status === 'dismissed'
-              ? '已放下'
-              : '已查看'}
+      <AnimatedPressable
+        key={item.candidateId}
+        testID={`awareness-history-${item.candidateId}`}
+        onPress={() => void onOpen(item)}
+        style={[styles.historyCard, cardStyle]}
+      >
+        <View style={styles.historyHead}>
+          <Text style={[TYPOGRAPHY.eyebrow, { color: colors.textMuted }]}>历史觉察</Text>
+          <Text style={[TYPOGRAPHY.timestamp, { color: colors.textFaint }]}>
+            {item.status === 'reflected'
+              ? '已回应'
+              : item.status === 'dismissed'
+                ? '已放下'
+                : '已查看'}
+          </Text>
+        </View>
+        <Text style={[TYPOGRAPHY.body, { color: colors.textPrimary, marginTop: SPACING.sm }]}>
+          {item.candidate.observation}
         </Text>
-      </View>
-      <Text style={[TYPOGRAPHY.body, { color: colors.textPrimary, marginTop: SPACING.sm }]}>
-        {item.candidate.observation}
-      </Text>
-    </AnimatedPressable>
+      </AnimatedPressable>
+    </SwipeToDelete>
   );
 };
 
@@ -504,6 +519,17 @@ export const AwarenessSpace = ({ searchQuery = '' }: { readonly searchQuery?: st
     [refreshHistory, runtime],
   );
 
+  const deleteAwarenessItem = useCallback(
+    async (candidateId: string) => {
+      await runtime.deleteAwarenessHistoryItem(candidateId);
+      setOpenItem((current) =>
+        current?.candidateId === candidateId ? null : current,
+      );
+      await refreshHistory();
+    },
+    [refreshHistory, runtime],
+  );
+
   const closeDetail = useCallback(() => {
     if (closing.current) return;
     closing.current = true;
@@ -674,12 +700,18 @@ export const AwarenessSpace = ({ searchQuery = '' }: { readonly searchQuery?: st
                     key={candidate.candidateId}
                     item={openManualCandidate(candidate)}
                     onOpen={(item) => setOpenItem(item)}
+                    onDelete={deleteAwarenessItem}
                   />
                 ))}
               </>
             ) : (
               inbox.map((item) => (
-                <AwarenessBubble key={item.candidateId} item={item} onOpen={open} />
+                <AwarenessBubble
+                  key={item.candidateId}
+                  item={item}
+                  onOpen={open}
+                  onDelete={deleteAwarenessItem}
+                />
               ))
             )}
           </Animated.View>
@@ -695,6 +727,10 @@ export const AwarenessHistoryView = ({ searchQuery = '' }: { readonly searchQuer
   const { colors } = theme;
   const [history, setHistory] = useState<readonly AwarenessHistoryItem[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const refreshHistory = useCallback(async () => {
+    setHistory(await runtime.awarenessHistory());
+  }, [runtime]);
 
   useEffect(() => {
     let cancelled = false;
@@ -714,9 +750,17 @@ export const AwarenessHistoryView = ({ searchQuery = '' }: { readonly searchQuer
   const open = useCallback(
     async (item: AwarenessHistoryItem) => {
       if (item.status === 'pending') await runtime.markAwarenessViewed(item.candidateId);
-      setHistory(await runtime.awarenessHistory());
+      await refreshHistory();
     },
-    [runtime],
+    [refreshHistory, runtime],
+  );
+
+  const deleteItem = useCallback(
+    async (candidateId: string) => {
+      await runtime.deleteAwarenessHistoryItem(candidateId);
+      await refreshHistory();
+    },
+    [refreshHistory, runtime],
   );
 
   const historyItems = useMemo(
@@ -745,7 +789,12 @@ export const AwarenessHistoryView = ({ searchQuery = '' }: { readonly searchQuer
         </Text>
       ) : (
         historyItems.map((item) => (
-          <AwarenessHistoryCard key={item.candidateId} item={item} onOpen={open} />
+          <AwarenessHistoryCard
+            key={item.candidateId}
+            item={item}
+            onOpen={open}
+            onDelete={deleteItem}
+          />
         ))
       )}
     </ScrollView>

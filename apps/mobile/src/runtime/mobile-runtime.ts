@@ -38,6 +38,7 @@ import {
   NOOP_AWARENESS_HISTORY_STORAGE,
   countUnreadAwarenessItems,
   readAwarenessHistory,
+  removeAwarenessHistoryItem,
   upsertAwarenessHistoryItem,
   updateAwarenessHistoryItem,
   writeAwarenessHistory,
@@ -53,8 +54,18 @@ import {
   tagsOfRecord,
   writeRecordTagState,
   type RecordTagState,
-  type RecordTagStorage,
 } from './record-tags-store';
+import {
+  NOOP_USER_CONTENT_VISIBILITY_STORAGE,
+  hideRecord as hideRecordInVisibilityState,
+  hideReflectionRecord,
+  isRecordHidden,
+  isReflectionHidden,
+  readUserContentVisibilityState,
+  writeUserContentVisibilityState,
+  type UserContentVisibilityStorage,
+} from './user-content-visibility-store';
+import type { RecordTagStorage } from './record-tags-store';
 import {
   NOOP_AWARENESS_AUTOMATION_STORAGE,
   beginAutomaticAwarenessJob,
@@ -148,6 +159,7 @@ export interface MobileRuntimeStorageOptions {
   readonly awarenessAutomation?: AwarenessAutomationStorage;
   readonly awarenessManual?: AwarenessManualStorage;
   readonly recordTags?: RecordTagStorage;
+  readonly userContentVisibility?: UserContentVisibilityStorage;
 }
 
 export class MobileRuntime {
@@ -158,6 +170,7 @@ export class MobileRuntime {
   private readonly awarenessAutomationStorage: AwarenessAutomationStorage;
   private readonly awarenessManualStorage: AwarenessManualStorage;
   private readonly recordTagStorage: RecordTagStorage;
+  private readonly userContentVisibilityStorage: UserContentVisibilityStorage;
   private awarenessPolicy = DEFAULT_AUTOMATIC_AWARENESS_POLICY;
   private quietWindowTimer: ReturnType<typeof setTimeout> | null = null;
   private automaticDrainTail: Promise<void> = Promise.resolve();
@@ -185,6 +198,8 @@ export class MobileRuntime {
     this.awarenessManualStorage =
       storage.awarenessManual ?? NOOP_AWARENESS_MANUAL_STORAGE;
     this.recordTagStorage = storage.recordTags ?? NOOP_RECORD_TAG_STORAGE;
+    this.userContentVisibilityStorage =
+      storage.userContentVisibility ?? NOOP_USER_CONTENT_VISIBILITY_STORAGE;
   }
 
   /** Restore policy and recover an interrupted job without calling AI. */
@@ -287,6 +302,23 @@ export class MobileRuntime {
     return next;
   }
 
+  /**
+   * Delete one durable Awareness history item.
+   *
+   * Awareness history is a Mobile presentation store, not Core data. The
+   * candidate registry is process-local, so removing the durable history row
+   * is the complete user-visible delete for this object.
+   */
+  async deleteAwarenessHistoryItem(candidateId: string): Promise<readonly AwarenessHistoryItem[]> {
+    const current = await this.awarenessHistory();
+    const next = removeAwarenessHistoryItem(current, candidateId);
+    if (next !== current) {
+      await writeAwarenessHistory(this.awarenessHistoryStorage, next);
+      this.notifyAwarenessChanged();
+    }
+    return next;
+  }
+
   async unreadAwarenessCount(): Promise<number> {
     return countUnreadAwarenessItems(await this.awarenessHistory());
   }
@@ -330,6 +362,29 @@ export class MobileRuntime {
       this.notifyAwarenessChanged();
     }
     return tagsOfRecord(next, recordId);
+  }
+
+  /**
+   * Hide one Record from the Mobile read paths without destroying its Core
+   * identity. The Record may still be referenced by Relation, Evidence, or
+   * Lineage; those references remain coherent.
+   */
+  async hideRecordFromMobile(recordId: string): Promise<void> {
+    const current = await readUserContentVisibilityState(this.userContentVisibilityStorage);
+    const next = hideRecordInVisibilityState(current, recordId);
+    if (next !== current) {
+      await writeUserContentVisibilityState(this.userContentVisibilityStorage, next);
+      this.notifyAwarenessChanged();
+    }
+  }
+
+  async hideUnderstandingReflection(reflectionRecordId: string): Promise<void> {
+    const current = await readUserContentVisibilityState(this.userContentVisibilityStorage);
+    const next = hideReflectionRecord(current, reflectionRecordId);
+    if (next !== current) {
+      await writeUserContentVisibilityState(this.userContentVisibilityStorage, next);
+      this.notifyAwarenessChanged();
+    }
   }
 
   /** Whether one Record carries a given tag; used by the tag filter. */
@@ -546,11 +601,15 @@ export class MobileRuntime {
   /** Capture Records only. Reflection-origin Records belong to Understanding. */
   async listRecent(limit: number = DEFAULT_TIMELINE_LIMIT): Promise<readonly RecordReadModel[]> {
     const capped = Math.min(Math.max(limit, 1), MAX_TIMELINE_LIMIT);
-    const [records, reflectionIds] = await Promise.all([
+    const [records, reflectionIds, visibility] = await Promise.all([
       this.composition.records.listRecent({ limit: capped }),
       this.reflectionRecordIds(),
+      readUserContentVisibilityState(this.userContentVisibilityStorage),
     ]);
-    return records.filter((record) => !reflectionIds.has(record.id));
+    return records.filter(
+      (record) =>
+        !reflectionIds.has(record.id) && !isRecordHidden(visibility, record.id),
+    );
   }
 
   async getRecord(id: string): Promise<RecordReadModel | null> {
@@ -560,11 +619,15 @@ export class MobileRuntime {
   /** Search over preserved Record wording. */
   async search(query: string, limit: number = DEFAULT_TIMELINE_LIMIT): Promise<readonly RecordReadModel[]> {
     const capped = Math.min(Math.max(limit, 1), MAX_TIMELINE_LIMIT);
-    const [records, reflectionIds] = await Promise.all([
+    const [records, reflectionIds, visibility] = await Promise.all([
       this.composition.records.search({ query, limit: capped }),
       this.reflectionRecordIds(),
+      readUserContentVisibilityState(this.userContentVisibilityStorage),
     ]);
-    return records.filter((record) => !reflectionIds.has(record.id));
+    return records.filter(
+      (record) =>
+        !reflectionIds.has(record.id) && !isRecordHidden(visibility, record.id),
+    );
   }
 
   /**
@@ -730,7 +793,10 @@ export class MobileRuntime {
       readonly relatedToRelation: boolean;
     }[]
   > {
-    const reflections = await this.composition.storage.userReflectionRecords.listRecent(100);
+    const [reflections, visibility] = await Promise.all([
+      this.composition.storage.userReflectionRecords.listRecent(100),
+      readUserContentVisibilityState(this.userContentVisibilityStorage),
+    ]);
     const discoveries = await this.listDiscoveries();
     const relationTargetByRecordId = new Map<string, string>();
     for (const item of discoveries) {
@@ -746,6 +812,7 @@ export class MobileRuntime {
     }
     const resolved = await Promise.all(
       reflections.map(async (reflection) => {
+        if (isReflectionHidden(visibility, reflection.id)) return null;
         const record = await this.composition.records.getById(reflection.recordId);
         if (record === null) return null;
         const targetRef =

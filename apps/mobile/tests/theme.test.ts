@@ -138,7 +138,10 @@ describe('Mobile Direction AB theme', () => {
     expect(TYPOGRAPHY.body.fontSize).toBeGreaterThanOrEqual(16);
     expect(TYPOGRAPHY.record.fontSize).toBeGreaterThanOrEqual(16);
     expect(TYPOGRAPHY.reflection.fontSize).toBeGreaterThanOrEqual(16);
-    expect(TYPOGRAPHY.firstPerson.fontSize).toBeGreaterThanOrEqual(36);
+    // The first-person anchor stays visually distinct, but M3.4 intentionally
+    // reduced it so the body text remains the page subject.
+    expect(TYPOGRAPHY.firstPerson.fontSize).toBeGreaterThanOrEqual(30);
+    expect(TYPOGRAPHY.firstPerson.fontSize).toBeLessThan(40);
   });
 
   it('never writes the theme preference into the database or Core', async () => {

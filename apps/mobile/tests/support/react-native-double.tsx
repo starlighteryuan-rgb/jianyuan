@@ -21,6 +21,7 @@
 
 import { createElement, forwardRef, type ReactNode } from 'react';
 
+
 type PrimitiveProps = Record<string, unknown> & { readonly children?: ReactNode };
 
 const primitive = (name: string) => {
@@ -40,6 +41,32 @@ export const TextInput = primitive('TextInput');
 export const ActivityIndicator = primitive('ActivityIndicator');
 export const KeyboardAvoidingView = primitive('KeyboardAvoidingView');
 export const SafeAreaView = primitive('SafeAreaView');
+
+const createAnimatedValue = (value: number) => ({
+  value,
+  setValue(next: number) {
+    this.value = next;
+  },
+});
+
+export const Animated = {
+  Value: class {
+    value: number;
+    constructor(value: number) {
+      this.value = value;
+    }
+    setValue(next: number) {
+      this.value = next;
+    }
+  },
+  View: primitive('Animated.View'),
+  Text: primitive('Animated.Text'),
+  timing: (_value: unknown, _config: unknown) => ({ start: (callback?: () => void) => callback?.() }),
+};
+
+export const PanResponder = {
+  create: (handlers: Record<string, unknown>) => ({ panHandlers: handlers }),
+};
 
 /**
  * Minimal Keyboard event seam so Search lifecycle tests do not depend on a

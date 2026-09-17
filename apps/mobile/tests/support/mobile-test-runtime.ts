@@ -19,6 +19,7 @@ import type { AwarenessAutomationStorage } from '../../src/runtime/awareness-aut
 import type { AwarenessPreferenceStorage } from '../../src/runtime/awareness-preference-store';
 import type { AwarenessManualStorage } from '../../src/runtime/awareness-manual-store';
 import type { RecordTagStorage } from '../../src/runtime/record-tags-store';
+import type { UserContentVisibilityStorage } from '../../src/runtime/user-content-visibility-store';
 
 /**
  * In-memory, per-runtime AI config store for tests. Kept separate from the
@@ -47,6 +48,7 @@ const testAwarenessPreferenceByLocation = new Map<string, AwarenessPreferenceSto
 const testAwarenessAutomationByLocation = new Map<string, AwarenessAutomationStorage>();
 const testAwarenessManualByLocation = new Map<string, AwarenessManualStorage>();
 const testRecordTagByLocation = new Map<string, RecordTagStorage>();
+const testUserContentVisibilityByLocation = new Map<string, UserContentVisibilityStorage>();
 
 const createTestKeyValueStorage = (): AwarenessPreferenceStorage => {
   const values = new Map<string, string>();
@@ -92,6 +94,15 @@ const recordTagFor = (location: string): RecordTagStorage => {
   if (existing !== undefined) return existing;
   const created = createTestKeyValueStorage();
   testRecordTagByLocation.set(location, created);
+  return created;
+};
+
+const userContentVisibilityFor = (location: string): UserContentVisibilityStorage => {
+  if (location === ':memory:') return createTestKeyValueStorage();
+  const existing = testUserContentVisibilityByLocation.get(location);
+  if (existing !== undefined) return existing;
+  const created = createTestKeyValueStorage();
+  testUserContentVisibilityByLocation.set(location, created);
   return created;
 };
 
@@ -173,6 +184,7 @@ export const openMobileTestRuntime = async (
     awarenessAutomation: options.awarenessAutomationStorage ?? automationFor(options.location),
     awarenessManual: options.awarenessManualStorage ?? manualFor(options.location),
     recordTags: options.recordTagStorage ?? recordTagFor(options.location),
+    userContentVisibility: userContentVisibilityFor(options.location),
   });
 
   return {
