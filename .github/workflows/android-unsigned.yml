@@ -48,7 +48,6 @@ jobs:
           node --version
           npm --version
           java -version
-          ./gradlew --version || true
 
       - name: Install mobile dependencies
         working-directory: apps/mobile
@@ -95,16 +94,17 @@ jobs:
           unzip -l "$APK" | grep -E 'AndroidManifest.xml|classes.dex|lib/' | head -40 || true
 
       - name: Record artifact hash
+        working-directory: apps/mobile/android
         run: |
           set -eu
           APK='${{ steps.locate.outputs.apk_path }}'
-          sha256sum "$APK" | tee SHA256SUMS.txt
+          sha256sum "$APK" | tee "$GITHUB_WORKSPACE/SHA256SUMS.txt"
 
       - name: Upload unsigned APK
         uses: actions/upload-artifact@v4
         with:
           name: Jianyuan-Android-unsigned-apk
           path: |
-            ${{ steps.locate.outputs.apk_path }}
+            apps/mobile/android/${{ steps.locate.outputs.apk_path }}
             SHA256SUMS.txt
           if-no-files-found: error
