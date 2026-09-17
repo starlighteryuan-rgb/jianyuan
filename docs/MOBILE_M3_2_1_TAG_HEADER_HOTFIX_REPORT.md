@@ -148,4 +148,12 @@ mode, Bottom Tab motion, and Reflection-origin Record filtering.
 
 ## IOS BUILD
 
-Recorded after the unsigned iOS build completes.
+- Commit: 7ee321ddc9681a8966cf1ccef55978977674eb41
+- Run ID: 35190902633
+- Run URL: https://github.com/starlighteryuan-rgb/jianyuan/actions/runs/35190902633
+- Status: completed / success (all workflow steps green)
+- Artifacts: Jianyuan-iOS-unsigned-ipa, Jianyuan-iOS-unsigned-app
+- IPA SHA256: 242ea7a8f542d721b3e9112adf8349a36db8d40e71f3906f6c6cca25f544a932
+- APP zip SHA256: 9202cee944b36089d3cef7b08bd22806db277e7a44f24dadb92afc0dbb6dd9c8
+- Local unsigned audit of the downloaded IPA: 0 embedded.mobileprovision,
+  0 `_CodeSignature`, 0 `CodeResources` (matches CI verification)
