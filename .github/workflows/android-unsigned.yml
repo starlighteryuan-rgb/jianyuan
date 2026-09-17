@@ -12,6 +12,12 @@ name: Android Unsigned APK
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - mobile-m3
+    paths:
+      - '.github/workflows/android-unsigned.yml'
+      - 'apps/mobile/**'
 
 permissions:
   contents: read
