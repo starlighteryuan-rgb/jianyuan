@@ -102,9 +102,13 @@ describe('Mobile end-to-end user story (M1)', () => {
     const savedMessage = firstTree.root.findByProps({ testID: 'record-saved-message' });
     expect(savedMessage.props.children).toBe('已经记下来了。');
 
-    const timeline = firstTree.root.findByProps({ testID: 'record-timeline' });
-    expect(timeline.props.data).toHaveLength(1);
-    expect(timeline.props.data[0].verbatim).toBe('今天把移动端的记录链路接通了。');
+    // The timeline is now a grouped time stream, not a FlatList, so assert on
+    // the rendered Record text rather than a `data` prop.
+    const firstTimeline = firstTree.root.findByProps({ testID: 'record-timeline' });
+    const firstRecords = firstTimeline
+      .findAll((node) => String(node.type) === 'Text')
+      .map((node) => String(node.props.children ?? ''));
+    expect(firstRecords).toContain('今天把移动端的记录链路接通了。');
 
     // ── Close the app entirely ─────────────────────────────────────────────
     act(() => firstTree.unmount());
@@ -117,8 +121,10 @@ describe('Mobile end-to-end user story (M1)', () => {
     await flush();
 
     const reopenedTimeline = secondTree.root.findByProps({ testID: 'record-timeline' });
-    expect(reopenedTimeline.props.data).toHaveLength(1);
-    expect(reopenedTimeline.props.data[0].verbatim).toBe('今天把移动端的记录链路接通了。');
+    const reopenedRecords = reopenedTimeline
+      .findAll((node) => String(node.type) === 'Text')
+      .map((node) => String(node.props.children ?? ''));
+    expect(reopenedRecords).toContain('今天把移动端的记录链路接通了。');
 
     // The empty state must be gone, since there is a Record.
     expect(
@@ -133,7 +139,7 @@ describe('Mobile end-to-end user story (M1)', () => {
     await flush();
 
     const empty = tree.root.findByProps({ testID: 'record-empty' });
-    expect(String(empty.props.children)).toContain('还没有记录');
+    expect(String(empty.props.children)).toContain('写下一些此刻想留下的东西');
   });
 
   it('does not clear the input when a save is refused', async () => {

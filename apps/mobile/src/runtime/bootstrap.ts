@@ -36,6 +36,7 @@ import {
   createMobileAwarenessPreferenceStorage,
 } from './awareness-automation-storage';
 import { createMobileAwarenessHistoryStorage } from './awareness-history-storage';
+import { createMobileRecordTagStorage } from './record-tags-storage';
 
 export interface MobileBootstrapResult {
   readonly runtime: MobileRuntime;

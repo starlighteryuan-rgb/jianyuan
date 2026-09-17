@@ -24,6 +24,7 @@ import { useEffect, useState } from 'react';
 import {
   Pressable,
   SafeAreaView,
+  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -43,9 +44,9 @@ import { RecordSpace } from '../spaces/record-space';
 import { SettingsSpace } from '../spaces/settings-space';
 import { UnderstandingSpace } from '../spaces/understanding-space';
 import { useMotion } from '../theme/motion';
-import { useAwarenessUnreadCount } from './runtime-context';
+import { useAwarenessUnreadCount, useRuntime } from './runtime-context';
 import { useTheme } from '../theme/theme-context';
-import { SPACING, TYPOGRAPHY } from '../theme/tokens';
+import { RADIUS, SPACING, TYPOGRAPHY } from '../theme/tokens';
 import {
   SETTINGS_SPACE,
   SPACE_LABELS,
@@ -122,12 +123,32 @@ export const AppShell = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
   const [awarenessHistoryOpen, setAwarenessHistoryOpen] = useState(false);
+  const [recordTagVocabulary, setRecordTagVocabulary] = useState<readonly string[]>([]);
+  const [activeRecordTag, setActiveRecordTag] = useState<string | null>(null);
   const [direction, setDirection] = useState<1 | -1>(1);
   const { theme } = useTheme();
   const { colors } = theme;
   const motion = useMotion();
   const unreadAwareness = useAwarenessUnreadCount();
+  const runtime = useRuntime();
   const entering = useSharedValue(1);
+
+  // Record tag vocabulary, kept in sync with the runtime so the Record-space
+  // tag filter can appear without duplicating tag state in the shell.
+  useEffect(() => {
+    let cancelled = false;
+    const refreshTags = () => {
+      void runtime.allTagNames().then((names) => {
+        if (!cancelled) setRecordTagVocabulary(names);
+      });
+    };
+    const unsubscribe = runtime.subscribeRecordTags(refreshTags);
+    refreshTags();
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
+  }, [runtime]);
 
   const currentSpace: SpaceId = settingsOpen ? SETTINGS_SPACE : activeSpace;
 
@@ -142,6 +163,7 @@ export const AppShell = () => {
         ? 1 : -1;
     setSearchQuery('');
     setSearchOpen(false);
+    setActiveRecordTag(null);
     setAwarenessHistoryOpen(false);
     setSettingsOpen(false);
     showSpace(space, nextDirection);
@@ -191,7 +213,10 @@ export const AppShell = () => {
               query={searchQuery}
               onChangeQuery={setSearchQuery}
               open={searchOpen}
-              onOpenChange={setSearchOpen}
+              onOpenChange={(next) => {
+                setSearchOpen(next);
+                if (!next) setActiveRecordTag(null);
+              }}
             />
           )}
           {currentSpace === 'awareness' ? (
@@ -248,12 +273,53 @@ export const AppShell = () => {
         </View>
       </View>
 
+      {currentSpace === 'records' && searchOpen && recordTagVocabulary.length > 0 ? (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          testID="record-tag-filter"
+          contentContainerStyle={styles.tagFilterContent}
+          style={[styles.tagFilter, { borderBottomColor: colors.borderHair }]}
+        >
+          {[null, ...recordTagVocabulary].map((tag) => {
+            const active = tag === activeRecordTag;
+            return (
+              <Pressable
+                key={tag ?? '__all__'}
+                testID={tag === null ? 'record-tag-filter-all' : `record-tag-filter-${tag}`}
+                accessibilityRole="button"
+                accessibilityState={{ selected: active }}
+                onPress={() => setActiveRecordTag(tag)}
+                hitSlop={6}
+                style={[
+                  styles.tagFilterItem,
+                  {
+                    backgroundColor: active ? colors.accentSoft : 'transparent',
+                    borderColor: active ? colors.borderStrong : colors.borderHair,
+                  },
+                ]}
+              >
+                <Text
+                  style={[
+                    TYPOGRAPHY.meta,
+                    { color: active ? colors.textPrimary : colors.textMuted },
+                  ]}
+                >
+                  {tag ?? '全部'}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+      ) : null}
       {/*
         The single mounted space. `data-space` is exposed as a testID so tests can
         assert which space is present without relying on styling.
       */}
       <Animated.View testID={`active-space-${currentSpace}`} style={[styles.body, contentStyle]}>
-        {currentSpace === 'records' ? <RecordSpace searchQuery={searchQuery} /> : null}
+        {currentSpace === 'records' ? (
+          <RecordSpace searchQuery={searchQuery} activeTag={activeRecordTag} />
+        ) : null}
         {currentSpace === 'awareness' ? (
           awarenessHistoryOpen ? (
             <AwarenessHistoryView searchQuery={searchQuery} />
@@ -306,6 +372,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   body: { flex: 1 },
+  tagFilter: { borderBottomWidth: 1, flexGrow: 0 },
+  tagFilterContent: { paddingHorizontal: SPACING.lg, paddingVertical: SPACING.sm, gap: SPACING.sm },
+  tagFilterItem: { borderWidth: 1, borderRadius: RADIUS.sm, paddingHorizontal: SPACING.sm, paddingVertical: 3 },
   tabBar: {
     flexDirection: 'row',
     borderTopWidth: 1,

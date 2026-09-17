@@ -18,6 +18,7 @@ import type { AwarenessHistoryStorage } from '../../src/runtime/awareness-histor
 import type { AwarenessAutomationStorage } from '../../src/runtime/awareness-automation-store';
 import type { AwarenessPreferenceStorage } from '../../src/runtime/awareness-preference-store';
 import type { AwarenessManualStorage } from '../../src/runtime/awareness-manual-store';
+import type { RecordTagStorage } from '../../src/runtime/record-tags-store';
 
 /**
  * In-memory, per-runtime AI config store for tests. Kept separate from the
@@ -45,6 +46,7 @@ const testAwarenessHistoryByLocation = new Map<string, AwarenessHistoryStorage>(
 const testAwarenessPreferenceByLocation = new Map<string, AwarenessPreferenceStorage>();
 const testAwarenessAutomationByLocation = new Map<string, AwarenessAutomationStorage>();
 const testAwarenessManualByLocation = new Map<string, AwarenessManualStorage>();
+const testRecordTagByLocation = new Map<string, RecordTagStorage>();
 
 const createTestKeyValueStorage = (): AwarenessPreferenceStorage => {
   const values = new Map<string, string>();
@@ -82,6 +84,15 @@ export const createTestAwarenessHistoryStorage = (): AwarenessHistoryStorage => 
       values.set(key, value);
     },
   };
+};
+
+const recordTagFor = (location: string): RecordTagStorage => {
+  if (location === ':memory:') return createTestKeyValueStorage();
+  const existing = testRecordTagByLocation.get(location);
+  if (existing !== undefined) return existing;
+  const created = createTestKeyValueStorage();
+  testRecordTagByLocation.set(location, created);
+  return created;
 };
 
 const manualFor = (location: string): AwarenessManualStorage => {
@@ -132,6 +143,8 @@ export interface OpenMobileRuntimeOptions {
   readonly awarenessAutomationStorage?: AwarenessAutomationStorage;
   /** Optional manual Awareness coverage persistence. */
   readonly awarenessManualStorage?: AwarenessManualStorage;
+  /** Optional Record Tag persistence. */
+  readonly recordTagStorage?: RecordTagStorage;
 }
 
 export const openMobileTestRuntime = async (
@@ -160,6 +173,7 @@ export const openMobileTestRuntime = async (
     options.awarenessPreferenceStorage ?? preferenceFor(options.location),
     options.awarenessAutomationStorage ?? automationFor(options.location),
     options.awarenessManualStorage ?? manualFor(options.location),
+    options.recordTagStorage ?? recordTagFor(options.location),
   );
 
   return {

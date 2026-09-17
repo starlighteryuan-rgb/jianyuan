@@ -44,6 +44,18 @@ import {
   type AwarenessHistoryStorage,
 } from './awareness-history-store';
 import {
+  NOOP_RECORD_TAG_STORAGE,
+  addTagToRecord,
+  allTagNames,
+  readRecordTagState,
+  recordHasTag,
+  removeTagFromRecord,
+  tagsOfRecord,
+  writeRecordTagState,
+  type RecordTagState,
+  type RecordTagStorage,
+} from './record-tags-store';
+import {
   NOOP_AWARENESS_AUTOMATION_STORAGE,
   beginAutomaticAwarenessJob,
   enqueueAutomaticAwarenessRecord,
@@ -136,6 +148,7 @@ export class MobileRuntime {
   private readonly awarenessPreferenceStorage: AwarenessPreferenceStorage;
   private readonly awarenessAutomationStorage: AwarenessAutomationStorage;
   private readonly awarenessManualStorage: AwarenessManualStorage;
+  private readonly recordTagStorage: RecordTagStorage;
   private awarenessPolicy = DEFAULT_AUTOMATIC_AWARENESS_POLICY;
   private quietWindowTimer: ReturnType<typeof setTimeout> | null = null;
   private automaticDrainTail: Promise<void> = Promise.resolve();
@@ -148,11 +161,13 @@ export class MobileRuntime {
     awarenessPreferenceStorage: AwarenessPreferenceStorage = NOOP_AWARENESS_PREFERENCE_STORAGE,
     awarenessAutomationStorage: AwarenessAutomationStorage = NOOP_AWARENESS_AUTOMATION_STORAGE,
     awarenessManualStorage: AwarenessManualStorage = NOOP_AWARENESS_MANUAL_STORAGE,
+    recordTagStorage: RecordTagStorage = NOOP_RECORD_TAG_STORAGE,
   ) {
     this.awarenessHistoryStorage = awarenessHistoryStorage;
     this.awarenessPreferenceStorage = awarenessPreferenceStorage;
     this.awarenessAutomationStorage = awarenessAutomationStorage;
     this.awarenessManualStorage = awarenessManualStorage;
+    this.recordTagStorage = recordTagStorage;
   }
 
   /** Restore policy and recover an interrupted job without calling AI. */
@@ -259,6 +274,56 @@ export class MobileRuntime {
     return countUnreadAwarenessItems(await this.awarenessHistory());
   }
 
+  /** Record Tags: user-authored metadata only, never Core inference. */
+  async recordTagState(): Promise<RecordTagState> {
+    return readRecordTagState(this.recordTagStorage);
+  }
+
+  async tagsForRecord(recordId: string): Promise<readonly string[]> {
+    return tagsOfRecord(await readRecordTagState(this.recordTagStorage), recordId);
+  }
+
+  async allTagNames(): Promise<readonly string[]> {
+    return allTagNames(await readRecordTagState(this.recordTagStorage));
+  }
+
+  /** Add (or reuse) a tag on one Record. Empty names are rejected. */
+  async addRecordTag(
+    recordId: string,
+    rawName: string,
+  ): Promise<readonly string[]> {
+    const current = await readRecordTagState(this.recordTagStorage);
+    const next = addTagToRecord(current, recordId, rawName);
+    if (next !== current) {
+      await writeRecordTagState(this.recordTagStorage, next);
+      this.notifyAwarenessChanged();
+    }
+    return tagsOfRecord(next, recordId);
+  }
+
+  /** Detach one tag from one Record. The vocabulary entry is kept for reuse. */
+  async removeRecordTag(
+    recordId: string,
+    name: string,
+  ): Promise<readonly string[]> {
+    const current = await readRecordTagState(this.recordTagStorage);
+    const next = removeTagFromRecord(current, recordId, name);
+    if (next !== current) {
+      await writeRecordTagState(this.recordTagStorage, next);
+      this.notifyAwarenessChanged();
+    }
+    return tagsOfRecord(next, recordId);
+  }
+
+  /** Whether one Record carries a given tag; used by the tag filter. */
+  async recordHasTag(recordId: string, name: string): Promise<boolean> {
+    return recordHasTag(await readRecordTagState(this.recordTagStorage), recordId, name);
+  }
+
+  /** Subscribe to tag / awareness presentation changes. */
+  subscribeRecordTags(listener: () => void): () => void {
+    return this.subscribeAwareness(listener);
+  }
   /** Pending automatic state is exposed for tests and diagnostics, never as Core. */
   async automaticAwarenessState(): Promise<AwarenessAutomationState> {
     return readAwarenessAutomationState(this.awarenessAutomationStorage);
