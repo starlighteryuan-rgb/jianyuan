@@ -141,6 +141,15 @@ const AWARENESS_NO_NEW_CONTENT_MESSAGE = '最近还没有新的内容需要重�
 const canonicalCandidateRecordRefs = (candidate: RelationCandidateView): string =>
   [...candidate.suggestion.recordRefs].sort().join('\u0000');
 
+/** Named storage seams for the Mobile runtime. */
+export interface MobileRuntimeStorageOptions {
+  readonly awarenessHistory?: AwarenessHistoryStorage;
+  readonly awarenessPreference?: AwarenessPreferenceStorage;
+  readonly awarenessAutomation?: AwarenessAutomationStorage;
+  readonly awarenessManual?: AwarenessManualStorage;
+  readonly recordTags?: RecordTagStorage;
+}
+
 export class MobileRuntime {
   private readonly candidates = new RelationCandidateRegistry();
   private readonly insightAudit = new MobileAIInsightAuditLog();
@@ -155,19 +164,27 @@ export class MobileRuntime {
   private automaticDrainRequested = false;
   private readonly awarenessListeners = new Set<() => void>();
 
+  /**
+   * Storage seams are named, not positional.
+   *
+   * They previously were positional arguments, and adding `recordTags` as a
+   * sixth argument silently left production on the no-op store because the
+   * bootstrap call still passed five. Named options make that class of silent
+   * mis-wiring impossible: a missing seam is visibly missing at the call site.
+   */
   constructor(
     readonly composition: MobileComposition,
-    awarenessHistoryStorage: AwarenessHistoryStorage = NOOP_AWARENESS_HISTORY_STORAGE,
-    awarenessPreferenceStorage: AwarenessPreferenceStorage = NOOP_AWARENESS_PREFERENCE_STORAGE,
-    awarenessAutomationStorage: AwarenessAutomationStorage = NOOP_AWARENESS_AUTOMATION_STORAGE,
-    awarenessManualStorage: AwarenessManualStorage = NOOP_AWARENESS_MANUAL_STORAGE,
-    recordTagStorage: RecordTagStorage = NOOP_RECORD_TAG_STORAGE,
+    storage: MobileRuntimeStorageOptions = {},
   ) {
-    this.awarenessHistoryStorage = awarenessHistoryStorage;
-    this.awarenessPreferenceStorage = awarenessPreferenceStorage;
-    this.awarenessAutomationStorage = awarenessAutomationStorage;
-    this.awarenessManualStorage = awarenessManualStorage;
-    this.recordTagStorage = recordTagStorage;
+    this.awarenessHistoryStorage =
+      storage.awarenessHistory ?? NOOP_AWARENESS_HISTORY_STORAGE;
+    this.awarenessPreferenceStorage =
+      storage.awarenessPreference ?? NOOP_AWARENESS_PREFERENCE_STORAGE;
+    this.awarenessAutomationStorage =
+      storage.awarenessAutomation ?? NOOP_AWARENESS_AUTOMATION_STORAGE;
+    this.awarenessManualStorage =
+      storage.awarenessManual ?? NOOP_AWARENESS_MANUAL_STORAGE;
+    this.recordTagStorage = storage.recordTags ?? NOOP_RECORD_TAG_STORAGE;
   }
 
   /** Restore policy and recover an interrupted job without calling AI. */

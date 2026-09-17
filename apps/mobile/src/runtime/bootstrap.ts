@@ -75,13 +75,13 @@ export const bootstrapMobileRuntime = async (
     ai,
   });
 
-  const runtime = new MobileRuntime(
-    composition,
-    createMobileAwarenessHistoryStorage(),
-    createMobileAwarenessPreferenceStorage(),
-    createMobileAwarenessAutomationStorage(),
-    createMobileAwarenessManualStorage(),
-  );
+  const runtime = new MobileRuntime(composition, {
+    awarenessHistory: createMobileAwarenessHistoryStorage(),
+    awarenessPreference: createMobileAwarenessPreferenceStorage(),
+    awarenessAutomation: createMobileAwarenessAutomationStorage(),
+    awarenessManual: createMobileAwarenessManualStorage(),
+    recordTags: createMobileRecordTagStorage(),
+  });
   await runtime.hydrateAwarenessAutomation();
 
   return { runtime, composition };

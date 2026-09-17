@@ -197,11 +197,20 @@ export const AppShell = () => {
           { borderBottomColor: colors.borderSubtle, backgroundColor: colors.canvas },
         ]}
       >
-        <Text testID="app-title" style={[TYPOGRAPHY.title, { color: colors.textPrimary }]}>
-          见渊
-        </Text>
+        {/*
+          Header render mode is driven by ONE boolean, `searchOpen`. Brand and
+          actions are not squeezed or merely faded: they are not rendered at all
+          in search mode, so the expanded field cannot overlap or clip the brand
+          on a small iPhone. This replaces the layout where `见渊` stayed
+          mounted beside a fixed-width field.
+        */}
+        {searchOpen ? null : (
+          <Text testID="app-title" style={[TYPOGRAPHY.title, { color: colors.textPrimary }]}>
+            见渊
+          </Text>
+        )}
 
-        <View style={styles.headerActions}>
+        <View style={[styles.headerActions, searchOpen && styles.headerActionsSearch]}>
           {currentSpace === SETTINGS_SPACE ? null : (
             <LocalSearchControl
               testID="local-search"
@@ -213,13 +222,14 @@ export const AppShell = () => {
               query={searchQuery}
               onChangeQuery={setSearchQuery}
               open={searchOpen}
+              fill={searchOpen}
               onOpenChange={(next) => {
                 setSearchOpen(next);
                 if (!next) setActiveRecordTag(null);
               }}
             />
           )}
-          {currentSpace === 'awareness' ? (
+          {!searchOpen && currentSpace === 'awareness' ? (
             awarenessHistoryOpen ? (
               <Pressable
                 testID="awareness-history-back"
@@ -250,26 +260,28 @@ export const AppShell = () => {
               </Pressable>
             )
           ) : null}
-          <Pressable
-            testID="settings-entry"
-            accessibilityRole="button"
-            accessibilityLabel="设置"
-            onPress={() => {
-              const wasOpen = settingsOpen;
-              setSettingsOpen(!wasOpen);
-              showSpace(wasOpen ? activeSpace : SETTINGS_SPACE, wasOpen ? -1 : 1);
-            }}
-            style={styles.settingsEntry}
-          >
-            <Text
-              style={[
-                TYPOGRAPHY.meta,
-                { color: settingsOpen ? colors.accent : colors.textSecondary },
-              ]}
+          {!searchOpen ? (
+            <Pressable
+              testID="settings-entry"
+              accessibilityRole="button"
+              accessibilityLabel="设置"
+              onPress={() => {
+                const wasOpen = settingsOpen;
+                setSettingsOpen(!wasOpen);
+                showSpace(wasOpen ? activeSpace : SETTINGS_SPACE, wasOpen ? -1 : 1);
+              }}
+              style={styles.settingsEntry}
             >
-              设置
-            </Text>
-          </Pressable>
+              <Text
+                style={[
+                  TYPOGRAPHY.meta,
+                  { color: settingsOpen ? colors.accent : colors.textSecondary },
+                ]}
+              >
+                设置
+              </Text>
+            </Pressable>
+          ) : null}
         </View>
       </View>
 
@@ -371,6 +383,7 @@ const styles = StyleSheet.create({
     gap: SPACING.sm,
     flex: 1,
   },
+  headerActionsSearch: { justifyContent: 'flex-start' },
   body: { flex: 1 },
   tagFilter: { borderBottomWidth: 1, flexGrow: 0 },
   tagFilterContent: { paddingHorizontal: SPACING.lg, paddingVertical: SPACING.sm, gap: SPACING.sm },

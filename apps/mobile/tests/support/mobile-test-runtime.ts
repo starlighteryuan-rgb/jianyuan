@@ -167,14 +167,13 @@ export const openMobileTestRuntime = async (
     ai,
   });
 
-  const runtime = new MobileRuntime(
-    composition,
-    options.awarenessHistoryStorage ?? awarenessHistoryFor(options.location),
-    options.awarenessPreferenceStorage ?? preferenceFor(options.location),
-    options.awarenessAutomationStorage ?? automationFor(options.location),
-    options.awarenessManualStorage ?? manualFor(options.location),
-    options.recordTagStorage ?? recordTagFor(options.location),
-  );
+  const runtime = new MobileRuntime(composition, {
+    awarenessHistory: options.awarenessHistoryStorage ?? awarenessHistoryFor(options.location),
+    awarenessPreference: options.awarenessPreferenceStorage ?? preferenceFor(options.location),
+    awarenessAutomation: options.awarenessAutomationStorage ?? automationFor(options.location),
+    awarenessManual: options.awarenessManualStorage ?? manualFor(options.location),
+    recordTags: options.recordTagStorage ?? recordTagFor(options.location),
+  });
 
   return {
     runtime,

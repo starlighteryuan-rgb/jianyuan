@@ -51,6 +51,7 @@ export const LocalSearchControl = ({
   onChangeQuery,
   open,
   onOpenChange,
+  fill,
 }: {
   readonly testID: string;
   readonly placeholder: string;
@@ -58,6 +59,8 @@ export const LocalSearchControl = ({
   readonly onChangeQuery: (value: string) => void;
   readonly open: boolean;
   readonly onOpenChange: (open: boolean) => void;
+  /** When true the expanded field fills all available header width. */
+  readonly fill?: boolean;
 }) => {
   const { theme } = useTheme();
   const { colors } = theme;
@@ -141,7 +144,7 @@ export const LocalSearchControl = ({
   return (
     <Animated.View
       testID={`${testID}-control`}
-      style={[styles.expandedControl, containerColorStyle]}
+      style={[styles.expandedControl, fill === true && styles.expandedControlFill, containerColorStyle]}
     >
       <TextInput
         testID={`${testID}-input`}
@@ -207,6 +210,7 @@ const styles = StyleSheet.create({
     height: 38,
     paddingHorizontal: SPACING.sm,
   },
+  expandedControlFill: { flex: 1, width: 'auto' },
   input: { flex: 1, minWidth: 80, paddingVertical: SPACING.xs },
   action: { paddingHorizontal: SPACING.sm, paddingVertical: SPACING.xs },
 });

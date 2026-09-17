@@ -286,6 +286,7 @@ export const RecordSpace = ({
                     ]}
                   >
                     <Pressable
+                      testID={`record-toggle-${record.id}`}
                       accessibilityRole="button"
                       accessibilityLabel={open ? '收起记录' : '展开记录'}
                       onPress={() => setOpenRecordId(open ? null : record.id)}
