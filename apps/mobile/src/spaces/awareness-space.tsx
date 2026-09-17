@@ -76,30 +76,36 @@ const AwarenessBubble = ({
   const { colors } = theme;
   const motion = useMotion();
   const entered = useSharedValue(0);
-  const focused = useSharedValue(0);
+  const textIn = useSharedValue(0);
+  const rippleOut = useSharedValue(0);
 
   useEffect(() => {
-    entered.value = withSpring(1, motion.spring(motion.reduceMotion));
-  }, [entered, motion]);
+    entered.value = withTiming(1, motion.timing('bubble', motion.reduceMotion));
+    textIn.value = withTiming(1, motion.timing('textReveal', motion.reduceMotion));
+    rippleOut.value = withTiming(1, motion.timing('ripple', motion.reduceMotion));
+  }, [entered, motion, rippleOut, textIn]);
 
-  const focus = useCallback(() => {
-    focused.value = withSpring(1, motion.spring(motion.reduceMotion));
-  }, [focused, motion]);
+
 
   const bubbleStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(entered.value, [0, 1], [0, 1]),
+    opacity: interpolate(entered.value, [0, 0.55, 1], [0, 0.82, 1]),
     transform: [
-      { scale: interpolate(entered.value + focused.value * 0.25, [0, 1.25], [motion.bubbleScale, 1]) },
+      { scale: interpolate(entered.value, [0, 0.6, 1], [motion.bubbleScale, 1.012, 1]) },
+      { translateY: interpolate(entered.value, [0, 0.6, 1], [10, -2, 0]) },
     ],
+  }));
+
+  const textStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(textIn.value, [0, 0.35, 1], [0, 0, 1]),
+    transform: [{ translateY: interpolate(textIn.value, [0, 1], [5, 0]) }],
   }));
 
   const rippleStyle = useAnimatedStyle(() => ({
     opacity: motion.reduceMotion
       ? 0
-      : interpolate(entered.value, [0, 0.4, 1], [0.16, 0.08, 0]),
-    transform: [{ scale: interpolate(entered.value, [0, 1], [0.94, 1.05]) }],
+      : interpolate(rippleOut.value, [0, 0.18, 0.55, 1], [0, 0.2, 0.1, 0]),
+    transform: [{ scale: interpolate(rippleOut.value, [0, 0.55, 1], [0.92, 1.03, 1.09]) }],
   }));
-
   const unread = item.status === 'pending';
 
   return (
@@ -109,10 +115,7 @@ const AwarenessBubble = ({
         testID={`awareness-bubble-${item.candidateId}`}
         accessibilityRole="button"
         accessibilityLabel="新的觉察"
-        onPress={() => {
-          focus();
-          onOpen(item);
-        }}
+        onPress={() => onOpen(item)}
         style={[
           styles.bubble,
           {
@@ -124,7 +127,9 @@ const AwarenessBubble = ({
         ]}
       >
         <View style={styles.bubbleHead}>
-          <Text style={[TYPOGRAPHY.eyebrow, { color: colors.accent }]}>新的觉察</Text>
+          <Animated.View style={textStyle}>
+            <Text style={[TYPOGRAPHY.eyebrow, { color: colors.accent }]}>新的觉察</Text>
+          </Animated.View>
           {unread ? (
             <View
               testID={`awareness-unread-${item.candidateId}`}
@@ -132,12 +137,14 @@ const AwarenessBubble = ({
             />
           ) : null}
         </View>
-        <Text style={[TYPOGRAPHY.lead, { color: colors.textPrimary, marginTop: SPACING.sm }]}>
-          {item.candidate.observation}
-        </Text>
-        <Text style={[TYPOGRAPHY.meta, { color: colors.textMuted, marginTop: SPACING.sm }]}>
-          {formatCapturedAt(item.createdAt)}
-        </Text>
+        <Animated.View style={textStyle}>
+          <Text style={[TYPOGRAPHY.lead, { color: colors.textPrimary, marginTop: SPACING.sm }]}>
+            {item.candidate.observation}
+          </Text>
+          <Text style={[TYPOGRAPHY.meta, { color: colors.textMuted, marginTop: SPACING.sm }]}>
+            {formatCapturedAt(item.createdAt)}
+          </Text>
+        </Animated.View>
       </AnimatedPressable>
     </View>
   );
@@ -214,13 +221,22 @@ const AwarenessDetail = ({
   const opened = useSharedValue(0);
   const [meaning, setMeaning] = useState<ObservationMeaning | null>(item.meaning);
   const [reflectionText, setReflectionText] = useState(item.reflectionText ?? '');
-  const [submitting, setSubmitting] = useState(false);
+  const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved' | 'settled' | 'error'>(
+    item.status === 'reflected' || item.status === 'dismissed' ? 'settled' : 'idle',
+  );
   const [result, setResult] = useState<CandidateDecisionResult | null>(null);
-  const [saved, setSaved] = useState(item.status === 'reflected');
+  const settlementTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    opened.value = withSpring(1, motion.spring(motion.reduceMotion));
+    opened.value = withTiming(1, motion.timing('normal', motion.reduceMotion));
   }, [motion, opened]);
+
+  useEffect(
+    () => () => {
+      if (settlementTimer.current !== null) clearTimeout(settlementTimer.current);
+    },
+    [],
+  );
 
   const close = () => {
     if (opened.value === 0) return;
@@ -228,30 +244,39 @@ const AwarenessDetail = ({
     onClose();
   };
 
-  const saveSucceeded = (candidate: CandidateDecisionResult): boolean =>
-    candidate.status === 'discovery' || candidate.status === 'reflection_saved';
-
-  const resultSucceeded = result !== null && saveSucceeded(result);
+  const settleAfterSaved = () => {
+    if (settlementTimer.current !== null) clearTimeout(settlementTimer.current);
+    settlementTimer.current = setTimeout(() => {
+      settlementTimer.current = null;
+      setReflectionText('');
+      setSaveState('settled');
+    }, 1_000);
+  };
 
   const submit = async () => {
-    if (meaning === null || submitting) return;
+    if (meaning === null || saveState === 'saving') return;
     if (meaning !== 'not_my_experience' && reflectionText.trim().length === 0) {
       setResult({
         status: 'reflection_required',
         message: '请先写下你的理解；快捷选择本身不会创建关系。',
       });
+      setSaveState('idle');
       return;
     }
-    setSubmitting(true);
+    setSaveState('saving');
     try {
       const next = await onRespond(item, meaning, reflectionText);
       setResult(next);
-      setSaved(saveSucceeded(next));
-    } finally {
-      setSubmitting(false);
+      if (next.status === 'discovery' || next.status === 'reflection_saved') {
+        setSaveState('saved');
+        settleAfterSaved();
+      } else {
+        setSaveState(next.status === 'reflection_required' ? 'idle' : 'error');
+      }
+    } catch {
+      setSaveState('error');
     }
   };
-
   const detailStyle = useAnimatedStyle(() => ({
     opacity: interpolate(opened.value, [0, 0.35, 1], [0, 0.45, 1]),
     transform: [
@@ -365,7 +390,7 @@ const AwarenessDetail = ({
         <Pressable
           testID={`awareness-submit-${item.candidateId}`}
           accessibilityRole="button"
-          disabled={meaning === null || submitting}
+          disabled={meaning === null || saveState === 'saving'}
           onPress={() => void submit()}
           style={[
             styles.secondaryButton,
@@ -377,7 +402,11 @@ const AwarenessDetail = ({
           ]}
         >
           <Text style={[TYPOGRAPHY.lead, { color: colors.textPrimary }]}>
-            {submitting ? '正在保存……' : saved ? '已保存到「理解」' : '确认我的回应'}
+            {saveState === 'saving'
+              ? '正在保存……'
+              : saveState === 'saved'
+                ? '已保存到「理解」'
+                : '确认我的回应'}
           </Text>
         </Pressable>
         <Pressable
@@ -395,7 +424,7 @@ const AwarenessDetail = ({
           testID={`awareness-result-${item.candidateId}`}
           style={[
             TYPOGRAPHY.meta,
-            { color: resultSucceeded ? colors.success : colors.textSecondary, marginTop: SPACING.sm },
+            { color: saveState === 'saved' ? colors.success : colors.textSecondary, marginTop: SPACING.sm },
           ]}
         >
           {result.message}
@@ -546,6 +575,17 @@ export const AwarenessSpace = ({ searchQuery = '' }: { readonly searchQuery?: st
             <AwarenessDetail item={openItem} onClose={closeDetail} onRespond={submit} />
           ) : null}
 
+          <Animated.View
+            testID="awareness-rest"
+            pointerEvents={openItem === null ? 'auto' : 'none'}
+            style={[
+              styles.rest,
+              {
+                opacity: openItem === null ? 1 : 0.35,
+                transform: [{ scale: openItem === null ? 1 : 0.985 }],
+              },
+            ]}
+          >
           {inbox.length === 0 ? (
             <>
               <View testID="awareness-stage" style={styles.stage}>
@@ -612,6 +652,7 @@ export const AwarenessSpace = ({ searchQuery = '' }: { readonly searchQuery?: st
               <AwarenessBubble key={item.candidateId} item={item} onOpen={open} />
             ))
           )}
+          </Animated.View>
         </>
       )}
     </ScrollView>
@@ -684,6 +725,7 @@ export const AwarenessHistoryView = ({ searchQuery = '' }: { readonly searchQuer
 const styles = StyleSheet.create({
   root: { flex: 1 },
   content: { padding: SPACING.lg, gap: SPACING.md, paddingBottom: SPACING.xxl },
+  rest: { gap: SPACING.md },
   stage: {
     minHeight: 220,
     justifyContent: 'center',

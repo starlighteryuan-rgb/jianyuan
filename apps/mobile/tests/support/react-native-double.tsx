@@ -41,6 +41,34 @@ export const ActivityIndicator = primitive('ActivityIndicator');
 export const KeyboardAvoidingView = primitive('KeyboardAvoidingView');
 export const SafeAreaView = primitive('SafeAreaView');
 
+/**
+ * Minimal Keyboard event seam so Search lifecycle tests do not depend on a
+ * native keyboard implementation. Tests emit events explicitly.
+ */
+type KeyboardListener = { remove(): void };
+const keyboardListeners = new Map<string, Set<() => void>>();
+export const Keyboard = {
+  addListener(event: string, listener: () => void): KeyboardListener {
+    const listeners = keyboardListeners.get(event) ?? new Set<() => void>();
+    listeners.add(listener);
+    keyboardListeners.set(event, listeners);
+    return {
+      remove: () => {
+        listeners.delete(listener);
+      },
+    };
+  },
+  dismiss: () => undefined,
+};
+
+export const __emitKeyboardEvent = (event: string): void => {
+  for (const listener of keyboardListeners.get(event) ?? []) listener();
+};
+
+export const __clearKeyboardListeners = (): void => {
+  keyboardListeners.clear();
+};
+
 /** Minimal FlatList: renders data through renderItem, plus the empty state. */
 export const FlatList = (props: {
   readonly data?: readonly unknown[];
@@ -92,5 +120,6 @@ export default {
   TextInput,
   StyleSheet,
   Platform,
+  Keyboard,
   useColorScheme,
 };

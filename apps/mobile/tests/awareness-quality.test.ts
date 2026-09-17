@@ -306,7 +306,10 @@ describe('Mobile Awareness quality and persistence (M2.2)', () => {
     const second = await runtime.runtime.suggestRelations(target);
 
     expect(first.status).toBe('candidates');
-    expect(second.status).toBe('candidates');
+    // M3.1.1: the same source set is not re-checked and does not create a
+    // second card. It reports no new content instead.
+    expect(second.status).toBe('no_new_content');
+    expect(second.candidates).toEqual([]);
     const history = await runtime.runtime.awarenessHistory();
     expect(history).toHaveLength(1);
   });

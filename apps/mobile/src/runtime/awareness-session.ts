@@ -111,6 +111,7 @@ export type RelationSuggestionExperience =
         | 'not_permitted'
         | 'not_enough_context'
         | 'no_candidate'
+        | 'no_new_content'
         | 'unavailable';
       readonly message: string;
       readonly candidates: readonly [];

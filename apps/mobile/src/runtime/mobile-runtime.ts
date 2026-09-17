@@ -57,6 +57,14 @@ import {
   type AwarenessAutomationStorage,
 } from './awareness-automation-store';
 import {
+  NOOP_AWARENESS_MANUAL_STORAGE,
+  awarenessManualSourceSetFingerprint,
+  markAwarenessManualSourceSet,
+  readAwarenessManualState,
+  writeAwarenessManualState,
+  type AwarenessManualStorage,
+} from './awareness-manual-store';
+import {
   DEFAULT_AUTOMATIC_AWARENESS_POLICY,
   NOOP_AWARENESS_PREFERENCE_STORAGE,
   readAutomaticAwarenessPolicy,
@@ -115,6 +123,8 @@ export interface CreateDirectiveInput {
 }
 
 const DEFAULT_AUTOMATIC_AWARENESS_QUIET_WINDOW_MS = 8_000;
+const MANUAL_AWARENESS_SOURCE_SET_LIMIT = 5;
+const AWARENESS_NO_NEW_CONTENT_MESSAGE = '最近还没有新的内容需要重新觉察。';
 
 const canonicalCandidateRecordRefs = (candidate: RelationCandidateView): string =>
   [...candidate.suggestion.recordRefs].sort().join('\u0000');
@@ -125,6 +135,7 @@ export class MobileRuntime {
   private readonly awarenessHistoryStorage: AwarenessHistoryStorage;
   private readonly awarenessPreferenceStorage: AwarenessPreferenceStorage;
   private readonly awarenessAutomationStorage: AwarenessAutomationStorage;
+  private readonly awarenessManualStorage: AwarenessManualStorage;
   private awarenessPolicy = DEFAULT_AUTOMATIC_AWARENESS_POLICY;
   private quietWindowTimer: ReturnType<typeof setTimeout> | null = null;
   private automaticDrainTail: Promise<void> = Promise.resolve();
@@ -136,10 +147,12 @@ export class MobileRuntime {
     awarenessHistoryStorage: AwarenessHistoryStorage = NOOP_AWARENESS_HISTORY_STORAGE,
     awarenessPreferenceStorage: AwarenessPreferenceStorage = NOOP_AWARENESS_PREFERENCE_STORAGE,
     awarenessAutomationStorage: AwarenessAutomationStorage = NOOP_AWARENESS_AUTOMATION_STORAGE,
+    awarenessManualStorage: AwarenessManualStorage = NOOP_AWARENESS_MANUAL_STORAGE,
   ) {
     this.awarenessHistoryStorage = awarenessHistoryStorage;
     this.awarenessPreferenceStorage = awarenessPreferenceStorage;
     this.awarenessAutomationStorage = awarenessAutomationStorage;
+    this.awarenessManualStorage = awarenessManualStorage;
   }
 
   /** Restore policy and recover an interrupted job without calling AI. */
@@ -249,6 +262,18 @@ export class MobileRuntime {
   /** Pending automatic state is exposed for tests and diagnostics, never as Core. */
   async automaticAwarenessState(): Promise<AwarenessAutomationState> {
     return readAwarenessAutomationState(this.awarenessAutomationStorage);
+  }
+
+  /** Manual coverage state; operational only, never a Core fact. */
+  async manualAwarenessState() {
+    return readAwarenessManualState(this.awarenessManualStorage);
+  }
+
+  private async markManualAwarenessCovered(recordIds: readonly string[]): Promise<void> {
+    const current = await readAwarenessManualState(this.awarenessManualStorage);
+    const fingerprint = awarenessManualSourceSetFingerprint(recordIds);
+    const next = markAwarenessManualSourceSet(current, fingerprint);
+    if (next !== current) await writeAwarenessManualState(this.awarenessManualStorage, next);
   }
 
   private cancelAutomaticAwarenessWindow(): void {
@@ -467,19 +492,49 @@ export class MobileRuntime {
    * calls this method, so opening Awareness performs no AI request.
    */
   suggestRelations(currentRecordId: string): Promise<RelationSuggestionExperience> {
-    return suggestRelations(
+    return this.suggestManualRelations(currentRecordId);
+  }
+
+  private async suggestManualRelations(
+    currentRecordId: string,
+  ): Promise<RelationSuggestionExperience> {
+    const recent = await this.listRecent(MANUAL_AWARENESS_SOURCE_SET_LIMIT);
+    const sourceRecordIds = recent.map((record) => record.id);
+    if (
+      sourceRecordIds.length === 0 ||
+      !sourceRecordIds.includes(currentRecordId)
+    ) {
+      return suggestRelations(
+        this.composition,
+        currentRecordId,
+        this.candidates,
+        this.insightAudit,
+      );
+    }
+
+    const manual = await readAwarenessManualState(this.awarenessManualStorage);
+    const fingerprint = awarenessManualSourceSetFingerprint(sourceRecordIds);
+    if (manual.coveredSourceSets.includes(fingerprint)) {
+      return {
+        status: 'no_new_content',
+        message: AWARENESS_NO_NEW_CONTENT_MESSAGE,
+        candidates: [],
+      };
+    }
+
+    const experience = await suggestRelations(
       this.composition,
       currentRecordId,
       this.candidates,
       this.insightAudit,
-    ).then(async (experience) => {
-      if (experience.status !== 'candidates') return experience;
+      { batchRecordIds: sourceRecordIds },
+    );
+
+    if (experience.status === 'candidates') {
       const current = await this.awarenessHistory();
       const now = new Date().toISOString();
       let next = current;
       for (const candidate of experience.candidates) {
-        // Re-requesting one Record replaces its prior pending card rather than
-        // leaving stale duplicates in the durable history.
         const withoutStaleCard = next.filter(
           (item) =>
             !(
@@ -504,10 +559,16 @@ export class MobileRuntime {
       }
       await writeAwarenessHistory(this.awarenessHistoryStorage, next);
       this.notifyAwarenessChanged();
-      return experience;
-    });
+    }
+    if (
+      experience.status === 'candidates' ||
+      experience.status === 'no_candidate' ||
+      experience.status === 'not_enough_context'
+    ) {
+      await this.markManualAwarenessCovered(sourceRecordIds);
+    }
+    return experience;
   }
-
   /** Respond to one transient Observation. Only free text may reach Core. */
   submitObservationReflection(input: {
     readonly candidateId: string;

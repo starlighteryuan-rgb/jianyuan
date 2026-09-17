@@ -32,6 +32,7 @@ import { MobileAIService } from './mobile-ai-service';
 import { createMobileAIConfigStorage } from './ai-config-storage';
 import {
   createMobileAwarenessAutomationStorage,
+  createMobileAwarenessManualStorage,
   createMobileAwarenessPreferenceStorage,
 } from './awareness-automation-storage';
 import { createMobileAwarenessHistoryStorage } from './awareness-history-storage';
@@ -78,6 +79,7 @@ export const bootstrapMobileRuntime = async (
     createMobileAwarenessHistoryStorage(),
     createMobileAwarenessPreferenceStorage(),
     createMobileAwarenessAutomationStorage(),
+    createMobileAwarenessManualStorage(),
   );
   await runtime.hydrateAwarenessAutomation();
 

@@ -13,6 +13,9 @@ export const MOTION_DURATION = {
   fast: 150,
   normal: 240,
   slow: 380,
+  bubble: 520,
+  ripple: 820,
+  textReveal: 420,
 } as const;
 
 export type MotionDuration = keyof typeof MOTION_DURATION;

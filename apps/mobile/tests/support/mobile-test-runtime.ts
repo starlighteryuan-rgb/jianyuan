@@ -17,6 +17,7 @@ import type { AIConfigStorage } from '../../src/runtime/ai-config-store';
 import type { AwarenessHistoryStorage } from '../../src/runtime/awareness-history-store';
 import type { AwarenessAutomationStorage } from '../../src/runtime/awareness-automation-store';
 import type { AwarenessPreferenceStorage } from '../../src/runtime/awareness-preference-store';
+import type { AwarenessManualStorage } from '../../src/runtime/awareness-manual-store';
 
 /**
  * In-memory, per-runtime AI config store for tests. Kept separate from the
@@ -43,6 +44,7 @@ export const createTestAIConfigStorage = (): AIConfigStorage => {
 const testAwarenessHistoryByLocation = new Map<string, AwarenessHistoryStorage>();
 const testAwarenessPreferenceByLocation = new Map<string, AwarenessPreferenceStorage>();
 const testAwarenessAutomationByLocation = new Map<string, AwarenessAutomationStorage>();
+const testAwarenessManualByLocation = new Map<string, AwarenessManualStorage>();
 
 const createTestKeyValueStorage = (): AwarenessPreferenceStorage => {
   const values = new Map<string, string>();
@@ -82,6 +84,15 @@ export const createTestAwarenessHistoryStorage = (): AwarenessHistoryStorage => 
   };
 };
 
+const manualFor = (location: string): AwarenessManualStorage => {
+  if (location === ':memory:') return createTestKeyValueStorage();
+  const existing = testAwarenessManualByLocation.get(location);
+  if (existing !== undefined) return existing;
+  const created = createTestKeyValueStorage();
+  testAwarenessManualByLocation.set(location, created);
+  return created;
+};
+
 const awarenessHistoryFor = (location: string): AwarenessHistoryStorage => {
   if (location === ':memory:') return createTestAwarenessHistoryStorage();
   const existing = testAwarenessHistoryByLocation.get(location);
@@ -119,6 +130,8 @@ export interface OpenMobileRuntimeOptions {
   readonly awarenessPreferenceStorage?: AwarenessPreferenceStorage;
   /** Optional automatic job persistence. */
   readonly awarenessAutomationStorage?: AwarenessAutomationStorage;
+  /** Optional manual Awareness coverage persistence. */
+  readonly awarenessManualStorage?: AwarenessManualStorage;
 }
 
 export const openMobileTestRuntime = async (
@@ -146,6 +159,7 @@ export const openMobileTestRuntime = async (
     options.awarenessHistoryStorage ?? awarenessHistoryFor(options.location),
     options.awarenessPreferenceStorage ?? preferenceFor(options.location),
     options.awarenessAutomationStorage ?? automationFor(options.location),
+    options.awarenessManualStorage ?? manualFor(options.location),
   );
 
   return {

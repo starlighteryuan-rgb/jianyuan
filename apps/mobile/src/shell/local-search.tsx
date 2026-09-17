@@ -11,6 +11,7 @@
 
 import { useEffect, useMemo, useRef } from 'react';
 import {
+  Keyboard,
   Pressable,
   StyleSheet,
   Text,
@@ -46,8 +47,10 @@ export const LocalSearchControl = ({
 }) => {
   const { theme } = useTheme();
   const { colors } = theme;
- const motion = useMotion();
- const inputRef = useRef<TextInput | null>(null);
+  const motion = useMotion();
+  const inputRef = useRef<TextInput | null>(null);
+  const focusedRef = useRef(false);
+  const queryRef = useRef(query);
   const progress = useSharedValue(open ? 1 : 0);
 
   useEffect(() => {
@@ -58,6 +61,37 @@ export const LocalSearchControl = ({
     if (!open) return;
     inputRef.current?.focus();
   }, [open]);
+
+  // iOS can hide the keyboard without delivering a reliable TextInput blur.
+  // Keyboard events are the authoritative signal; focus/query refs keep the
+  // decision out of stale closures.
+  useEffect(() => {
+    queryRef.current = query;
+  }, [query]);
+
+  useEffect(() => {
+    if (!open) return;
+    const collapseIfEmpty = () => {
+      // Keyboard absence plus an empty query is the invalid state the spec
+      // calls out. Do not gate this on TextInput focus: iOS may keep the
+      // input focused after the keyboard is dismissed.
+      if (queryRef.current.trim().length === 0) {
+        onOpenChange(false);
+      }
+    };
+    const show = Keyboard.addListener('keyboardWillShow', () => {
+      focusedRef.current = true;
+      keyboardVisibleRef.current = true;
+    });
+    const hide = Keyboard.addListener('keyboardDidHide', () => {
+      keyboardVisibleRef.current = false;
+      collapseIfEmpty();
+    });
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, [onOpenChange, open]);
 
   const containerStyle = useAnimatedStyle(() => ({
     borderRadius: interpolate(progress.value, [0, 1], [999, RADIUS.md]),
@@ -74,6 +108,16 @@ export const LocalSearchControl = ({
     opacity: interpolate(progress.value, [0, 0.45, 1], [0, 0, 1]),
     transform: [{ translateX: interpolate(progress.value, [0, 1], [10, 0]) }],
   }));
+
+  const keyboardVisibleRef = useRef(false);
+
+  const handleQueryChange = (value: string) => {
+    queryRef.current = value;
+    onChangeQuery(value);
+    if (value.trim().length === 0 && !keyboardVisibleRef.current) {
+      onOpenChange(false);
+    }
+  };
 
   const containerColorStyle = useMemo(
     () => ({
@@ -120,11 +164,17 @@ export const LocalSearchControl = ({
           testID={`${testID}-input`}
           ref={inputRef}
           value={query}
-          onChangeText={onChangeQuery}
+          onChangeText={handleQueryChange}
+          onFocus={() => {
+            focusedRef.current = true;
+          }}
+          onEndEditing={() => {
+            focusedRef.current = false;
+            if (queryRef.current.trim().length === 0) onOpenChange(false);
+          }}
           onBlur={() => {
-            // A dismissed keyboard releases focus. An empty query has nothing to
-            // show, so collapse instead of leaving a blank field on screen.
-            if (query.trim().length === 0) onOpenChange(false);
+            focusedRef.current = false;
+            if (queryRef.current.trim().length === 0) onOpenChange(false);
           }}
           autoFocus
           placeholder={placeholder}
