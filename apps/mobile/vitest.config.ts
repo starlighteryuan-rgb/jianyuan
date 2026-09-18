@@ -34,6 +34,9 @@ export default defineConfig({
       'react-native-reanimated': fileURLToPath(
         new URL('./tests/support/reanimated-double.ts', import.meta.url),
       ),
+      'react-native-gesture-handler': fileURLToPath(
+        new URL('./tests/support/gesture-handler-double.tsx', import.meta.url),
+      ),
     },
   },
 });

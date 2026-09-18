@@ -1,42 +1,32 @@
-/**
- * Shared swipe-to-delete interaction for Mobile list items.
- *
- * Direction AB reference:
- * - one quiet destructive affordance, revealed only by a left swipe;
- * - no modal flow and no permanent toolbar;
- * - the row itself carries the action, so each space keeps its own hierarchy.
- *
- * The component owns only gesture + confirmation presentation. It never mutates
- * storage; callers pass the domain-safe delete action and decide what deletion
- * means for that object.
- */
-
-import { useMemo, useRef } from 'react';
-import {
-  Animated,
-  PanResponder,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { type ReactNode } from 'react';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { GestureDetector, Gesture } from 'react-native-gesture-handler';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+} from 'react-native-reanimated';
 
 import { RADIUS, SPACING, TYPOGRAPHY } from '../theme/tokens';
 import { useTheme } from '../theme/theme-context';
 import {
   clampSwipeTranslation,
-  shouldRevealAfterSwipe,
   SWIPE_ACTION_WIDTH,
 } from './swipe-delete-physics';
 
-const SWIPE_SETTLE_SPRING = {
-  stiffness: 310,
+const OPEN_SPRING = {
+  damping: 30,
+  mass: 0.8,
+  stiffness: 260,
+  overshootClamping: true,
+};
+
+const CLOSE_SPRING = {
   damping: 34,
   mass: 0.82,
+  stiffness: 300,
   overshootClamping: true,
-  restDisplacementThreshold: 0.5,
-  restSpeedThreshold: 0.5,
-} as const;
+};
 
 export const SwipeToDelete = ({
   children,
@@ -44,58 +34,56 @@ export const SwipeToDelete = ({
   testID,
   deleteLabel = '删除',
 }: {
-  readonly children: React.ReactNode;
+  readonly children: ReactNode;
   readonly onDelete: () => void | Promise<void>;
   readonly testID: string;
   readonly deleteLabel?: string;
 }) => {
   const { theme } = useTheme();
   const { colors } = theme;
-  const translateX = useRef(new Animated.Value(0)).current;
-  const open = useRef(false);
+  const translateX = useSharedValue(0);
+  const startX = useSharedValue(0);
+  const isOpen = useSharedValue(false);
+
 
   const close = () => {
-    open.current = false;
-    Animated.spring(translateX, {
-      toValue: 0,
-      velocity: 0,
-      useNativeDriver: true,
-      ...SWIPE_SETTLE_SPRING,
-    }).start();
+    'worklet';
+    isOpen.value = false;
+    translateX.value = withSpring(0, CLOSE_SPRING);
   };
 
   const reveal = () => {
-    open.current = true;
-    Animated.spring(translateX, {
-      toValue: -SWIPE_ACTION_WIDTH,
-      velocity: 0,
-      useNativeDriver: true,
-      ...SWIPE_SETTLE_SPRING,
-    }).start();
+    'worklet';
+    isOpen.value = true;
+    translateX.value = withSpring(-SWIPE_ACTION_WIDTH, OPEN_SPRING);
   };
 
-  const responder = useMemo(
-    () =>
-      PanResponder.create({
-        onMoveShouldSetPanResponder: (_event, gesture) =>
-          Math.abs(gesture.dx) > 8 && Math.abs(gesture.dx) > Math.abs(gesture.dy),
-        onPanResponderMove: (_event, gesture) => {
-          const start = open.current ? -SWIPE_ACTION_WIDTH : 0;
-          const next = clampSwipeTranslation(start + gesture.dx);
-          translateX.setValue(next);
-        },
-        onPanResponderRelease: (_event, gesture) => {
-          const start = open.current ? -SWIPE_ACTION_WIDTH : 0;
-          if (shouldRevealAfterSwipe({ start, dx: gesture.dx, velocityX: gesture.vx })) {
-            reveal();
-          } else {
-            close();
-          }
-        },
-        onPanResponderTerminate: close,
-      }),
-    [translateX],
-  );
+  const panGesture = Gesture.Pan()
+    .activeOffsetX([-8, 8])
+    .failOffsetY([-12, 12])
+    .onBegin(() => {
+      startX.value = translateX.value;
+    })
+    .onUpdate((event) => {
+      translateX.value = clampSwipeTranslation(startX.value + event.translationX);
+    })
+    .onEnd((event) => {
+      const current = clampSwipeTranslation(startX.value + event.translationX);
+      const revealed = Math.abs(current);
+      const shouldReveal =
+        event.velocityX <= -350 ||
+        (event.velocityX < 350 && revealed >= SWIPE_ACTION_WIDTH * 0.46);
+
+      if (shouldReveal) {
+        reveal();
+      } else {
+        close();
+      }
+    });
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: translateX.value }],
+  }));
 
   return (
     <View testID={testID} style={styles.shell}>
@@ -113,18 +101,17 @@ export const SwipeToDelete = ({
           <Text style={[TYPOGRAPHY.action, { color: colors.onAccent }]}>{deleteLabel}</Text>
         </Pressable>
       </View>
-      <Animated.View
-        {...responder.panHandlers}
-        style={[
-          styles.content,
-          {
-            backgroundColor: colors.canvas,
-            transform: [{ translateX }],
-          },
-        ]}
-      >
-        {children}
-      </Animated.View>
+      <GestureDetector gesture={panGesture}>
+        <Animated.View
+          style={[
+            styles.content,
+            { backgroundColor: colors.canvas },
+            animatedStyle,
+          ]}
+        >
+          {children}
+        </Animated.View>
+      </GestureDetector>
     </View>
   );
 };

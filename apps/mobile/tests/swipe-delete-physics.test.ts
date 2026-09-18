@@ -27,9 +27,9 @@ describe('Swipe delete physics', () => {
   });
 
   it('lets a clear left flick open and a clear right flick close', () => {
-    expect(shouldRevealAfterSwipe({ start: 0, dx: -18, velocityX: -0.8 })).toBe(true);
+    expect(shouldRevealAfterSwipe({ start: 0, dx: -18, velocityX: -800 })).toBe(true);
     expect(
-      shouldRevealAfterSwipe({ start: -SWIPE_ACTION_WIDTH, dx: 18, velocityX: 0.8 }),
+      shouldRevealAfterSwipe({ start: -SWIPE_ACTION_WIDTH, dx: 18, velocityX: 800 }),
     ).toBe(false);
   });
 

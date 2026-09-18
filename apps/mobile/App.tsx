@@ -12,6 +12,7 @@
  */
 
 import { useEffect, useState, type ReactNode } from 'react';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { ActivityIndicator, SafeAreaView, StyleSheet, Text, View } from 'react-native';
 
 import { bootstrapMobileRuntime } from './src/runtime/bootstrap';
@@ -72,11 +73,13 @@ export default function App() {
   }
 
   return (
-    <ThemeProvider storage={MOBILE_THEME_STORAGE}>
-      <RuntimeProvider runtime={runtime}>
-        <AppShell />
-      </RuntimeProvider>
-    </ThemeProvider>
+    <GestureHandlerRootView style={styles.root}>
+      <ThemeProvider storage={MOBILE_THEME_STORAGE}>
+        <RuntimeProvider runtime={runtime}>
+          <AppShell />
+        </RuntimeProvider>
+      </ThemeProvider>
+    </GestureHandlerRootView>
   );
 }
 

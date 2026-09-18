@@ -7,8 +7,8 @@
 
 export const SWIPE_ACTION_WIDTH = 92;
 export const SWIPE_REVEAL_THRESHOLD = SWIPE_ACTION_WIDTH * 0.46;
-export const SWIPE_OPEN_VELOCITY = 0.35;
-export const SWIPE_CLOSE_VELOCITY = 0.35;
+export const SWIPE_OPEN_VELOCITY = 350;
+export const SWIPE_CLOSE_VELOCITY = 350;
 
 export type SwipeRelease = {
   readonly start: number;
