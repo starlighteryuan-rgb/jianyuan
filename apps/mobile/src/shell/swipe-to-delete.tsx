@@ -9,10 +9,7 @@ import Animated, {
 
 import { RADIUS, SPACING, TYPOGRAPHY } from '../theme/tokens';
 import { useTheme } from '../theme/theme-context';
-import {
-  clampSwipeTranslation,
-  SWIPE_ACTION_WIDTH,
-} from './swipe-delete-physics';
+import { SWIPE_ACTION_WIDTH } from './swipe-delete-physics';
 
 const OPEN_SPRING = {
   damping: 30,
@@ -47,13 +44,11 @@ export const SwipeToDelete = ({
 
 
   const close = () => {
-    'worklet';
     isOpen.value = false;
     translateX.value = withSpring(0, CLOSE_SPRING);
   };
 
   const reveal = () => {
-    'worklet';
     isOpen.value = true;
     translateX.value = withSpring(-SWIPE_ACTION_WIDTH, OPEN_SPRING);
   };
@@ -65,19 +60,27 @@ export const SwipeToDelete = ({
       startX.value = translateX.value;
     })
     .onUpdate((event) => {
-      translateX.value = clampSwipeTranslation(startX.value + event.translationX);
+      translateX.value = Math.max(
+        -SWIPE_ACTION_WIDTH,
+        Math.min(0, startX.value + event.translationX),
+      );
     })
     .onEnd((event) => {
-      const current = clampSwipeTranslation(startX.value + event.translationX);
+      const current = Math.max(
+        -SWIPE_ACTION_WIDTH,
+        Math.min(0, startX.value + event.translationX),
+      );
       const revealed = Math.abs(current);
       const shouldReveal =
         event.velocityX <= -350 ||
         (event.velocityX < 350 && revealed >= SWIPE_ACTION_WIDTH * 0.46);
 
       if (shouldReveal) {
-        reveal();
+        isOpen.value = true;
+        translateX.value = withSpring(-SWIPE_ACTION_WIDTH, OPEN_SPRING);
       } else {
-        close();
+        isOpen.value = false;
+        translateX.value = withSpring(0, CLOSE_SPRING);
       }
     });
 

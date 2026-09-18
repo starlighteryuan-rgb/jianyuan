@@ -53,22 +53,26 @@ export default function App() {
 
   if (failure !== null) {
     return (
-      <Centered>
-        <Text testID="startup-failure" style={[TYPOGRAPHY.title, { color: DARK_COLORS.danger }]}>
-          数据库无法打开
-        </Text>
-        <Text style={[TYPOGRAPHY.meta, { color: LIGHT_COLORS.textMuted, marginTop: SPACING.sm }]}>
-          {failure}
-        </Text>
-      </Centered>
+      <GestureHandlerRootView style={styles.root}>
+        <Centered>
+          <Text testID="startup-failure" style={[TYPOGRAPHY.title, { color: DARK_COLORS.danger }]}>
+            数据库无法打开
+          </Text>
+          <Text style={[TYPOGRAPHY.meta, { color: LIGHT_COLORS.textMuted, marginTop: SPACING.sm }]}>
+            {failure}
+          </Text>
+        </Centered>
+      </GestureHandlerRootView>
     );
   }
 
   if (runtime === null) {
     return (
-      <Centered>
-        <ActivityIndicator testID="startup-loading" color={LIGHT_COLORS.accent} />
-      </Centered>
+      <GestureHandlerRootView style={styles.root}>
+        <Centered>
+          <ActivityIndicator testID="startup-loading" color={LIGHT_COLORS.accent} />
+        </Centered>
+      </GestureHandlerRootView>
     );
   }
 
